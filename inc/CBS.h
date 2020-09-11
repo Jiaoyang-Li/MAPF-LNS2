@@ -81,7 +81,7 @@ public:
 
 	CBS(const Instance& instance, bool sipp, int screen);
     CBS(vector<SingleAgentSolver*>& search_engines,
-        const ConstraintTable& global_constraint,
+        const PathTable& path_atble,
         int screen);
 	CBS(vector<SingleAgentSolver*>& search_engines,
 		const vector<ConstraintTable>& constraints,

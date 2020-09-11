@@ -1451,9 +1451,10 @@ CBS::CBS(vector<SingleAgentSolver*>& search_engines,
 	mutex_helper.search_engines = search_engines;
 }
 
-CBS::CBS(vector<SingleAgentSolver*>& search_engines, const ConstraintTable& global_constraint, int screen) :
+CBS::CBS(vector<SingleAgentSolver*>& search_engines, const PathTable& path_table, int screen) :
     screen(screen), suboptimality(1),
-    initial_constraints(search_engines.size(), global_constraint),
+    initial_constraints(search_engines.size(), ConstraintTable(path_table,
+            search_engines[0]->instance.num_of_cols, search_engines[0]->instance.map_size)),
     search_engines(search_engines),
     mdd_helper(initial_constraints, search_engines),
     rectangle_helper(search_engines[0]->instance),
@@ -1479,8 +1480,10 @@ CBS::CBS(const Instance& instance, bool sipp, int screen) :
 	heuristic_helper(instance.getDefaultNumberOfAgents(), paths, search_engines, initial_constraints, mdd_helper)
 {
 	clock_t t = clock();
-	initial_constraints.resize(num_of_agents, 
-		ConstraintTable(instance.num_of_cols, instance.map_size));
+	PathTable path_table(instance.map_size);
+    initial_constraints.reserve(num_of_agents);
+    for (int i = 0; i < num_of_agents; i++)
+	    initial_constraints.emplace_back(path_table, instance.num_of_cols, instance.map_size);
 
 	search_engines.resize(num_of_agents);
 	for (int i = 0; i < num_of_agents; i++)

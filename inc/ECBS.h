@@ -8,9 +8,8 @@ class ECBS : public CBS
 public:
 	ECBS(const Instance& instance, bool sipp, int screen) : CBS(instance, sipp, screen) {}
     ECBS(vector<SingleAgentSolver*>& search_engines,
-         const ConstraintTable& global_constraint,
-         int screen) :
-         CBS(search_engines, global_constraint, screen) {}
+         const PathTable& path_table,
+         int screen) : CBS(search_engines, path_table, screen) {}
 	// ECBSNode* dummy_start = nullptr;
 	// ECBSNode* goal_node = nullptr;
 

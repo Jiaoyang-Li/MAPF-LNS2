@@ -35,7 +35,7 @@ pair<Path, int> SpaceTimeAStar::findSuboptimalPath(const HLNode& node, const Con
 
 	// build constraint table
 	auto t = clock();
-	constraint_table.init(initial_constraints);
+    ConstraintTable constraint_table(initial_constraints);
 	constraint_table.build(node, agent);
 	runtime_build_CT = (double)(clock() - t) / CLOCKS_PER_SEC;
 	if (constraint_table.constrained(start_location, 0))
@@ -161,7 +161,6 @@ pair<Path, int> SpaceTimeAStar::findSuboptimalPath(const HLNode& node, const Con
 	}  // end while loop
 
 	releaseNodes();
-	constraint_table.clear();
 	return {path, min_f_val};
 }
 

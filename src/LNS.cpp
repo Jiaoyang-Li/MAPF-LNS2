@@ -19,9 +19,8 @@ bool LNS::runEECBS(double _time_limit)
     {
         search_engines.push_back(&agents[i].path_planner);
     }
-    ConstraintTable gloabal_constraint(instance.num_of_cols, instance.map_size);
 
-    ECBS ecbs(search_engines, gloabal_constraint, screen - 1);
+    ECBS ecbs(search_engines, path_table, screen - 1);
     ecbs.setPrioritizeConflicts(true);
     ecbs.setDisjointSplitting(false);
     ecbs.setBypass(true);

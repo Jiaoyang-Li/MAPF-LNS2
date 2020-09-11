@@ -4,15 +4,16 @@
 
 typedef tuple<size_t, size_t, size_t> Interval; // [t_min, t_max), num_of_collisions
 
-//TODO:: merge ReservationTable with ConstraintTable
+//TODO:: ReservationTable does not consider path table
 class ReservationTable: public ConstraintTable
 {
 public:
     double runtime;
 
-	ReservationTable() = default;
-	ReservationTable(size_t num_col, size_t map_size, int goal_location = -1): ConstraintTable(num_col, map_size, goal_location) {}
-	ReservationTable(const ConstraintTable& other) {copy(other); }
+	//ReservationTable() = default;
+	ReservationTable(const PathTable& path_table, size_t num_col, size_t map_size, int goal_location = -1) :
+            ConstraintTable(path_table, num_col, map_size, goal_location) {}
+	ReservationTable(const ConstraintTable& other) : ConstraintTable(other.path_table, other.num_col, other.map_size) { copy(other); }
 
 
     list<Interval> get_safe_intervals(size_t location, size_t lower_bound, size_t upper_bound);

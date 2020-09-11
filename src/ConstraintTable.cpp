@@ -72,6 +72,8 @@ bool ConstraintTable::constrained(size_t loc, int t) const
 	assert(loc >= 0);
 	if (loc < map_size)
 	{
+	    if (path_table.constrained(loc, loc, t))
+	        return true;
 		const auto& it = landmarks.find(t);
 		if (it != landmarks.end() && it->second != loc)
 			return true;  // violate the positive vertex constraint
@@ -92,7 +94,7 @@ bool ConstraintTable::constrained(size_t loc, int t) const
 
 bool ConstraintTable::constrained(size_t curr_loc, size_t next_loc, int next_t) const
 {
-    return constrained(getEdgeIndex(curr_loc, next_loc), next_t);
+    return path_table.constrained(curr_loc, next_loc, next_t) || constrained(getEdgeIndex(curr_loc, next_loc), next_t);
 }
 
 void ConstraintTable::copy(const ConstraintTable& other)
@@ -244,7 +246,7 @@ int ConstraintTable::getNumOfConflictsForStep(size_t curr_id, size_t next_id, in
 // return the earliest timestep that the agent can hold its goal location
 int ConstraintTable::getHoldingTime() const
 {
-	int rst = length_min;
+	int rst = max(length_min, (int) path_table.table[goal_location].size());
 	auto it = ct.find(goal_location);
 	if (it != ct.end())
 	{

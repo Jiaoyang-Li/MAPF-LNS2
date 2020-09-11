@@ -11,7 +11,7 @@ typedef std::chrono::duration<float> fsec;
 struct Agent
 {
     int id;
-    SpaceTimeAStar path_planner;
+    SpaceTimeAStar path_planner; // start, goal, and heuristics are stored in the path planner
     Path path;
 
     Agent(const Instance& instance, int id):
@@ -35,7 +35,7 @@ public:
 
     double preprocessing_time = 0;
 
-    LNS(const Instance& instance, int screen): instance(instance), screen(screen)
+    LNS(const Instance& instance, int screen): instance(instance), screen(screen), path_table(instance.map_size)
     {
         start_time = Time::now();
         int N = instance.getDefaultNumberOfAgents();
@@ -53,10 +53,13 @@ public:
     // bool run(double time_limit);
 
 private:
-    const Instance& instance;
+    const Instance& instance; // avoid making copies of this variable as much as possible
     int screen;
     high_resolution_clock::time_point start_time;
     double runtime = 0;
+
+    PathTable path_table; // 1. stores the paths of all agents in a time-space table;
+    // 2. avoid making copies of this variable as much as possible.
 
     //data for neighbors
     list<int> neighbor;
