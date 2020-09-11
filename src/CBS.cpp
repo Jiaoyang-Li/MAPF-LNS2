@@ -1451,6 +1451,24 @@ CBS::CBS(vector<SingleAgentSolver*>& search_engines,
 	mutex_helper.search_engines = search_engines;
 }
 
+CBS::CBS(vector<SingleAgentSolver*>& search_engines, const ConstraintTable& global_constraint, int screen) :
+    screen(screen), suboptimality(1),
+    initial_constraints(search_engines.size(), global_constraint),
+    search_engines(search_engines),
+    mdd_helper(initial_constraints, search_engines),
+    rectangle_helper(search_engines[0]->instance),
+    mutex_helper(search_engines[0]->instance, initial_constraints),
+    corridor_helper(search_engines, initial_constraints),
+    heuristic_helper(search_engines.size(), paths, search_engines, initial_constraints, mdd_helper)
+{
+    num_of_agents = (int) search_engines.size();
+    mutex_helper.search_engines = search_engines;
+    for (int i = 0; i < num_of_agents; i++)
+    {
+        initial_constraints[i].goal_location = search_engines[i]->goal_location;
+    }
+}
+
 CBS::CBS(const Instance& instance, bool sipp, int screen) :
 	screen(screen), suboptimality(1),
 	num_of_agents(instance.getDefaultNumberOfAgents()),

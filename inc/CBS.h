@@ -47,6 +47,7 @@ public:
 
 	bool solution_found = false;
 	int solution_cost = -2;
+	vector<Path*> paths;
 
 	/////////////////////////////////////////////////////////////////////////////////////////
 	// set params
@@ -79,6 +80,9 @@ public:
 	int getLowerBound() const { return cost_lowerbound; }
 
 	CBS(const Instance& instance, bool sipp, int screen);
+    CBS(vector<SingleAgentSolver*>& search_engines,
+        const ConstraintTable& global_constraint,
+        int screen);
 	CBS(vector<SingleAgentSolver*>& search_engines,
 		const vector<ConstraintTable>& constraints,
 		vector<Path>& paths_found_initially, int screen);
@@ -132,7 +136,7 @@ protected:
 	int num_of_agents;
 
 
-	vector<Path*> paths;
+
 	vector<Path> paths_found_initially;  // contain initial paths found
 	// vector<MDD*> mdds_initially;  // contain initial paths found
 	vector < SingleAgentSolver* > search_engines;  // used to find (single) agents' paths and mdd
