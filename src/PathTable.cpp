@@ -1,6 +1,6 @@
 #include "PathTable.h"
 
-bool PathTable::insertPath(int agent_id, const Path& path)
+void PathTable::insertPath(int agent_id, const Path& path)
 {
     for (int t = 0; t < (int)path.size(); t++)
     {
@@ -9,7 +9,7 @@ bool PathTable::insertPath(int agent_id, const Path& path)
         assert(table[path[t].location][t] == NO_AGENT);
         table[path[t].location][t] = agent_id;
     }
-    return true;
+    makespan = max(makespan, (int) path.size() - 1);
 }
 
 void PathTable::deletePath(int agent_id, const Path& path)
@@ -18,6 +18,12 @@ void PathTable::deletePath(int agent_id, const Path& path)
     {
         assert(table[path[t].location].size() > t && table[path[t].location][t] == agent_id);
         table[path[t].location][t] = NO_AGENT;
+    }
+    if (makespan == (int) path.size() - 1) // re-compute makespan
+    {
+        makespan = 0;
+        for (const auto& loc : table)
+            makespan = max(makespan, (int) loc.size() - 1);
     }
 }
 
@@ -32,6 +38,17 @@ bool PathTable::constrained(int from, int to, int to_time) const
         return true;  // edge conflict with agent table[to][to_time - 1]
     else
         return false;
+}
+
+void PathTable::getConflictingAgents(int agent_id, set<int>& conflicting_agents, int from, int to, int to_time) const
+{
+    if (table.empty())
+        return;
+    if (table[to].size() > to_time && table[to][to_time] != NO_AGENT)
+        conflicting_agents.insert(table[to][to_time]); // vertex conflict
+    if (table[to].size() >= to_time && table[from].size() > to_time &&
+        table[to][to_time - 1] != NO_AGENT && table[from][to_time] == table[to][to_time - 1])
+        conflicting_agents.insert(table[from][to_time]); // edge conflict
 }
 
 /*void PathTable::get_agents(set<int>& conflicting_agents, int loc) const
@@ -87,23 +104,6 @@ void PathTable::get_agents(set<int>& conflicting_agents, int groupsize, int loc)
                 return;
         }
         delta++;
-    }
-}
-
-void PathTable::get_conflicting_agents(int agent_id, set<int>& conflicting_agents, int loc, int timestep) const
-{
-    if (loc < 0 || CT_paths[loc].empty())
-        return;
-
-    for (int t = timestep - kRobust; t <= timestep + kRobust; t++)
-    {
-        if (CT_paths[loc][t] >= 0)
-        {
-            if ((agent_id > CT_paths[loc][t] && timestep <= t) || // This agent reaches loc earlier than the second agent with smaller id
-                (agent_id < CT_paths[loc][t] && timestep >= t))   // This agent reaches loc later than the second agent with larger id
-                conflicting_agents.insert(CT_paths[loc][t]);
-        }
-
     }
 }
 */

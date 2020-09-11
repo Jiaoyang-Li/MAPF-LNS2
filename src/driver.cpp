@@ -46,10 +46,9 @@ int main(int argc, char** argv)
 
 	srand(0);
 
-	LNS lns(instance, vm["screen"].as<int>());
-	string MAPF_solver_initial = "EECBS";
-
-    lns.getInitialSolution(MAPF_solver_initial, vm["cutoffTime"].as<double>());
+	LNS lns(instance, vm["cutoffTime"].as<double>(), "EECBS", "PP", "RandomWalk", vm["screen"].as<int>());
+    lns.getInitialSolution();
+    //lns.run();
 	return 0;
 
 }

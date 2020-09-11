@@ -2,11 +2,11 @@
 #include "ECBS.h"
 #include "SpaceTimeAStar.h"
 #include <chrono>
+#include <utility>
 using namespace std::chrono;
 typedef std::chrono::high_resolution_clock Time;
 typedef std::chrono::duration<float> fsec;
-
-#define DEFAULT_GROUP_SIZE 5
+enum destroy_heuristic { RANDOMWALK, INTERSECTION, DESTORY_COUNT };
 
 struct Agent
 {
@@ -14,14 +14,29 @@ struct Agent
     SpaceTimeAStar path_planner; // start, goal, and heuristics are stored in the path planner
     Path path;
 
-    Agent(const Instance& instance, int id):
-        id(id), path_planner(instance, id) {}
+    Agent(const Instance& instance, int id) : id(id), path_planner(instance, id) {}
+
+    int getNumOfDelays() const { return path.size() - 1 - path_planner.my_heuristic[path_planner.start_location]; }
+
 };
+
+
+struct Neighbor
+{
+    vector<int> agents;
+    int sum_of_costs;
+    int old_sum_of_costs;
+    vector<Path> old_paths;
+};
+
 
 struct IterationStats
 {
     int sum_of_costs;
     double runtime;
+    int num_of_agents;
+    IterationStats(int num_of_agents, int sum_of_costs, double runtime) :
+            num_of_agents(num_of_agents), sum_of_costs(sum_of_costs), runtime(runtime) {}
 };
 
 
@@ -31,13 +46,28 @@ class LNS
 public:
     vector<Agent> agents;
     list<IterationStats> iteration_stats; //stats about each iteration
-
-
     double preprocessing_time = 0;
+    double runtime = 0;
+    int initial_sum_of_costs = -1;
+    int sum_of_costs = -1;
 
-    LNS(const Instance& instance, int screen): instance(instance), screen(screen), path_table(instance.map_size)
+    LNS(const Instance& instance, double time_limit, string init_algo_name, string replan_algo_name, string destory_name,
+        int screen): instance(instance), time_limit(time_limit), init_algo_name(std::move(init_algo_name)),
+                     replan_algo_name(replan_algo_name), screen(screen), path_table(instance.map_size)
     {
         start_time = Time::now();
+        if (destory_name == "Adaptive")
+            ALNS = true;
+        else if (destory_name == "RandomWalk")
+            destroy_strategy = RANDOMWALK;
+        else if (destory_name == "Intersection")
+            destroy_strategy = INTERSECTION;
+        else
+        {
+            cerr << "Destroy heuristic " << destory_name << " does not exists. " << endl;
+            exit(-1);
+        }
+
         int N = instance.getDefaultNumberOfAgents();
         agents.reserve(N);
         for (int i = 0; i < N; i++)
@@ -48,23 +78,51 @@ public:
     }
 
 
-    bool getInitialSolution(const string& algorithm_name, double _time_limit);
+    bool getInitialSolution();
 
-    // bool run(double time_limit);
+    bool run();
 
 private:
+    // intput params
     const Instance& instance; // avoid making copies of this variable as much as possible
+    double time_limit;
+    string init_algo_name;
+    string replan_algo_name;
     int screen;
+    destroy_heuristic destroy_strategy = RANDOMWALK;
+
+    int neighbor_size = 5;
+    int num_of_iterations = 10000;
+
     high_resolution_clock::time_point start_time;
-    double runtime = 0;
+
 
     PathTable path_table; // 1. stores the paths of all agents in a time-space table;
     // 2. avoid making copies of this variable as much as possible.
 
-    //data for neighbors
-    list<int> neighbor;
+    Neighbor neighbor;
 
-    bool runEECBS(double _time_limit);
+    boost::unordered_set<int> tabu_list; // used by randomwalk strategy
+
+
+    // adaptive LNS
+    bool ALNS = false;
+    double decay_factor = 0.01;
+    double reaction_factor = 0.1;
+    vector<double> destroy_weights;
+
+    bool runEECBS();
+    bool runPP();
+
+    void updateDestroyHeuristicbyALNS();
+
+    void generateNeighborByRandomWalk(boost::unordered_set<int>& tabu_list);
+    //bool generateNeighborByStart();
+    bool generateNeighborByIntersection();
+    bool generateNeighborByTemporalIntersection();
+
+    void randomWalk(int agent_id, int start_location, int start_timestep,
+                    set<int>& neighbor, int neighbor_size, int upperbound);
 
     /*list<Path> neighbor_paths;
     int neighbor_sum_of_costs = 0;
@@ -77,18 +135,13 @@ private:
     vector<int> intersections;
     unordered_map<int, list<int>> start_locations;  // <start location, corresponding agents>
 
-    // intput params
-    double time_limit = 0;
 
-    int destroy_strategy = 0; // 0: random walk; 1: start; 2: intersection
-    int prirority_ordering_strategy = 0; // 0: random; 1: max regret
-    int replan_strategy = 0; // 0: CBS; 1: prioritized planning
+
+
 
     bool adaptive_destroy = false;
     bool iterative_destroy = false;
-    double decay_factor = 0.01;
-    double reaction_factor = 0.1;
-    vector<double> destroy_heuristics;
+
 
     // Generate initial solutions
     bool runPP();
@@ -96,10 +149,7 @@ private:
     void replanByPP();
     bool replanByCBS();
 
-    void generateNeighborByRandomWalk(boost::unordered_set<int>& tabu_list);
-    bool generateNeighborByStart();
-    bool generateNeighborByIntersection();
-    bool generateNeighborByTemporalIntersection();
+
 
     void sortNeighborsRandomly();
     void sortNeighborsByRegrets();
@@ -111,8 +161,7 @@ private:
     void addAgentPath(int agent, const Path& path);
     void deleteNeighborPaths();
     void quickSort(vector<int>& agent_order, int low, int high, bool regret);
-    void randomWalk(int agent_id, const PathEntry& start, int start_timestep,
-                    set<int>& neighbor, int neighbor_size, int upperbound);
+
 
 
     // bool hasConflicts(const vector<Path>& paths) const;

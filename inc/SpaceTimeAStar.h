@@ -50,6 +50,9 @@ public:
 class SpaceTimeAStar: public SingleAgentSolver
 {
 public:
+    // find path by time-space A* search
+    // Returns a shortest path that does not collide with paths in the path table
+    Path findOptimalPath(const PathTable& path_table);
 	// find path by time-space A* search
 	// Returns a shortest path that satisfies the constraints of the give node  while
 	// minimizing the number of internal conflicts (that is conflicts with known_paths for other agents found so far).

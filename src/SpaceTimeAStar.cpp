@@ -20,6 +20,131 @@ Path SpaceTimeAStar::findOptimalPath(const HLNode& node, const ConstraintTable& 
 	return findSuboptimalPath(node, initial_constraints, paths, agent, lowerbound, 1).first;
 }
 
+// find path by time-space A* search
+// Returns a shortest path that does not collide with paths in the path table
+Path SpaceTimeAStar::findOptimalPath(const PathTable& path_table)
+{
+    Path path;
+    num_expanded = 0;
+    num_generated = 0;
+
+    // build constraint table
+    auto t = clock();
+
+    int holding_time = -1; // the earliest timestep when the agent can hold its goal location.
+    if(!path_table.table.empty())
+    {
+        holding_time = path_table.table[goal_location].size();
+    }
+
+    int lowerbound =  holding_time;
+
+    // generate start and add it to the OPEN & FOCAL list
+    auto start = new AStarNode(start_location, 0,
+            max(lowerbound, my_heuristic[start_location]), nullptr, 0, 0, false);
+
+    num_generated++;
+    start->open_handle = open_list.push(start);
+    start->focal_handle = focal_list.push(start);
+    start->in_openlist = true;
+    allNodes_table.insert(start);
+    min_f_val = (int) start->getFVal();
+    // lower_bound = int(w * min_f_val));
+
+    while (!open_list.empty())
+    {
+        updateFocalList(); // update FOCAL if min f-val increased
+        auto* curr = popNode();
+        assert(curr->location >= 0);
+        // check if the popped node is a goal
+        if (curr->location == goal_location && // arrive at the goal location
+            !curr->wait_at_goal && // not wait at the goal location
+            curr->timestep >= holding_time) // the agent can hold the goal location afterward
+        {
+            updatePath(curr, path);
+            break;
+        }
+
+        auto next_locations = instance.getNeighbors(curr->location);
+        next_locations.emplace_back(curr->location);
+        for (int next_location : next_locations)
+        {
+            int next_timestep = curr->timestep + 1;
+            if (path_table.makespan < next_timestep)
+            { // now everything is static, so switch to space A* where we always use the same timestep
+                if (next_location == curr->location)
+                {
+                    continue;
+                }
+                next_timestep--;
+            }
+
+            if (path_table.constrained(curr->location, next_location, next_timestep))
+                continue;
+
+            // compute cost to next_id via curr node
+            int next_g_val = curr->g_val + 1;
+            int next_h_val = max(lowerbound - next_g_val, my_heuristic[next_location]);
+
+            // generate (maybe temporary) node
+            auto next = new AStarNode(next_location, next_g_val, next_h_val,
+                                      curr, next_timestep, 0, false);
+            if (next_location == goal_location && curr->location == goal_location)
+                next->wait_at_goal = true;
+
+            // try to retrieve it from the hash table
+            auto it = allNodes_table.find(next);
+            if (it == allNodes_table.end())
+            {
+                pushNode(next);
+                allNodes_table.insert(next);
+                continue;
+            }
+            // update existing node's if needed (only in the open_list)
+
+            auto existing_next = *it;
+            if (existing_next->getFVal() > next->getFVal() || // if f-val decreased through this new path
+                (existing_next->getFVal() == next->getFVal() &&
+                 existing_next->num_of_conflicts > next->num_of_conflicts)) // or it remains the same but there's fewer conflicts
+            {
+                if (!existing_next->in_openlist) // if its in the closed list (reopen)
+                {
+                    existing_next->copy(*next);
+                    pushNode(existing_next);
+                }
+                else
+                {
+                    bool add_to_focal = false;  // check if it was above the focal bound before and now below (thus need to be inserted)
+                    bool update_in_focal = false;  // check if it was inside the focal and needs to be updated (because f-val changed)
+                    bool update_open = false;
+                    if ((next_g_val + next_h_val) <= w * min_f_val)
+                    {  // if the new f-val qualify to be in FOCAL
+                        if (existing_next->getFVal() > w * min_f_val)
+                            add_to_focal = true;  // and the previous f-val did not qualify to be in FOCAL then add
+                        else
+                            update_in_focal = true;  // and the previous f-val did qualify to be in FOCAL then update
+                    }
+                    if (existing_next->getFVal() > next_g_val + next_h_val)
+                        update_open = true;
+
+                    existing_next->copy(*next);	// update existing node
+
+                    if (update_open)
+                        open_list.increase(existing_next->open_handle);  // increase because f-val improved
+                    if (add_to_focal)
+                        existing_next->focal_handle = focal_list.push(existing_next);
+                    if (update_in_focal)
+                        focal_list.update(existing_next->focal_handle);  // should we do update? yes, because number of conflicts may go up or down
+                }
+            }
+
+            delete(next);  // not needed anymore -- we already generated it before
+        }  // end for loop that generates successors
+    }  // end while loop
+
+    releaseNodes();
+    return path;
+}
 
 // find path by time-space A* search
 // Returns a bounded-suboptimal path that satisfies the constraints of the give node  while
