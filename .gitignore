@@ -1,0 +1,5 @@
+.idea
+analysis
+bin
+cmake*
+experiments
