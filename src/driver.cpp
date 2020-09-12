@@ -47,8 +47,7 @@ int main(int argc, char** argv)
 	srand(0);
 
 	LNS lns(instance, vm["cutoffTime"].as<double>(), "EECBS", "PP", "RandomWalk", vm["screen"].as<int>());
-    lns.getInitialSolution();
-    //lns.run();
+    lns.run();
 	return 0;
 
 }

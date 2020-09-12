@@ -42,7 +42,8 @@ bool LNS::run()
         neighbor.old_sum_of_costs = 0;
         for (int i = 0; i < (int)neighbor.agents.size(); i++)
         {
-            neighbor.old_paths[i] = agents[neighbor.agents[i]].path;
+            if (replan_algo_name == "PP")
+                neighbor.old_paths[i] = agents[neighbor.agents[i]].path;
             path_table.deletePath(neighbor.agents[i], agents[neighbor.agents[i]].path);
             neighbor.old_sum_of_costs += neighbor.old_paths[i].size() - 1;
         }
@@ -155,16 +156,18 @@ bool LNS::runEECBS()
 
 bool LNS::runPP()
 {
-    std::random_shuffle(neighbor.agents.begin(), neighbor.agents.end());
+    auto shuffled_agents = neighbor.agents;
+    std::random_shuffle(shuffled_agents.begin(), shuffled_agents.end());
     if (screen >= 3) {
-        for (auto id : neighbor.agents)
+        for (auto id : shuffled_agents)
             cout << id << "(" << agents[id].path_planner.my_heuristic[agents[id].path_planner.start_location] <<
                 "->" << agents[id].path.size() - 1 << "), ";
         cout << endl;
     }
-    int remaining_agents = (int)neighbor.agents.size();
-    auto p = neighbor.agents.begin();
-    while (p != neighbor.agents.end())
+    int remaining_agents = (int)shuffled_agents.size();
+    auto p = shuffled_agents.begin();
+    neighbor.sum_of_costs = 0;
+    while (p != shuffled_agents.end())
     {
         int id = *p;
         if (screen >= 3)
@@ -181,17 +184,18 @@ bool LNS::runPP()
         remaining_agents--;
         ++p;
     }
-    if (p == neighbor.agents.end() && neighbor.sum_of_costs < neighbor.old_sum_of_costs) // accept new paths
+    if (p == shuffled_agents.end() && neighbor.sum_of_costs < neighbor.old_sum_of_costs) // accept new paths
     {
         return true;
     }
     else // stick to old paths
     {
-        auto p2 = neighbor.agents.begin();
+        auto p2 = shuffled_agents.begin();
         while (p2 != p)
         {
             int a = *p2;
             path_table.deletePath(agents[a].id, agents[a].path);
+            ++p2;
         }
         p2 = neighbor.agents.begin();
         for (int i = 0; i < (int)neighbor.agents.size(); i++)
@@ -199,7 +203,9 @@ bool LNS::runPP()
             int a = *p2;
             agents[a].path = neighbor.old_paths[i];
             path_table.insertPath(agents[a].id, agents[a].path);
+            ++p2;
         }
+        neighbor.sum_of_costs = neighbor.old_sum_of_costs;
         return false;
     }
 }
