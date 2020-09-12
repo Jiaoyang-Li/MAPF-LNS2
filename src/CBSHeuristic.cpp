@@ -543,7 +543,7 @@ bool CBSHeuristic::buildWeightedDependencyGraph(CBSNode& node, vector<int>& CG)
 		else if (rectangle_reasoning)
 		{
 			auto rst = solve2Agents(a1, a2, node, false);
-			assert(rst.first >= 1);
+			assert(rst.first >= 0);
 			lookupTable[a1][a2][HTableEntry(a1, a2, &node)] = make_tuple(rst.first, rst.second, 1);
 			CG[idx] = rst.first;
 			CG[a2 * num_of_agents + a1] = rst.first;

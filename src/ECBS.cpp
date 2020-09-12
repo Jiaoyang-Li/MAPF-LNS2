@@ -16,7 +16,8 @@ bool ECBS::solve(double time_limit, int _cost_lowerbound)
 	// set timer
 	start = clock();
 
-	generateRoot();
+    if(!generateRoot())
+        return false;
 
 	while (!cleanup_list.empty() && !solution_found)
 	{

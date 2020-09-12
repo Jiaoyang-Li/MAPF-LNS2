@@ -112,6 +112,7 @@ private:
     vector<double> destroy_weights;
 
     bool runEECBS();
+    bool runCBS();
     bool runPP();
 
     void updateDestroyHeuristicbyALNS();

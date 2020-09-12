@@ -35,6 +35,8 @@ Path SpaceTimeAStar::findOptimalPath(const PathTable& path_table)
     if(!path_table.table.empty())
     {
         holding_time = path_table.table[goal_location].size();
+        while (holding_time > 0 && path_table.table[goal_location][holding_time - 1] == NO_AGENT)
+            holding_time--;
     }
 
     int lowerbound =  holding_time;

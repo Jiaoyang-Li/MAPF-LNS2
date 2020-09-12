@@ -1189,7 +1189,8 @@ bool CBS::solve(double _time_limit, int _cost_lowerbound, int _cost_upperbound)
 	// set timer
 	start = clock();
 
-	generateRoot();
+	if(!generateRoot())
+	    return false;
 
 	while (!cleanup_list.empty() && !solution_found)
 	{

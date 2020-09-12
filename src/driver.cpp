@@ -28,6 +28,10 @@ int main(int argc, char** argv)
         ("output,o", po::value<string>(), "output file for schedule")
 		("cutoffTime,t", po::value<double>()->default_value(7200), "cutoff time (seconds)")
 		("screen,s", po::value<int>()->default_value(1), "screen option (0: none; 1: results; 2:all)")
+
+        // params for LNS settings
+        ("initAlgo", po::value<string>()->default_value("EECBS"), "MAPF algorithm for finding the initial solution")
+        ("replanAlgo", po::value<string>()->default_value("CBS"), "MAPF algorithm for replanning")
 		;
 	po::variables_map vm;
 	po::store(po::parse_command_line(argc, argv, desc), vm);
@@ -46,7 +50,12 @@ int main(int argc, char** argv)
 
 	srand(0);
 
-	LNS lns(instance, vm["cutoffTime"].as<double>(), "EECBS", "PP", "RandomWalk", vm["screen"].as<int>());
+	LNS lns(instance,
+	        vm["cutoffTime"].as<double>(),
+	        vm["initAlgo"].as<string>(),
+	        vm["replanAlgo"].as<string>(),
+	        "RandomWalk",
+	        vm["screen"].as<int>());
     lns.run();
 	return 0;
 

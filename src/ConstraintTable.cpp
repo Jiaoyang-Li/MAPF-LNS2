@@ -246,7 +246,15 @@ int ConstraintTable::getNumOfConflictsForStep(size_t curr_id, size_t next_id, in
 // return the earliest timestep that the agent can hold its goal location
 int ConstraintTable::getHoldingTime() const
 {
-	int rst = max(length_min, (int) path_table.table[goal_location].size());
+    int rst = length_min;
+    if (!path_table.table.empty() &&
+        (int) path_table.table[goal_location].size() > length_min)
+    {
+        rst = (int) path_table.table[goal_location].size();
+        while (rst > length_min && path_table.table[goal_location][rst - 1] == NO_AGENT)
+            rst--;
+    }
+
 	auto it = ct.find(goal_location);
 	if (it != ct.end())
 	{

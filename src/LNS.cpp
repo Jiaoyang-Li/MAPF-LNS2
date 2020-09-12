@@ -50,6 +50,8 @@ bool LNS::run()
 
         if (replan_algo_name == "EECBS")
             succ = runEECBS();
+        else if (replan_algo_name == "CBS")
+            succ = runCBS();
         else if (replan_algo_name == "PP")
             succ = runPP();
         else
@@ -153,6 +155,51 @@ bool LNS::runEECBS()
     return succ;
 }
 
+bool LNS::runCBS()
+{
+    vector<SingleAgentSolver*> search_engines;
+    search_engines.reserve(neighbor.agents.size());
+    for (int i : neighbor.agents)
+    {
+        search_engines.push_back(&agents[i].path_planner);
+    }
+
+    CBS cbs(search_engines, path_table, screen - 1);
+    cbs.setPrioritizeConflicts(true);
+    cbs.setDisjointSplitting(false);
+    cbs.setBypass(true);
+    cbs.setRectangleReasoning(true);
+    cbs.setCorridorReasoning(true);
+    cbs.setHeuristicType(heuristics_type::WDG, heuristics_type::ZERO);
+    cbs.setTargetReasoning(true);
+    cbs.setMutexReasoning(false);
+    cbs.setConflictSelectionRule(conflict_selection::EARLIEST);
+    cbs.setNodeSelectionRule(node_selection::NODE_CONFLICTPAIRS);
+    cbs.setSavingStats(false);
+    cbs.setHighLevelSolver(high_level_solver_type::ASTAR, 1);
+    runtime = ((fsec)(Time::now() - start_time)).count();
+    bool succ = cbs.solve(time_limit - runtime, 0);
+    if (succ && cbs.solution_cost < neighbor.old_sum_of_costs) // accept new paths
+    {
+        auto id = neighbor.agents.begin();
+        for (size_t i = 0; i < neighbor.agents.size(); i++)
+        {
+            agents[*id].path = *cbs.paths[i];
+            path_table.insertPath(agents[*id].id, agents[*id].path);
+            ++id;
+        }
+        neighbor.sum_of_costs = cbs.solution_cost;
+    }
+    else // stick to old paths
+    {
+        for (int id : neighbor.agents)
+        {
+            path_table.insertPath(agents[id].id, agents[id].path);
+        }
+        neighbor.sum_of_costs = neighbor.old_sum_of_costs;
+    }
+    return succ;
+}
 
 bool LNS::runPP()
 {
