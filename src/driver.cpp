@@ -19,7 +19,7 @@ int main(int argc, char** argv)
 		("agentNum,k", po::value<int>()->default_value(0), "number of agents")
         ("output,o", po::value<string>(), "output file")
 		("cutoffTime,t", po::value<double>()->default_value(7200), "cutoff time (seconds)")
-		("screen,s", po::value<int>()->default_value(1),
+		("screen,s", po::value<int>()->default_value(0),
 		        "screen option (0: none; 1: LNS results; 2:LNS detailed results; 3: MAPF detailed results)")
 		("stats", po::value<string>(), "output stats file")
 

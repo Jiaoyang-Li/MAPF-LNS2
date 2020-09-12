@@ -33,9 +33,7 @@ void AnytimeBCBS::run()
     CBSNode* best_goal_node = nullptr;
     while(runtime < time_limit && sum_of_costs > sum_of_costs_lowerbound)
     {
-            bcbs.solve(time_limit - runtime, sum_of_costs_lowerbound, sum_of_costs);
-        iteration_stats.emplace_back(instance.getDefaultNumberOfAgents(), bcbs.solution_cost,
-                bcbs.runtime, "BCBS", bcbs.getLowerBound());
+        bcbs.solve(time_limit - runtime, sum_of_costs_lowerbound, sum_of_costs);
         runtime += bcbs.runtime;
         assert(sum_of_costs_lowerbound <= bcbs.getLowerBound());
         sum_of_costs_lowerbound = bcbs.getLowerBound();
@@ -45,10 +43,12 @@ void AnytimeBCBS::run()
             sum_of_costs = bcbs.solution_cost;
             best_goal_node = bcbs.getGoalNode();
         }
+        iteration_stats.emplace_back(instance.getDefaultNumberOfAgents(), sum_of_costs,
+                                     bcbs.runtime, "BCBS", sum_of_costs_lowerbound);
         if (screen >= 1)
             cout << "Iteration " << iteration_stats.size() << ", "
                  << "lower bound = " << sum_of_costs_lowerbound << ", "
-                 << "solution cost = " << bcbs.solution_cost << ", "
+                 << "solution cost = " << sum_of_costs << ", "
                  << "remaining time = " << time_limit - runtime << endl;
     }
     if (best_goal_node == nullptr)
@@ -61,6 +61,11 @@ void AnytimeBCBS::run()
             solution[i] = *bcbs.paths[i];
     }
     bcbs.clearSearchEngines();
+    cout << getSolverName() << ": Iterations = " << iteration_stats.size() << ", "
+         << "lower bound = " << sum_of_costs_lowerbound << ", "
+         << "solution cost = " << sum_of_costs << ", "
+         << "initial solution cost = " << iteration_stats.front().sum_of_costs << ", "
+         << "runtime = " << runtime << endl;
 }
 
 

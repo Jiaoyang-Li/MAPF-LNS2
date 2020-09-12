@@ -113,6 +113,10 @@ bool LNS::run()
                  << "remaining time = " << time_limit - runtime << endl;
         iteration_stats.emplace_back(neighbor.agents.size(), sum_of_costs, runtime, replan_algo_name);
     }
+    cout << getSolverName() << ": Iterations = " << iteration_stats.size() << ", "
+         << "solution cost = " << sum_of_costs << ", "
+         << "initial solution cost = " << initial_sum_of_costs << ", "
+         << "runtime = " << runtime << endl;
     return true;
 }
 
