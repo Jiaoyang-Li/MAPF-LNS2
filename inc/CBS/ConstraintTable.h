@@ -24,7 +24,10 @@ public:
 	int getNumOfConflictsForStep(size_t curr_id, size_t next_id, int next_timestep) const;
 	// ConstraintTable() = default;
 	ConstraintTable(const PathTable& path_table, size_t num_col, size_t map_size, int goal_location = -1) :
-            path_table(path_table), goal_location(goal_location), num_col(num_col), map_size(map_size) {}
+            path_table(path_table), goal_location(goal_location), num_col(num_col), map_size(map_size)
+    {
+        latest_timestep = max(latest_timestep, path_table.makespan);
+    }
 	ConstraintTable(const ConstraintTable& other) : path_table(other.path_table) {copy(other); }
     ~ConstraintTable() = default;
 

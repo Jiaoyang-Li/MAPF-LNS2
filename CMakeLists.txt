@@ -6,8 +6,8 @@ IF(NOT CMAKE_BUILD_TYPE)
     SET(CMAKE_BUILD_TYPE "RELEASE")
 ENDIF()
 
-include_directories("inc")
-file(GLOB SOURCES "src/*.cpp")
+include_directories("inc" "inc/CBS")
+file(GLOB SOURCES "src/*.cpp" "src/CBS/*.cpp")
 add_executable(lns ${SOURCES})
 
 # Find Boost

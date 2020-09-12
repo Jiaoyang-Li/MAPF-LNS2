@@ -1,21 +1,55 @@
 #include "LNS.h"
 
 
+LNS::LNS(const Instance& instance, double time_limit, string init_algo_name, string replan_algo_name, string destory_name,
+    int screen): instance(instance), time_limit(time_limit), init_algo_name(std::move(init_algo_name)),
+                 replan_algo_name(replan_algo_name), screen(screen), path_table(instance.map_size)
+{
+    start_time = Time::now();
+    if (destory_name == "Adaptive")
+        ALNS = true;
+    else if (destory_name == "RandomWalk")
+        destroy_strategy = RANDOMWALK;
+    else if (destory_name == "Intersection")
+        destroy_strategy = INTERSECTION;
+    else
+    {
+        cerr << "Destroy heuristic " << destory_name << " does not exists. " << endl;
+        exit(-1);
+    }
+
+    int N = instance.getDefaultNumberOfAgents();
+    agents.reserve(N);
+    for (int i = 0; i < N; i++)
+        agents.emplace_back(instance, i);
+    preprocessing_time = ((fsec)(Time::now() - start_time)).count();
+    if (screen >= 2)
+        cout << "Pre-processing time = " << preprocessing_time << " seconds." << endl;
+}
+
 bool LNS::run()
 {
+    // only for statistic analysis, and thus is not included in runtime
+    sum_of_distances = 0;
+    for (const auto & agent : agents)
+    {
+        sum_of_distances += agent.path_planner.my_heuristic[agent.path_planner.start_location];
+    }
+
     start_time = Time::now();
     if (!getInitialSolution())
         return false;
 
-    runtime = ((fsec)(Time::now() - start_time)).count();
-    if (screen >= 2)
+    initial_solution_runtime = ((fsec)(Time::now() - start_time)).count();
+    if (screen >= 1)
         cout << "Initial solution cost = " << initial_sum_of_costs << ", "
-             << "runtime = " << runtime << endl;
-    iteration_stats.emplace_back(neighbor.agents.size(), initial_sum_of_costs, runtime);
+             << "runtime = " << initial_solution_runtime << endl;
+    iteration_stats.emplace_back(neighbor.agents.size(), initial_sum_of_costs, runtime, init_algo_name);
 
 
 
     bool succ;
+    runtime = initial_solution_runtime;
     while (runtime < time_limit && iteration_stats.size() < num_of_iterations)
     {
         runtime =((fsec)(Time::now() - start_time)).count();
@@ -25,17 +59,17 @@ bool LNS::run()
         switch (destroy_strategy)
         {
             case RANDOMWALK:
-                generateNeighborByRandomWalk(tabu_list);
+                succ = generateNeighborByRandomWalk(tabu_list);
                 break;
             case INTERSECTION:
                 succ = generateNeighborByTemporalIntersection();
-                if(!succ) // the selected intersection has fewer than 2 agents
-                    continue;
                 break;
             default:
                 cerr << "Wrong neighbor generation strategy" << endl;
                 exit(-1);
         }
+        if(!succ)
+            continue;
 
         // store the neighbor information
         neighbor.old_paths.resize(neighbor.agents.size());
@@ -45,7 +79,7 @@ bool LNS::run()
             if (replan_algo_name == "PP")
                 neighbor.old_paths[i] = agents[neighbor.agents[i]].path;
             path_table.deletePath(neighbor.agents[i], agents[neighbor.agents[i]].path);
-            neighbor.old_sum_of_costs += neighbor.old_paths[i].size() - 1;
+            neighbor.old_sum_of_costs += agents[neighbor.agents[i]].path.size() - 1;
         }
 
         if (replan_algo_name == "EECBS")
@@ -70,12 +104,12 @@ bool LNS::run()
         }
         runtime = ((fsec)(Time::now() - start_time)).count();
         sum_of_costs += neighbor.sum_of_costs - neighbor.old_sum_of_costs;
-        if (screen >= 2)
+        if (screen >= 1)
             cout << "Iteration " << iteration_stats.size() << ", "
                  << "group size = " << neighbor.agents.size() << ", "
                  << "solution cost = " << sum_of_costs << ", "
                  << "remaining time = " << time_limit - runtime << endl;
-        iteration_stats.emplace_back(neighbor.agents.size(), sum_of_costs, runtime);
+        iteration_stats.emplace_back(neighbor.agents.size(), sum_of_costs, runtime, replan_algo_name);
     }
     return true;
 }
@@ -143,6 +177,8 @@ bool LNS::runEECBS()
             ++id;
         }
         neighbor.sum_of_costs = ecbs.solution_cost;
+        if (sum_of_costs_lowerbound < 0)
+            sum_of_costs_lowerbound = ecbs.getLowerBound();
     }
     else // stick to old paths
     {
@@ -157,6 +193,8 @@ bool LNS::runEECBS()
 
 bool LNS::runCBS()
 {
+    if (screen >= 2)
+        cout << "old sum of costs = " << neighbor.old_sum_of_costs << endl;
     vector<SingleAgentSolver*> search_engines;
     search_engines.reserve(neighbor.agents.size());
     for (int i : neighbor.agents)
@@ -189,6 +227,8 @@ bool LNS::runCBS()
             ++id;
         }
         neighbor.sum_of_costs = cbs.solution_cost;
+        if (sum_of_costs_lowerbound < 0)
+            sum_of_costs_lowerbound = cbs.getLowerBound();
     }
     else // stick to old paths
     {
@@ -338,14 +378,14 @@ bool LNS::generateNeighborByIntersection()
     return false;
 }
 
-void LNS::generateNeighborByRandomWalk(boost::unordered_set<int>& tabu_list)
+bool LNS::generateNeighborByRandomWalk(unordered_set<int>& tabu_list)
 {
     if (neighbor_size >= (int)agents.size())
     {
         neighbor.agents.resize(agents.size());
         for (int i = 0; i < (int)agents.size(); i++)
             neighbor.agents[i] = i;
-        return;
+        return true;
     }
 
     // find the agent with max regret
@@ -363,6 +403,11 @@ void LNS::generateNeighborByRandomWalk(boost::unordered_set<int>& tabu_list)
             max_delays = delays;
         }
     }
+    if (max_delays == 0)
+    {
+        tabu_list.clear();
+        return false;
+    }
     if (tabu_list.size() > agents.size() / 2)
         tabu_list.clear();
     else
@@ -379,12 +424,15 @@ void LNS::generateNeighborByRandomWalk(boost::unordered_set<int>& tabu_list)
         T = t;
         count++;
     }
-
+    if (neighbors_set.size() < 2)
+        return false;
     neighbor.agents.assign(neighbors_set.begin(), neighbors_set.end());
     if (screen >= 2)
         cout << "Generate " << neighbor.agents.size() << " neighbors by random walks of agent " << a
              << "(" << agents[a].path_planner.my_heuristic[agents[a].path_planner.start_location]
              << "->" << agents[a].path.size() - 1 << ")" << endl;
+
+    return true;
 }
 
 
@@ -416,6 +464,84 @@ void LNS::randomWalk(int agent_id, int start_location, int start_timestep,
     }
 }
 
+
+void LNS::validateSolution() const
+{
+    for (const auto& a1_ : agents)
+    {
+        for (const auto& a2_: agents)
+        {
+            if (a1_.id >= a2_.id)
+                continue;
+            const auto a1 = a1_.path.size() <= a2_.path.size()? a1_ : a2_;
+            const auto a2 = a1_.path.size() <= a2_.path.size()? a2_ : a1_;
+            int t = 1;
+            for(; t < (int) a1.path.size(); t++)
+            {
+                if (a1.path[t].location == a2.path[t].location) // vertex conflict
+                {
+                    cerr << "Find a vertex conflict between agents " << a1.id << " and " << a2.id <<
+                            " at location " << a1.path[t].location << " at timestep " << t << endl;
+                    exit(-1);
+                }
+                else if (a1.path[t].location == a2.path[t - 1].location &&
+                        a1.path[t - 1].location == a2.path[t].location) // edge conflict
+                {
+                    cerr << "Find an edge conflict between agents " << a1.id << " and " << a2.id <<
+                         " at edge (" << a1.path[t - 1].location << "," << a1.path[t].location <<
+                         ") at timestep " << t << endl;
+                    exit(-1);
+                }
+            }
+        }
+    }
+}
+
+
+
+void LNS::writeIterStatsToFile(string file_name) const
+{
+    std::ofstream output;
+    output.open(file_name);
+    // header
+    output << "num of agents," <<
+           "sum of costs," <<
+           "runtime," <<
+           "cost lowerbound," <<
+           "MAPF algorithm" << endl;
+
+    for (const auto &data : iteration_stats)
+    {
+        output << data.num_of_agents << "," <<
+               data.sum_of_costs << "," <<
+               data.runtime << "," <<
+               max(sum_of_costs_lowerbound, sum_of_distances) << "," <<
+               data.algorithm << endl;
+    }
+    output.close();
+}
+
+void LNS::writeResultToFile(string file_name) const
+{
+    std::ifstream infile(file_name);
+    bool exist = infile.good();
+    infile.close();
+    if (!exist)
+    {
+        ofstream addHeads(file_name);
+        addHeads << "runtime,solution cost,initial solution cost,min f value,root g value," <<
+                 "iterations," <<
+                 "runtime of initial solution," <<
+                 "preprocessing runtime,solver name,instance name" << endl;
+        addHeads.close();
+    }
+    ofstream stats(file_name, std::ios::app);
+    stats << runtime << "," << sum_of_costs << "," << initial_sum_of_costs << "," <<
+            max(sum_of_distances, sum_of_costs_lowerbound) << "," << sum_of_distances << "," <<
+            iteration_stats.size() << "," << initial_solution_runtime << "," <<
+            preprocessing_time << "," << getSolverName() << "," << instance.getInstanceName() << endl;
+    stats.close();
+}
 /*
 bool LNS::generateNeighborByStart()
 {

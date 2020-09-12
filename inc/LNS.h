@@ -35,8 +35,10 @@ struct IterationStats
     int sum_of_costs;
     double runtime;
     int num_of_agents;
-    IterationStats(int num_of_agents, int sum_of_costs, double runtime) :
-            num_of_agents(num_of_agents), sum_of_costs(sum_of_costs), runtime(runtime) {}
+    string algorithm;
+    IterationStats(int num_of_agents, int sum_of_costs, double runtime, string algorithm) :
+            num_of_agents(num_of_agents), sum_of_costs(sum_of_costs), runtime(runtime),
+            algorithm(algorithm) {}
 };
 
 
@@ -47,41 +49,21 @@ public:
     vector<Agent> agents;
     list<IterationStats> iteration_stats; //stats about each iteration
     double preprocessing_time = 0;
+    double initial_solution_runtime = 0;
     double runtime = 0;
     int initial_sum_of_costs = -1;
     int sum_of_costs = -1;
-
-    LNS(const Instance& instance, double time_limit, string init_algo_name, string replan_algo_name, string destory_name,
-        int screen): instance(instance), time_limit(time_limit), init_algo_name(std::move(init_algo_name)),
-                     replan_algo_name(replan_algo_name), screen(screen), path_table(instance.map_size)
-    {
-        start_time = Time::now();
-        if (destory_name == "Adaptive")
-            ALNS = true;
-        else if (destory_name == "RandomWalk")
-            destroy_strategy = RANDOMWALK;
-        else if (destory_name == "Intersection")
-            destroy_strategy = INTERSECTION;
-        else
-        {
-            cerr << "Destroy heuristic " << destory_name << " does not exists. " << endl;
-            exit(-1);
-        }
-
-        int N = instance.getDefaultNumberOfAgents();
-        agents.reserve(N);
-        for (int i = 0; i < N; i++)
-            agents.emplace_back(instance, i);
-        preprocessing_time = ((fsec)(Time::now() - start_time)).count();
-        if (screen >= 2)
-            cout << "Pre-processing time = " << preprocessing_time << " seconds." << endl;
-    }
-
+    int sum_of_costs_lowerbound = -1;
+    int sum_of_distances = -1;
+    LNS(const Instance& instance, double time_limit,
+            string init_algo_name, string replan_algo_name, string destory_name, int screen);
 
     bool getInitialSolution();
-
     bool run();
-
+    void validateSolution() const;
+    void writeIterStatsToFile(string file_name) const;
+    void writeResultToFile(string file_name) const;
+    string getSolverName() const { return "initAlgo="+init_algo_name+"-replanAlgo="+replan_algo_name; }
 private:
     // intput params
     const Instance& instance; // avoid making copies of this variable as much as possible
@@ -102,7 +84,7 @@ private:
 
     Neighbor neighbor;
 
-    boost::unordered_set<int> tabu_list; // used by randomwalk strategy
+    unordered_set<int> tabu_list; // used by randomwalk strategy
 
 
     // adaptive LNS
@@ -117,7 +99,7 @@ private:
 
     void updateDestroyHeuristicbyALNS();
 
-    void generateNeighborByRandomWalk(boost::unordered_set<int>& tabu_list);
+    bool generateNeighborByRandomWalk(unordered_set<int>& tabu_list);
     //bool generateNeighborByStart();
     bool generateNeighborByIntersection();
     bool generateNeighborByTemporalIntersection();
@@ -162,10 +144,6 @@ private:
     void addAgentPath(int agent, const Path& path);
     void deleteNeighborPaths();
     void quickSort(vector<int>& agent_order, int low, int high, bool regret);
-
-
-
-    // bool hasConflicts(const vector<Path>& paths) const;
 
 
     inline bool compareByRegrets(int a1, int a2)
