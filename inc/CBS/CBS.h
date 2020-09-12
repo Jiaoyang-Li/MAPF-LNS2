@@ -38,10 +38,9 @@ public:
 	uint64_t num_cleanup = 0; // number of expanded nodes chosen from cleanup list
 	uint64_t num_open = 0; // number of expanded nodes chosen from open list
 	uint64_t num_focal = 0; // number of expanded nodes chsoen from focal list
-	// CBSNode* dummy_start = nullptr;
-	// CBSNode* goal_node = nullptr;
+
 	HLNode* dummy_start = nullptr;
-	HLNode* goal_node = nullptr;
+	//HLNode* goal_node = nullptr;
 
 
 
@@ -78,6 +77,8 @@ public:
 	bool solve(double time_limit, int cost_lowerbound = 0, int cost_upperbound = MAX_COST);
 
 	int getLowerBound() const { return cost_lowerbound; }
+    CBSNode* getGoalNode() { return goal_node; }
+    void updatePaths(CBSNode* curr);
 
 	CBS(const Instance& instance, bool sipp, int screen);
     CBS(vector<SingleAgentSolver*>& search_engines,
@@ -86,6 +87,7 @@ public:
 	CBS(vector<SingleAgentSolver*>& search_engines,
 		const vector<ConstraintTable>& constraints,
 		vector<Path>& paths_found_initially, int screen);
+    SingleAgentSolver* getSearchEngine(int i) { return search_engines[i]; }
 	void clearSearchEngines();
 	~CBS();
 
@@ -117,7 +119,7 @@ protected:
 	CBSHeuristic heuristic_helper;
 
 	list<HLNode*> allNodes_table; // this is ued for both ECBS and EES
-
+    PathTable path_table; // place holder
 
 	string getSolverName() const;
 
@@ -167,6 +169,8 @@ protected:
 
 
 private: // CBS only, cannot be used by ECBS
+    CBSNode* goal_node = nullptr;
+
 	pairing_heap< CBSNode*, compare<CBSNode::compare_node_by_f> > cleanup_list; // it is called open list in ECBS
 	pairing_heap< CBSNode*, compare<CBSNode::compare_node_by_inadmissible_f> > open_list; // this is used for EES
 	pairing_heap< CBSNode*, compare<CBSNode::compare_node_by_d> > focal_list; // this is ued for both ECBS and EES
@@ -176,12 +180,11 @@ private: // CBS only, cannot be used by ECBS
 	CBSNode* selectNode();
 	inline bool reinsertNode(CBSNode* node);
 
-		 // high level search
+	// high level search
 	bool generateChild(CBSNode* child, CBSNode* curr);
 	bool generateRoot();
 	bool findPathForSingleAgent(CBSNode*  node, int ag, int lower_bound = 0);
 	void classifyConflicts(CBSNode &parent);
-		 //update information
-	inline void updatePaths(CBSNode* curr);
+
 	void printPaths() const;
 };

@@ -7,7 +7,7 @@
 
 
 // takes the paths_found_initially and UPDATE all (constrained) paths found for agents from curr to start
-inline void CBS::updatePaths(CBSNode* curr)
+void CBS::updatePaths(CBSNode* curr)
 {
 	for (int i = 0; i < num_of_agents; i++)
 		paths[i] = &paths_found_initially[i];
@@ -566,7 +566,10 @@ inline void CBS::pushNode(CBSNode* node)
 {
 	num_HL_generated++;
 	node->time_generated = num_HL_generated;
+    allNodes_table.push_back(node);
 	// update handles
+    if (node->getFVal() >= cost_upperbound)
+        return;
     node->cleanup_handle = cleanup_list.push(node);
 	switch (solver_type)
 	{
@@ -586,12 +589,17 @@ inline void CBS::pushNode(CBSNode* node)
 				node->focal_handle = focal_list.push(node);
 			break;
 	}
-	allNodes_table.push_back(node);
 }
 
 
 inline bool CBS::reinsertNode(CBSNode* node)
 {
+    if (screen == 2)
+    {
+        cout << "	Reinsert " << *node << endl;
+    }
+    if (node->getFVal() >= cost_upperbound)
+        return true;
     node->cleanup_handle = cleanup_list.push(node);
 	switch (solver_type)
 	{
@@ -610,10 +618,6 @@ inline bool CBS::reinsertNode(CBSNode* node)
 		if (node->getFHatVal() <= suboptimality * inadmissible_cost_lowerbound)
 			node->focal_handle = focal_list.push(node);
 		break;
-	}
-	if (screen == 2)
-	{
-		cout << "	Reinsert " << *node << endl;
 	}
 	return true;
 }
@@ -799,6 +803,8 @@ CBSNode* CBS::selectNode()
             }
             break;
 	}
+	if (curr->getFVal() >= cost_upperbound)
+	    return nullptr;
 
 	// takes the paths_found_initially and UPDATE all constrained paths found for agents from curr to dummy_start (and lower-bounds)
 	updatePaths(curr);
@@ -1189,15 +1195,27 @@ bool CBS::solve(double _time_limit, int _cost_lowerbound, int _cost_upperbound)
 	// set timer
 	start = clock();
 
-	if(!generateRoot())
+	if(solution_found) // continue searching
+    {
+        goal_node = nullptr;
+        solution_found = false;
+        solution_cost = -2;
+    }
+	else if(!generateRoot())
 	    return false;
 
 	while (!cleanup_list.empty() && !solution_found)
 	{
 		auto curr = selectNode();
-
+        if (curr == nullptr)
+            continue;
 		if (terminate(curr))
-			return solution_found;
+        {
+		    if (solution_found)
+		        goal_node = curr;
+            return solution_found;
+        }
+
 
 		if (PC) // priortize conflicts
 			classifyConflicts(*curr);
@@ -1234,7 +1252,11 @@ bool CBS::solve(double _time_limit, int _cost_lowerbound, int _cost_upperbound)
 		while (foundBypass)
 		{
 			if(terminate(curr))
-				return solution_found;
+            {
+                if (solution_found)
+                    goal_node = curr;
+                return solution_found;
+            }
 			foundBypass = false;
 			CBSNode* child[2] = { new CBSNode() , new CBSNode() };
 
@@ -1302,6 +1324,7 @@ bool CBS::solve(double _time_limit, int _cost_lowerbound, int _cost_upperbound)
 					delete i;
 					i = nullptr;
 				}
+                classifyConflicts(*curr); // classify the new-detected conflicts
 			}
 			else
 			{
@@ -1366,8 +1389,8 @@ bool CBS::terminate(HLNode* curr)
 	if (curr->conflicts.empty() && curr->unknownConf.empty()) //no conflicts
 	{// found a solution
 		solution_found = true;
-		goal_node = curr;
-		solution_cost = goal_node->getFHatVal() - goal_node->cost_to_go;
+		// goal_node = curr;
+		solution_cost = curr->getFHatVal() - curr->cost_to_go;
 		if (!validateSolution())
 		{
 			cout << "Solution invalid!!!" << endl;
@@ -1481,7 +1504,6 @@ CBS::CBS(const Instance& instance, bool sipp, int screen) :
 	heuristic_helper(instance.getDefaultNumberOfAgents(), paths, search_engines, initial_constraints, mdd_helper)
 {
 	clock_t t = clock();
-	PathTable path_table(instance.map_size);
     initial_constraints.reserve(num_of_agents);
     for (int i = 0; i < num_of_agents; i++)
 	    initial_constraints.emplace_back(path_table, instance.num_of_cols, instance.map_size);

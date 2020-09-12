@@ -1,15 +1,7 @@
-﻿/* Copyright (C) Jiaoyang Li
-* Unauthorized copying of this file, via any medium is strictly prohibited
-* Confidential
-* Written by Jiaoyang Li <jiaoyanl@usc.edu>, May 2020
-*/
-
-/*driver.cpp
-* Solve a MAPF instance on 2D grids.
-*/
-#include <boost/program_options.hpp>
+﻿#include <boost/program_options.hpp>
 #include <boost/tokenizer.hpp>
 #include "LNS.h"
+#include "AnytimeBCBS.h"
 
 
 /* Main function */
@@ -31,7 +23,10 @@ int main(int argc, char** argv)
 		        "screen option (0: none; 1: LNS results; 2:LNS detailed results; 3: MAPF detailed results)")
 		("stats", po::value<string>(), "output stats file")
 
-        // params for LNS settings
+		// solver
+		("solver", po::value<string>()->default_value("LNS"), "solver (LNS, A-BCBS)")
+
+        // params for LNS
         ("initAlgo", po::value<string>()->default_value("EECBS"),
                 "MAPF algorithm for finding the initial solution (EECBS, CBS, PP)")
         ("replanAlgo", po::value<string>()->default_value("CBS"),
@@ -51,24 +46,37 @@ int main(int argc, char** argv)
 
 	Instance instance(vm["map"].as<string>(), vm["agents"].as<string>(),
 		vm["agentNum"].as<int>());
-
+    double time_limit = vm["cutoffTime"].as<double>();
+    int screen = vm["screen"].as<int>();
 	srand(0);
 
-	LNS lns(instance,
-	        vm["cutoffTime"].as<double>(),
-	        vm["initAlgo"].as<string>(),
-	        vm["replanAlgo"].as<string>(),
-	        "RandomWalk",
-	        vm["screen"].as<int>());
-    lns.run();
-    lns.validateSolution();
-    if (vm.count("output"))
+	if (vm["solver"].as<string>() == "LNS")
     {
-        lns.writeResultToFile(vm["output"].as<string>());
+        LNS lns(instance, time_limit,
+                vm["initAlgo"].as<string>(),
+                vm["replanAlgo"].as<string>(),
+                "RandomWalk", screen);
+        lns.run();
+        lns.validateSolution();
+        if (vm.count("output"))
+            lns.writeResultToFile(vm["output"].as<string>());
+        if (vm.count("stats"))
+            lns.writeIterStatsToFile(vm["stats"].as<string>());
     }
-    if (vm.count("stats"))
+    else if (vm["solver"].as<string>() == "A-BCBS") // anytime BCBS(w, 1)
     {
-        lns.writeIterStatsToFile(vm["stats"].as<string>());
+        AnytimeBCBS bcbs(instance, time_limit, screen);
+        bcbs.run();
+        bcbs.validateSolution();
+        if (vm.count("output"))
+            bcbs.writeResultToFile(vm["output"].as<string>());
+        if (vm.count("stats"))
+            bcbs.writeIterStatsToFile(vm["stats"].as<string>());
+    }
+	else
+    {
+	    cerr << "Solver " << vm["solver"].as<string>() << " does not exist!" << endl;
+	    exit(-1);
     }
 	return 0;
 

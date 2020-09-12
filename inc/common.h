@@ -51,6 +51,19 @@ typedef vector<PathEntry> Path;
 std::ostream& operator<<(std::ostream& os, const Path& path);
 bool isSamePath(const Path& p1, const Path& p2);
 
+struct IterationStats
+{
+    int sum_of_costs;
+    double runtime;
+    int num_of_agents;
+    string algorithm;
+    int sum_of_costs_lowerbound;
+    IterationStats(int num_of_agents, int sum_of_costs, double runtime, string algorithm,
+            int sum_of_costs_lowerbound = 0) :
+            num_of_agents(num_of_agents), sum_of_costs(sum_of_costs), runtime(runtime),
+            sum_of_costs_lowerbound(sum_of_costs_lowerbound), algorithm(algorithm) {}
+};
+
 // Only for three-tuples of std::hash-able types for simplicity.
 // You can of course template this struct to allow other hash functions
 /*struct three_tuple_hash {

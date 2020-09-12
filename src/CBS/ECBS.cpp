@@ -23,7 +23,11 @@ bool ECBS::solve(double time_limit, int _cost_lowerbound)
 	{
 		auto curr = selectNode();
 		if (terminate(curr))
-			return solution_found;
+        {
+            if (solution_found)
+                goal_node = curr;
+            return solution_found;
+        }
 
 		if ((curr == dummy_start || curr->chosen_from == "cleanup") &&
 		     !curr->h_computed) // heuristics has not been computed yet
@@ -54,7 +58,11 @@ bool ECBS::solve(double time_limit, int _cost_lowerbound)
 			while (foundBypass)
 			{
 				if (terminate(curr))
-					return solution_found;
+                {
+                    if (solution_found)
+                        goal_node = curr;
+                    return solution_found;
+                }
 				foundBypass = false;
 				ECBSNode* child[2] = { new ECBSNode() , new ECBSNode() };
 				curr->conflict = chooseConflict(*curr);

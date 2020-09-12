@@ -30,19 +30,6 @@ struct Neighbor
 };
 
 
-struct IterationStats
-{
-    int sum_of_costs;
-    double runtime;
-    int num_of_agents;
-    string algorithm;
-    IterationStats(int num_of_agents, int sum_of_costs, double runtime, string algorithm) :
-            num_of_agents(num_of_agents), sum_of_costs(sum_of_costs), runtime(runtime),
-            algorithm(algorithm) {}
-};
-
-
-
 class LNS
 {
 public:
@@ -63,7 +50,7 @@ public:
     void validateSolution() const;
     void writeIterStatsToFile(string file_name) const;
     void writeResultToFile(string file_name) const;
-    string getSolverName() const { return "initAlgo="+init_algo_name+"-replanAlgo="+replan_algo_name; }
+    string getSolverName() const { return "LNS with initAlgo="+init_algo_name+"-replanAlgo="+replan_algo_name; }
 private:
     // intput params
     const Instance& instance; // avoid making copies of this variable as much as possible

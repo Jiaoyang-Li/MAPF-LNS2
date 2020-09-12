@@ -53,6 +53,8 @@ bool LNS::run()
     while (runtime < time_limit && iteration_stats.size() < num_of_iterations)
     {
         runtime =((fsec)(Time::now() - start_time)).count();
+        if(screen >= 1)
+            validateSolution();
         if (ALNS)
             updateDestroyHeuristicbyALNS();
 
@@ -245,7 +247,7 @@ bool LNS::runPP()
 {
     auto shuffled_agents = neighbor.agents;
     std::random_shuffle(shuffled_agents.begin(), shuffled_agents.end());
-    if (screen >= 3) {
+    if (screen >= 2) {
         for (auto id : shuffled_agents)
             cout << id << "(" << agents[id].path_planner.my_heuristic[agents[id].path_planner.start_location] <<
                 "->" << agents[id].path.size() - 1 << "), ";
@@ -469,14 +471,16 @@ void LNS::validateSolution() const
 {
     for (const auto& a1_ : agents)
     {
+        if (a1_.path.empty())
+            continue;
         for (const auto& a2_: agents)
         {
-            if (a1_.id >= a2_.id)
+            if (a1_.id >= a2_.id || a1_.path.empty())
                 continue;
             const auto a1 = a1_.path.size() <= a2_.path.size()? a1_ : a2_;
             const auto a2 = a1_.path.size() <= a2_.path.size()? a2_ : a1_;
             int t = 1;
-            for(; t < (int) a1.path.size(); t++)
+            for (; t < (int) a1.path.size(); t++)
             {
                 if (a1.path[t].location == a2.path[t].location) // vertex conflict
                 {
@@ -493,11 +497,19 @@ void LNS::validateSolution() const
                     exit(-1);
                 }
             }
+            int target = a1.path.back().location;
+            for (; t < (int) a2.path.size(); t++)
+            {
+                if (a2.path[t].location == target)  // target conflict
+                {
+                    cerr << "Find a target conflict where agent " << a2.id << " traverses agent " << a1.id <<
+                         "'s target location " << target << " at timestep " << t << endl;
+                    exit(-1);
+                }
+            }
         }
     }
 }
-
-
 
 void LNS::writeIterStatsToFile(string file_name) const
 {

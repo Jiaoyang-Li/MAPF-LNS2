@@ -10,14 +10,16 @@ public:
     ECBS(vector<SingleAgentSolver*>& search_engines,
          const PathTable& path_table,
          int screen) : CBS(search_engines, path_table, screen) {}
-	// ECBSNode* dummy_start = nullptr;
-	// ECBSNode* goal_node = nullptr;
 
 	////////////////////////////////////////////////////////////////////////////////////////////
 	// Runs the algorithm until the problem is solved or time is exhausted 
 	bool solve(double time_limit, int cost_lowerbound = 0);
 
+	ECBSNode* getGoalNode() { return goal_node; }
 private:
+    //ECBSNode* dummy_start = nullptr;
+    ECBSNode* goal_node = nullptr;
+
 	vector<int> min_f_vals; // lower bounds of the cost of the shortest path
 	vector< pair<Path, int> > paths_found_initially;  // contain initial paths found
 
