@@ -44,7 +44,7 @@ void AnytimeBCBS::run()
             best_goal_node = bcbs.getGoalNode();
         }
         iteration_stats.emplace_back(instance.getDefaultNumberOfAgents(), sum_of_costs,
-                                     bcbs.runtime, "BCBS", sum_of_costs_lowerbound);
+                                     runtime, "BCBS", sum_of_costs_lowerbound);
         if (screen >= 1)
             cout << "Iteration " << iteration_stats.size() << ", "
                  << "lower bound = " << sum_of_costs_lowerbound << ", "
@@ -71,6 +71,8 @@ void AnytimeBCBS::run()
 
 void AnytimeBCBS::validateSolution() const
 {
+    if (solution.empty())
+        return;
     int N = instance.getDefaultNumberOfAgents();
     for (int i = 0; i < N; i++)
     {

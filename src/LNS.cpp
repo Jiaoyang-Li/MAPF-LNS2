@@ -44,7 +44,8 @@ bool LNS::run()
     if (screen >= 1)
         cout << "Initial solution cost = " << initial_sum_of_costs << ", "
              << "runtime = " << initial_solution_runtime << endl;
-    iteration_stats.emplace_back(neighbor.agents.size(), initial_sum_of_costs, runtime, init_algo_name);
+    iteration_stats.emplace_back(neighbor.agents.size(),
+            initial_sum_of_costs, initial_solution_runtime, init_algo_name);
 
 
 
@@ -547,10 +548,16 @@ void LNS::writeResultToFile(string file_name) const
         ofstream addHeads(file_name);
         addHeads << "runtime,solution cost,initial solution cost,min f value,root g value," <<
                  "iterations," <<
+                 "group size," <<
                  "runtime of initial solution," <<
                  "preprocessing runtime,solver name,instance name" << endl;
         addHeads.close();
     }
+    double group_size = - iteration_stats.front().num_of_agents;
+    for (const auto& data : iteration_stats)
+        group_size += data.num_of_agents;
+    if (group_size > 0)
+        group_size /= (double)(iteration_stats.size() - 1);
     ofstream stats(file_name, std::ios::app);
     stats << runtime << "," << sum_of_costs << "," << initial_sum_of_costs << "," <<
             max(sum_of_distances, sum_of_costs_lowerbound) << "," << sum_of_distances << "," <<

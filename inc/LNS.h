@@ -50,7 +50,7 @@ public:
     void validateSolution() const;
     void writeIterStatsToFile(string file_name) const;
     void writeResultToFile(string file_name) const;
-    string getSolverName() const { return "LNS with initAlgo="+init_algo_name+"-replanAlgo="+replan_algo_name; }
+    string getSolverName() const { return "LNS(" + init_algo_name + "," + replan_algo_name + ")"; }
 private:
     // intput params
     const Instance& instance; // avoid making copies of this variable as much as possible
@@ -60,7 +60,7 @@ private:
     int screen;
     destroy_heuristic destroy_strategy = RANDOMWALK;
 
-    int neighbor_size = 5;
+    int neighbor_size = 10;
     int num_of_iterations = 10000;
 
     high_resolution_clock::time_point start_time;
