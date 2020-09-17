@@ -14,7 +14,7 @@ public:
     void deletePath(int agent_id, const Path& path);
     bool constrained(int from, int to, int to_time) const;
 
-    //void get_agents(set<int>& conflicting_agents, int loc) const;
+    void get_agents(set<int>& conflicting_agents, int loc) const;
     //void get_agents(list< pair<int, int> >& agents, int excluded_agent, const pair<int,int>& loc_time_pair) const;
     //void get_agents(set<int>& conflicting_agents, int groupsize, int loc) const;
     void getConflictingAgents(int agent_id, set<int>& conflicting_agents, int from, int to, int to_time) const;

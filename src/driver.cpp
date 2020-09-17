@@ -31,6 +31,8 @@ int main(int argc, char** argv)
                 "MAPF algorithm for finding the initial solution (EECBS, CBS, PP)")
         ("replanAlgo", po::value<string>()->default_value("CBS"),
                 "MAPF algorithm for replanning (EECBS, CBS, PP)")
+        ("destoryStrategy", po::value<string>()->default_value("RandomWalk, Intersection, Adaptive"),
+             "MAPF algorithm for replanning (EECBS, CBS, PP)")
 		;
 	po::variables_map vm;
 	po::store(po::parse_command_line(argc, argv, desc), vm);
@@ -55,7 +57,7 @@ int main(int argc, char** argv)
         LNS lns(instance, time_limit,
                 vm["initAlgo"].as<string>(),
                 vm["replanAlgo"].as<string>(),
-                "RandomWalk", screen);
+                vm["destoryStrategy"].as<string>(), screen);
         lns.run();
         lns.validateSolution();
         if (vm.count("output"))
