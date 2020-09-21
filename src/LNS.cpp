@@ -338,29 +338,6 @@ void LNS::updateDestroyHeuristicbyALNS()
     }
 }
 
-bool LNS::generateNeighborByTemporalIntersection()
-{
-    /*if (intersections.empty())
-    {
-        for (int i = 0; i < ml.map_size(); i++)
-        {
-            if (ml.getDegree(i) > 2)
-                intersections.push_back(i);
-        }
-    }
-
-    set<int> neighbors_set;
-    int location = intersections[rand() % intersections.size()];
-    al.constraintTable.get_agents(neighbors_set, group_size, location);
-    if (neighbors_set.size() <= 1)
-        return false;
-    neighbors.assign(neighbors_set.begin(), neighbors_set.end());
-    if (options1.debug)
-        cout << "Generate " << neighbors.size() << " neighbors by intersection " << location << endl;
-    return true;*/
-    return false;
-}
-
 bool LNS::generateNeighborByIntersection()
 {
     if (intersections.empty())
@@ -598,6 +575,29 @@ void LNS::writeResultToFile(string file_name) const
     stats.close();
 }
 /*
+ * bool LNS::generateNeighborByTemporalIntersection()
+{
+    /*if (intersections.empty())
+    {
+        for (int i = 0; i < ml.map_size(); i++)
+        {
+            if (ml.getDegree(i) > 2)
+                intersections.push_back(i);
+        }
+    }
+
+    set<int> neighbors_set;
+    int location = intersections[rand() % intersections.size()];
+    al.constraintTable.get_agents(neighbors_set, group_size, location);
+    if (neighbors_set.size() <= 1)
+        return false;
+    neighbors.assign(neighbors_set.begin(), neighbors_set.end());
+    if (options1.debug)
+        cout << "Generate " << neighbors.size() << " neighbors by intersection " << location << endl;
+    return true;*/
+return false;
+}
+
 bool LNS::generateNeighborByStart()
 {
     if (start_locations.empty())

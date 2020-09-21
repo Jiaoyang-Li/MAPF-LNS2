@@ -90,7 +90,7 @@ private:
     bool generateNeighborByRandomWalk();
     //bool generateNeighborByStart();
     bool generateNeighborByIntersection();
-    bool generateNeighborByTemporalIntersection();
+    //bool generateNeighborByTemporalIntersection();
 
     void randomWalk(int agent_id, int start_location, int start_timestep,
                     set<int>& neighbor, int neighbor_size, int upperbound);
