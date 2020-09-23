@@ -244,8 +244,9 @@ bool CBSHeuristic::computeInformedHeuristics(CBSNode& curr, double _time_limit)
 	case heuristics_type::CG:
 		buildCardinalConflictGraph(curr, HG, num_of_CGedges);
 		// Minimum Vertex Cover
-		if (curr.parent == nullptr || num_of_CGedges > ILP_edge_threshold) // root node of CBS tree or the graph is too large
-			h = minimumVertexCover(HG);
+		if (curr.parent == nullptr || num_of_CGedges > ILP_edge_threshold || // root node of CBS tree or the graph is too large
+            target_reasoning || disjoint_splitting) // when we are allowed to replan for multiple agents, the incremental method is not correct any longer.
+            h = minimumVertexCover(HG);
 		else
 			h = minimumVertexCover(HG, curr.parent->h_val, num_of_agents, num_of_CGedges);
 		break;
@@ -253,8 +254,9 @@ bool CBSHeuristic::computeInformedHeuristics(CBSNode& curr, double _time_limit)
 		if (!buildDependenceGraph(curr, HG, num_of_CGedges))
 			return false;
 		// Minimum Vertex Cover
-		if (curr.parent == nullptr || num_of_CGedges > ILP_edge_threshold) // root node of CBS tree or the graph is too large
-			h = minimumVertexCover(HG);
+		if (curr.parent == nullptr || num_of_CGedges > ILP_edge_threshold || // root node of CBS tree or the graph is too large
+            target_reasoning || disjoint_splitting) // when we are allowed to replan for multiple agents, the incremental method is not correct any longer.
+            h = minimumVertexCover(HG);
 		else
 			h = minimumVertexCover(HG, curr.parent->h_val, num_of_agents, num_of_CGedges);
 		break;

@@ -1324,7 +1324,8 @@ bool CBS::solve(double _time_limit, int _cost_lowerbound, int _cost_upperbound)
 					delete i;
 					i = nullptr;
 				}
-                classifyConflicts(*curr); // classify the new-detected conflicts
+                if (PC)
+                    classifyConflicts(*curr); // classify the new-detected conflicts
 			}
 			else
 			{

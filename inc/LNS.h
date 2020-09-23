@@ -23,7 +23,7 @@ struct Agent
 
     Agent(const Instance& instance, int id) : id(id), path_planner(instance, id) {}
 
-    int getNumOfDelays() const { return path.size() - 1 - path_planner.my_heuristic[path_planner.start_location]; }
+    int getNumOfDelays() const { return (int) path.size() - 1 - path_planner.my_heuristic[path_planner.start_location]; }
 
 };
 
@@ -49,6 +49,7 @@ public:
     int sum_of_costs = -1;
     int sum_of_costs_lowerbound = -1;
     int sum_of_distances = -1;
+    double average_group_size = -1;
     LNS(const Instance& instance, double time_limit,
             string init_algo_name, string replan_algo_name, string destory_name, int screen);
 
@@ -57,7 +58,7 @@ public:
     void validateSolution() const;
     void writeIterStatsToFile(string file_name) const;
     void writeResultToFile(string file_name) const;
-    string getSolverName() const { return "LNS(" + init_algo_name + "," + replan_algo_name + ")"; }
+    string getSolverName() const { return "LNS(" + init_algo_name + ";" + replan_algo_name + ")"; }
 private:
     // intput params
     const Instance& instance; // avoid making copies of this variable as much as possible
@@ -79,7 +80,7 @@ private:
     Neighbor neighbor;
 
     unordered_set<int> tabu_list; // used by randomwalk strategy
-
+    list<int> intersections;
 
     // adaptive LNS
     bool ALNS = false;
@@ -94,10 +95,10 @@ private:
 
     void updateDestroyHeuristicbyALNS();
 
-    bool generateNeighborByRandomWalk(unordered_set<int>& tabu_list);
+    bool generateNeighborByRandomWalk();
     //bool generateNeighborByStart();
     bool generateNeighborByIntersection();
-    bool generateNeighborByTemporalIntersection();
+    //bool generateNeighborByTemporalIntersection();
 
     void randomWalk(int agent_id, int start_location, int start_timestep,
                     set<int>& neighbor, int neighbor_size, int upperbound);
@@ -110,7 +111,7 @@ private:
     int group_size = DEFAULT_GROUP_SIZE; // this is useful only when we use CBS to replan
     int max_group_size = DEFAULT_GROUP_SIZE;
 
-    vector<int> intersections;
+
     unordered_map<int, list<int>> start_locations;  // <start location, corresponding agents>
 
 

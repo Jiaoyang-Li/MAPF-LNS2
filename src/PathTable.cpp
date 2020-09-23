@@ -66,19 +66,19 @@ void PathTable::getConflictingAgents(int agent_id, set<int>& conflicting_agents,
         conflicting_agents.insert(table[from][to_time]); // edge conflict
 }
 
-/*void PathTable::get_agents(set<int>& conflicting_agents, int loc) const
+void PathTable::get_agents(set<int>& conflicting_agents, int loc) const
 {
     if (loc < 0)
         return;
 
-    for (auto agent : CT_paths[loc])
+    for (auto agent : table[loc])
     {
         if (agent >= 0)
             conflicting_agents.insert(agent);
     }
 }
 
-void PathTable::get_agents(list< pair<int, int> >& agents, int excluded_agent, const pair<int,int>& loc_time_pair) const
+/*void PathTable::get_agents(list< pair<int, int> >& agents, int excluded_agent, const pair<int,int>& loc_time_pair) const
 {
     int loc = loc_time_pair.first;
     for (int t = loc_time_pair.second; t < (int)CT_paths[loc].size(); t++)
