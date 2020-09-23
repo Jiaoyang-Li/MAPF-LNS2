@@ -43,7 +43,7 @@ bool PathTable::constrained(int from, int to, int to_time) const
     {
         if (table[to].size() > to_time && table[to][to_time] != NO_AGENT)
             return true;  // vertex conflict with agent table[to][to_time]
-        else if (table[to].size() >= to_time && table[from].size() > to_time &&
+        else if (table[to].size() >= to_time && table[from].size() > to_time && !table[to].empty() &&
                  table[to][to_time - 1] != NO_AGENT && table[from][to_time] == table[to][to_time - 1])
             return true;  // edge conflict with agent table[to][to_time - 1]
     }

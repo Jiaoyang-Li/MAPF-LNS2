@@ -10,6 +10,7 @@
 #include "problem.h"
 #include "mapf.h"
 #include "pibt.h"
+#include "pps.h"
 using namespace std::chrono;
 typedef std::chrono::high_resolution_clock Time;
 typedef std::chrono::duration<float> fsec;
@@ -92,6 +93,10 @@ private:
     bool runCBS();
     bool runPP();
     bool runPIBT();
+    bool runPPS();
+
+    MAPF preparePIBTProblem(vector<int> shuffled_agents);
+    void updatePIBTResult(const PIBT_Agents& A,vector<int> shuffled_agents);
 
     void updateDestroyHeuristicbyALNS();
 

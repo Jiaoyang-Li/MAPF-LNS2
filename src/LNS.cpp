@@ -143,6 +143,8 @@ bool LNS::getInitialSolution()
         succ = runPP();
     else if (init_algo_name == "PIBT")
         succ = runPIBT();
+    else if (init_algo_name == "PPS")
+        succ = runPPS();
     else
     {
         cerr <<  "Initial MAPF solver " << init_algo_name << " does not exist!" << endl;
@@ -313,35 +315,75 @@ bool LNS::runPP()
     }
 }
 
+bool LNS::runPPS(){
+    auto shuffled_agents = neighbor.agents;
+    std::random_shuffle(shuffled_agents.begin(), shuffled_agents.end());
+
+    MAPF P = preparePIBTProblem(shuffled_agents);
+    P.setTimestepLimit(time_limit);
+
+    // seed for solver
+    std::mt19937* MT_S = new std::mt19937(0);
+    PPS solver(&P, MT_S);
+    bool result = solver.solve();
+    assert(result);
+    updatePIBTResult(P.getA(),shuffled_agents);
+}
 bool LNS::runPIBT(){
+    auto shuffled_agents = neighbor.agents;
+    std::random_shuffle(shuffled_agents.begin(), shuffled_agents.end());
+
+    MAPF P = preparePIBTProblem(shuffled_agents);
+    P.setTimestepLimit(time_limit);
+
+    // seed for solver
+    std::mt19937* MT_S = new std::mt19937(0);
+    PIBT solver(&P,MT_S);
+    bool result = solver.solve();
+    assert(result);
+    updatePIBTResult(P.getA(),shuffled_agents);
+
+}
+
+MAPF LNS::preparePIBTProblem(vector<int> shuffled_agents){
 
     // seed for problem and graph
     std::mt19937* MT_PG = new std::mt19937(0);
-    // seed for solver
-    std::mt19937* MT_S = new std::mt19937(0);
 
     Graph* G = new SimpleGrid(instance);
-    PIBT_Agents A;
     std::vector<Task*> T;
+    PIBT_Agents A;
 
-    for (int i : neighbor.agents){
+    for (int i : shuffled_agents){
         PIBT_Agent* a = new PIBT_Agent(G->getNode( agents[i].path_planner.start_location));
         A.push_back(a);
         Task* tau = new Task(G->getNode( agents[i].path_planner.goal_location));
         T.push_back(tau);
-
+        if(screen>=5){
+            cout<<"Agent "<<i<<" start: " <<a->getNode()->getPos()<<" goal: "<<tau->getG().front()->getPos()<<endl;
+        }
     }
-    MAPF P(G, A, T, MT_PG);
-    PIBT solver(&P, MT_S);
-    solver.solve();
 
+    return MAPF(G, A, T, MT_PG);
+
+}
+
+void LNS::updatePIBTResult(const PIBT_Agents& A,vector<int> shuffled_agents){
     int soc = 0;
     for (int i=0; i<A.size();i++){
-        int a_id = neighbor.agents[i];
-        agents[a_id].path = Path();
-        for (auto n:A[i]->getHist()){
-            agents[a_id].path.push_back(PathEntry(n->v->getId()));
+        int a_id = shuffled_agents[i];
+        if(screen>=5){
+            cout <<"Agent "<<a_id<<":";
         }
+        agents[a_id].path.resize(0);
+        for (auto n:A[i]->getHist()){
+            agents[a_id].path.emplace_back(n->v->getId());
+            if(screen>=5){
+                cout <<n->v->getPos()<<",";
+            }
+        }
+        if(screen>=5)
+            cout<<endl;
         path_table.insertPath(agents[a_id].id, agents[a_id].path);
         soc += agents[a_id].path.size()-1;
     }
@@ -632,7 +674,7 @@ void LNS::writeResultToFile(string file_name) const
     neighbors.assign(neighbors_set.begin(), neighbors_set.end());
     if (options1.debug)
         cout << "Generate " << neighbors.size() << " neighbors by intersection " << location << endl;
-    return true;*/
+    return true;
 return false;
 }
 
