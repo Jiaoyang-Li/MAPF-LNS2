@@ -320,7 +320,7 @@ bool LNS::runPPS(){
     std::random_shuffle(shuffled_agents.begin(), shuffled_agents.end());
 
     MAPF P = preparePIBTProblem(shuffled_agents);
-    P.setTimestepLimit(time_limit);
+    P.setTimestepLimit(INT_MAX/2);
 
     // seed for solver
     std::mt19937* MT_S = new std::mt19937(0);
@@ -334,7 +334,7 @@ bool LNS::runPIBT(){
     std::random_shuffle(shuffled_agents.begin(), shuffled_agents.end());
 
     MAPF P = preparePIBTProblem(shuffled_agents);
-    P.setTimestepLimit(time_limit);
+    P.setTimestepLimit(INT_MAX/2);
 
     // seed for solver
     std::mt19937* MT_S = new std::mt19937(0);
