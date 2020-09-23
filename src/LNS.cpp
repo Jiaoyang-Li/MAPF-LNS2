@@ -134,6 +134,8 @@ bool LNS::getInitialSolution()
         succ = runEECBS();
     else if (init_algo_name == "PP")
         succ = runPP();
+    else if (init_algo_name == "PIBT")
+        succ = runPIBT();
     else
     {
         cerr <<  "Initial MAPF solver " << init_algo_name << " does not exist!" << endl;
@@ -302,6 +304,42 @@ bool LNS::runPP()
         neighbor.sum_of_costs = neighbor.old_sum_of_costs;
         return false;
     }
+}
+
+bool LNS::runPIBT(){
+
+    // seed for problem and graph
+    std::mt19937* MT_PG = new std::mt19937(0);
+    // seed for solver
+    std::mt19937* MT_S = new std::mt19937(0);
+
+    Graph* G = new SimpleGrid(instance);
+    PIBT_Agents A;
+    std::vector<Task*> T;
+
+    for (int i : neighbor.agents){
+        PIBT_Agent* a = new PIBT_Agent(G->getNode( agents[i].path_planner.start_location));
+        A.push_back(a);
+        Task* tau = new Task(G->getNode( agents[i].path_planner.goal_location));
+        T.push_back(tau);
+
+    }
+    MAPF P(G, A, T, MT_PG);
+    PIBT solver(&P, MT_S);
+    solver.solve();
+
+    int soc = 0;
+    for (int i=0; i<A.size();i++){
+        int a_id = neighbor.agents[i];
+        agents[a_id].path = Path();
+        for (auto n:A[i]->getHist()){
+            agents[a_id].path.push_back(PathEntry(n->v->getId()));
+        }
+        path_table.insertPath(agents[a_id].id, agents[a_id].path);
+        soc += agents[a_id].path.size()-1;
+    }
+
+    neighbor.sum_of_costs =soc;
 }
 
 void LNS::updateDestroyHeuristicbyALNS()

@@ -3,6 +3,13 @@
 #include "SpaceTimeAStar.h"
 #include <chrono>
 #include <utility>
+
+//pibt related
+#include "simplegrid.h"
+#include "pibt_agent.h"
+#include "problem.h"
+#include "mapf.h"
+#include "pibt.h"
 using namespace std::chrono;
 typedef std::chrono::high_resolution_clock Time;
 typedef std::chrono::duration<float> fsec;
@@ -83,6 +90,7 @@ private:
     bool runEECBS();
     bool runCBS();
     bool runPP();
+    bool runPIBT();
 
     void updateDestroyHeuristicbyALNS();
 
