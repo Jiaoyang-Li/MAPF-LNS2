@@ -31,8 +31,8 @@ int main(int argc, char** argv)
                 "MAPF algorithm for finding the initial solution (EECBS, CBS, PP)")
         ("replanAlgo", po::value<string>()->default_value("CBS"),
                 "MAPF algorithm for replanning (EECBS, CBS, PP)")
-        ("destoryStrategy", po::value<string>()->default_value("RandomWalk, Intersection, Adaptive"),
-             "MAPF algorithm for replanning (EECBS, CBS, PP)")
+        ("destoryStrategy", po::value<string>()->default_value("RandomWalk"),
+                "Heuristics for finding subgroups (RandomWalk, Intersection, Adaptive)")
 		;
 	po::variables_map vm;
 	po::store(po::parse_command_line(argc, argv, desc), vm);
