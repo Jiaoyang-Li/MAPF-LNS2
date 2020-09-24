@@ -38,9 +38,7 @@ void MAPF::init() {
   }
 }
 
-MAPF::~MAPF() {
-    delete G;
-}
+MAPF::~MAPF() {}
 
 bool MAPF::isSolved() {
   return T_OPEN.empty();

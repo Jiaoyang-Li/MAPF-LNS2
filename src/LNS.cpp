@@ -317,45 +317,54 @@ bool LNS::runPP()
 
 bool LNS::runPPS(){
     auto shuffled_agents = neighbor.agents;
-    std::random_shuffle(shuffled_agents.begin(), shuffled_agents.end());
+    // std::random_shuffle(shuffled_agents.begin(), shuffled_agents.end());
 
-    MAPF P = preparePIBTProblem(shuffled_agents);
-    P.setTimestepLimit(INT_MAX/2);
+    MAPF* P = preparePIBTProblem(shuffled_agents);
+    P->setTimestepLimit(5000);
 
     // seed for solver
     std::mt19937* MT_S = new std::mt19937(0);
-    PPS solver(&P, MT_S);
-    bool result = solver.solve();
-    assert(result);
-    updatePIBTResult(P.getA(),shuffled_agents);
+    PPS* solver = new PPS(P);
+//    solver.WarshallFloyd();
+    bool result = solver->solve();
+    updatePIBTResult(P->getA(),shuffled_agents);
+    delete P;
+    delete solver;
+    return result;
 }
 bool LNS::runPIBT(){
     auto shuffled_agents = neighbor.agents;
-    std::random_shuffle(shuffled_agents.begin(), shuffled_agents.end());
+    // std::random_shuffle(shuffled_agents.begin(), shuffled_agents.end());
 
-    MAPF P = preparePIBTProblem(shuffled_agents);
-    P.setTimestepLimit(INT_MAX/2);
+    MAPF* P = preparePIBTProblem(shuffled_agents);
+    P->setTimestepLimit(5000);
 
     // seed for solver
     std::mt19937* MT_S = new std::mt19937(0);
-    PIBT solver(&P,MT_S);
-    bool result = solver.solve();
-    assert(result);
-    updatePIBTResult(P.getA(),shuffled_agents);
+    PIBT* solver = new PIBT(P,MT_S);
+    bool result = solver->solve();
+    updatePIBTResult(P->getA(),shuffled_agents);
+    delete P;
+    delete solver;
+    return result;
 
 }
 
-MAPF LNS::preparePIBTProblem(vector<int> shuffled_agents){
+MAPF* LNS::preparePIBTProblem(vector<int> shuffled_agents){
 
     // seed for problem and graph
     std::mt19937* MT_PG = new std::mt19937(0);
 
-    Graph* G = new SimpleGrid(instance);
+//    Graph* G = new SimpleGrid(instance);
+    Graph* G = new SimpleGrid(instance.getMapFile());
+
     std::vector<Task*> T;
     PIBT_Agents A;
 
     for (int i : shuffled_agents){
         PIBT_Agent* a = new PIBT_Agent(G->getNode( agents[i].path_planner.start_location));
+
+//        PIBT_Agent* a = new PIBT_Agent(G->getNode( agents[i].path_planner.start_location));
         A.push_back(a);
         Task* tau = new Task(G->getNode( agents[i].path_planner.goal_location));
         T.push_back(tau);
@@ -364,7 +373,7 @@ MAPF LNS::preparePIBTProblem(vector<int> shuffled_agents){
         }
     }
 
-    return MAPF(G, A, T, MT_PG);
+    return new MAPF(G, A, T, MT_PG);
 
 }
 
@@ -375,6 +384,8 @@ void LNS::updatePIBTResult(const PIBT_Agents& A,vector<int> shuffled_agents){
 
         agents[a_id].path.resize(A[i]->getHist().size());
         int last_goal_visit = 0;
+        if(screen>=2)
+            std::cout<<A[i]->logStr()<<std::endl;
         for (int n_index = 0; n_index < A[i]->getHist().size(); n_index++){
             auto n = A[i]->getHist()[n_index];
             agents[a_id].path[n_index] = PathEntry(n->v->getId());
@@ -388,6 +399,8 @@ void LNS::updatePIBTResult(const PIBT_Agents& A,vector<int> shuffled_agents){
         }
         //resize to last goal visit time
         agents[a_id].path.resize(last_goal_visit + 1);
+        if(screen>=2)
+            std::cout<<" Length: "<< agents[a_id].path.size() <<std::endl;
         if(screen>=5){
             cout <<"Agent "<<a_id<<":";
             for (auto loc : agents[a_id].path){

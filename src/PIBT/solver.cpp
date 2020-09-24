@@ -16,12 +16,9 @@ Solver::Solver(Problem* _P) : P(_P) {
   MT = new std::mt19937(seed_gen());
   init();
 }
-
-Solver::Solver(Problem* _P, std::mt19937* _MT):P(_P),MT(_MT){
-    init();
-};
-
-
+Solver::Solver(Problem* _P, std::mt19937* _MT) : P(_P), MT(_MT) {
+  init();
+}
 
 Solver::~Solver() {}
 

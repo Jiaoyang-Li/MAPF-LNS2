@@ -18,6 +18,7 @@ public:
 
 
 	void printAgents() const;
+	string getMapFile() const {return map_fname;};
 
 
     inline bool isObstacle(int loc) const { return my_map[loc]; }

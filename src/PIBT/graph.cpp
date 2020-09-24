@@ -40,7 +40,7 @@ Node* Graph::getNode(int id) {
   // error check
   if (itr == nodes.end()) {
     std::cout << "error@Graph::getNode, "
-              << "node index is over, total: "<<nodes.size() <<" id:" << id << "\n";
+              << "node index is over, " << id << "\n";
     std::exit(1);
   }
 

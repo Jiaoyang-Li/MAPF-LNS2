@@ -44,8 +44,8 @@ bool PPS::solve() {
   pushers = A;
   U.clear();
   L.clear();
-  bool timeout = false;
 
+  bool outof_step = false;
   while (!P->isSolved()) {  // l.2
     update();
     if (!status) {
@@ -54,14 +54,15 @@ bool PPS::solve() {
     }
     P->update();
     if (P->getTimestep() >= P->getTimestepLimit()) {
-        timeout = true;
+        outof_step = true;
         break;
     }
   }
 
   solveEnd();
-  if (timeout)
+  if (outof_step){
       return false;
+  }
   return true;
 }
 

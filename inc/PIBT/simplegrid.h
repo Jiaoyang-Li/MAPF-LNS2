@@ -37,10 +37,14 @@ class SimpleGrid : public Grid {
 protected:
   std::string filename;
 
+    void init();
+    void setBasicParams();
+    void createNodes();
+    void createEdges();
   virtual void setStartGoal();
 
 public:
-
+    SimpleGrid(std::string _filename);
   SimpleGrid(Instance instance);
 
     ~SimpleGrid();
