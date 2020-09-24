@@ -59,8 +59,9 @@ int main(int argc, char** argv)
                 vm["initAlgo"].as<string>(),
                 vm["replanAlgo"].as<string>(),
                 vm["destoryStrategy"].as<string>(), screen);
-        lns.run();
-        lns.validateSolution();
+        bool succ = lns.run();
+        if (succ)
+            lns.validateSolution();
         if (vm.count("output"))
             lns.writeResultToFile(vm["output"].as<string>());
         if (vm.count("stats"))

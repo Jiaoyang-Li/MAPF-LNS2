@@ -330,8 +330,8 @@ bool LNS::runPPS(){
     PPS solver(&P);
 //    solver.WarshallFloyd();
     bool result = solver.solve();
-    assert(result);
-    updatePIBTResult(P.getA(),shuffled_agents);
+    if (result)
+        updatePIBTResult(P.getA(),shuffled_agents);
     return result;
 }
 bool LNS::runPIBT(){
@@ -345,10 +345,9 @@ bool LNS::runPIBT(){
     std::mt19937* MT_S = new std::mt19937(0);
     PIBT solver(&P,MT_S);
     bool result = solver.solve();
-    assert(result);
-    updatePIBTResult(P.getA(),shuffled_agents);
+    if (result)
+        updatePIBTResult(P.getA(),shuffled_agents);
     return result;
-
 }
 
 MAPF LNS::preparePIBTProblem(vector<int> shuffled_agents){
@@ -449,7 +448,7 @@ bool LNS::generateNeighborByIntersection()
     {
         for (int i = 0; i < instance.map_size; i++)
         {
-            if (instance.getDegree(i) > 2)
+            if (!instance.isObstacle(i) && instance.getDegree(i) > 2)
                 intersections.push_back(i);
         }
     }
@@ -477,7 +476,6 @@ bool LNS::generateNeighborByIntersection()
     if (screen >= 2)
         cout << "Generate " << neighbor.agents.size() << " neighbors by intersection " << location << endl;
     return true;
-    return false;
 }
 
 bool LNS::generateNeighborByRandomWalk()
