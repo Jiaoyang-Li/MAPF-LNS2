@@ -8,7 +8,7 @@ void PathTable::insertPath(int agent_id, const Path& path)
     {
         if (table[path[t].location].size() <= t)
             table[path[t].location].resize(t + 1, NO_AGENT);
-        assert(table[path[t].location][t] == NO_AGENT);
+        // assert(table[path[t].location][t] == NO_AGENT);
         table[path[t].location][t] = agent_id;
     }
     goals[path.back().location] = (int) path.size() - 1;

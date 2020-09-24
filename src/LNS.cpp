@@ -381,6 +381,10 @@ void LNS::updatePIBTResult(const PIBT_Agents& A,vector<int> shuffled_agents){
             if(screen>=5){
                 cout <<n->v->getPos()<<",";
             }
+            if(agents[a_id].path_planner.goal_location == n->v->getId()){
+                break;
+            }
+
         }
         if(screen>=5)
             cout<<endl;
