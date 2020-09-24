@@ -95,7 +95,7 @@ private:
     bool runPIBT();
     bool runPPS();
 
-    MAPF* preparePIBTProblem(vector<int> shuffled_agents);
+    MAPF preparePIBTProblem(vector<int> shuffled_agents);
     void updatePIBTResult(const PIBT_Agents& A,vector<int> shuffled_agents);
 
     void updateDestroyHeuristicbyALNS();

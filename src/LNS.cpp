@@ -156,8 +156,11 @@ bool LNS::getInitialSolution()
         sum_of_costs = neighbor.sum_of_costs;
         return true;
     }
-    else
+    else {
+        if (screen>=1)
+            cout<<"Failed to find initial solution"<<endl;
         return false;
+    }
 
 }
 
@@ -319,38 +322,36 @@ bool LNS::runPPS(){
     auto shuffled_agents = neighbor.agents;
     // std::random_shuffle(shuffled_agents.begin(), shuffled_agents.end());
 
-    MAPF* P = preparePIBTProblem(shuffled_agents);
-    P->setTimestepLimit(5000);
+    MAPF P = preparePIBTProblem(shuffled_agents);
+    P.setTimestepLimit(5000);
 
     // seed for solver
     std::mt19937* MT_S = new std::mt19937(0);
-    PPS* solver = new PPS(P);
+    PPS solver(&P);
 //    solver.WarshallFloyd();
-    bool result = solver->solve();
-    updatePIBTResult(P->getA(),shuffled_agents);
-    delete P;
-    delete solver;
+    bool result = solver.solve();
+    assert(result);
+    updatePIBTResult(P.getA(),shuffled_agents);
     return result;
 }
 bool LNS::runPIBT(){
     auto shuffled_agents = neighbor.agents;
     // std::random_shuffle(shuffled_agents.begin(), shuffled_agents.end());
 
-    MAPF* P = preparePIBTProblem(shuffled_agents);
-    P->setTimestepLimit(5000);
+    MAPF P = preparePIBTProblem(shuffled_agents);
+    P.setTimestepLimit(5000);
 
     // seed for solver
     std::mt19937* MT_S = new std::mt19937(0);
-    PIBT* solver = new PIBT(P,MT_S);
-    bool result = solver->solve();
-    updatePIBTResult(P->getA(),shuffled_agents);
-    delete P;
-    delete solver;
+    PIBT solver(&P,MT_S);
+    bool result = solver.solve();
+    assert(result);
+    updatePIBTResult(P.getA(),shuffled_agents);
     return result;
 
 }
 
-MAPF* LNS::preparePIBTProblem(vector<int> shuffled_agents){
+MAPF LNS::preparePIBTProblem(vector<int> shuffled_agents){
 
     // seed for problem and graph
     std::mt19937* MT_PG = new std::mt19937(0);
@@ -373,7 +374,7 @@ MAPF* LNS::preparePIBTProblem(vector<int> shuffled_agents){
         }
     }
 
-    return new MAPF(G, A, T, MT_PG);
+    return MAPF(G, A, T, MT_PG);
 
 }
 
