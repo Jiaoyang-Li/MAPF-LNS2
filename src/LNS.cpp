@@ -372,22 +372,29 @@ void LNS::updatePIBTResult(const PIBT_Agents& A,vector<int> shuffled_agents){
     int soc = 0;
     for (int i=0; i<A.size();i++){
         int a_id = shuffled_agents[i];
-        if(screen>=5){
-            cout <<"Agent "<<a_id<<":";
-        }
-        agents[a_id].path.resize(0);
-        for (auto n:A[i]->getHist()){
-            agents[a_id].path.emplace_back(n->v->getId());
-            if(screen>=5){
-                cout <<n->v->getPos()<<",";
-            }
-            if(agents[a_id].path_planner.goal_location == n->v->getId()){
-                break;
-            }
+
+        agents[a_id].path.resize(A[i]->getHist().size());
+        int last_goal_visit = 0;
+        for (int n_index = 0; n_index < A[i]->getHist().size(); n_index++){
+            auto n = A[i]->getHist()[n_index];
+            agents[a_id].path[n_index] = PathEntry(n->v->getId());
+
+            //record the last time agent reach the goal from a non-goal vertex.
+            if(agents[a_id].path_planner.goal_location == n->v->getId() 
+                && n_index - 1>=0
+                && agents[a_id].path_planner.goal_location !=  agents[a_id].path[n_index - 1].location)
+                last_goal_visit = n_index;
 
         }
-        if(screen>=5)
+        //resize to last goal visit time
+        agents[a_id].path.resize(last_goal_visit + 1);
+        if(screen>=5){
+            cout <<"Agent "<<a_id<<":";
+            for (auto loc : agents[a_id].path){
+                cout <<loc.location<<",";
+            }
             cout<<endl;
+        }
         path_table.insertPath(agents[a_id].id, agents[a_id].path);
         soc += agents[a_id].path.size()-1;
     }
