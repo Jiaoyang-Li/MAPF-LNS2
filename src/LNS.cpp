@@ -322,7 +322,7 @@ bool LNS::runPP()
 
 bool LNS::runPPS(){
     auto shuffled_agents = neighbor.agents;
-//    std::random_shuffle(shuffled_agents.begin(), shuffled_agents.end());
+    std::random_shuffle(shuffled_agents.begin(), shuffled_agents.end());
 
     MAPF P = preparePIBTProblem(shuffled_agents);
     P.setTimestepLimit(pipp_option.timestepLimit);
