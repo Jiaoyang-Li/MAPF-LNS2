@@ -16,26 +16,6 @@ struct KnownPath {
   Nodes path;
 };
 
-struct AN {  // Astar Node
-  Node* v;
-  int g;
-  int f;
-  AN* p;
-};
-
-struct Fib_AN { // AN for Fibonacci heap
-  Fib_AN(AN* _node): node(_node) {}
-  AN* node;
-
-  bool operator<(const Fib_AN& other) const {
-    if (node->f != other.node->f) {
-      return node->f > other.node->f;
-    } else {
-      return node->g < other.node->g;
-    }
-  }
-};
-
 class Graph {
 private:
   // digraph or not
@@ -62,7 +42,7 @@ protected:
   Nodes getPath(Node* s, Node* g, int (*dist)(Node*, Node*));
   Nodes getPath(Node* s, Node* g, Nodes &prohibitedNodes,
                 int (*dist)(Node*, Node*));
-  std::string getKey(Node* s, Node* g);
+  std::string getKeyForKnownPath(Node* s, Node* g);
   void registerPath(const Nodes &path);
 
 public:
@@ -72,7 +52,6 @@ public:
 
   Node* getNode(int id);
   bool existNode(int id);
-  Node* getNode(int x, int y);
   Nodes getNodes() { return nodes; }
   int getNodesNum() { return nodes.size(); }
   int getNodeIndex(Node* v);
@@ -97,7 +76,7 @@ public:
   virtual Nodes getPath(Node* s, Node* g) { return {}; }
   virtual Nodes getPath(Node* s, Node* g, Nodes &prohibitedNodes);
 
-  virtual Paths getRandomStartGoal(int num);
+  virtual Paths getStartGoal(int num);
   // for iterative MAPF
   virtual Node* getNewGoal(Node* v) { return v; }
 

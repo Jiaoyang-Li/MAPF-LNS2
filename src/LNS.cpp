@@ -145,6 +145,8 @@ bool LNS::getInitialSolution()
         succ = runPIBT();
     else if (init_algo_name == "PPS")
         succ = runPPS();
+    else if (init_algo_name == "winPIBT")
+        succ = runWinPIBT();
     else
     {
         cerr <<  "Initial MAPF solver " << init_algo_name << " does not exist!" << endl;
@@ -320,14 +322,14 @@ bool LNS::runPP()
 
 bool LNS::runPPS(){
     auto shuffled_agents = neighbor.agents;
-    // std::random_shuffle(shuffled_agents.begin(), shuffled_agents.end());
+    std::random_shuffle(shuffled_agents.begin(), shuffled_agents.end());
 
     MAPF P = preparePIBTProblem(shuffled_agents);
-    P.setTimestepLimit(5000);
+    P.setTimestepLimit(10000);
 
     // seed for solver
     std::mt19937* MT_S = new std::mt19937(0);
-    PPS solver(&P);
+    PPS solver(&P,MT_S);
 //    solver.WarshallFloyd();
     bool result = solver.solve();
     if (result)
@@ -336,7 +338,7 @@ bool LNS::runPPS(){
 }
 bool LNS::runPIBT(){
     auto shuffled_agents = neighbor.agents;
-    // std::random_shuffle(shuffled_agents.begin(), shuffled_agents.end());
+     std::random_shuffle(shuffled_agents.begin(), shuffled_agents.end());
 
     MAPF P = preparePIBTProblem(shuffled_agents);
     P.setTimestepLimit(5000);
@@ -348,6 +350,23 @@ bool LNS::runPIBT(){
     if (result)
         updatePIBTResult(P.getA(),shuffled_agents);
     return result;
+}
+
+bool LNS::runWinPIBT(){
+//    auto shuffled_agents = neighbor.agents;
+//    std::random_shuffle(shuffled_agents.begin(), shuffled_agents.end());
+//
+//    MAPF P = preparePIBTProblem(shuffled_agents);
+//    P.setTimestepLimit(5000);
+//
+//    // seed for solver
+//    std::mt19937* MT_S = new std::mt19937(0);
+//    winPIBT solver(&P,5,true,MT_S);
+//    bool result = solver.solve();
+//    if (result)
+//        updatePIBTResult(P.getA(),shuffled_agents);
+//    return result;
+    return false;
 }
 
 MAPF LNS::preparePIBTProblem(vector<int> shuffled_agents){

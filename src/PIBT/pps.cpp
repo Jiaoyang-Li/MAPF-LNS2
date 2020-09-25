@@ -45,7 +45,6 @@ bool PPS::solve() {
   U.clear();
   L.clear();
 
-  bool outof_step = false;
   while (!P->isSolved()) {  // l.2
     update();
     if (!status) {
@@ -53,16 +52,10 @@ bool PPS::solve() {
       return false;
     }
     P->update();
-    if (P->getTimestep() >= P->getTimestepLimit()) {
-        outof_step = true;
-        break;
-    }
+    if (P->getTimestep() >= P->getTimestepLimit()) break;
   }
 
   solveEnd();
-  if (outof_step){
-      return false;
-  }
   return true;
 }
 
