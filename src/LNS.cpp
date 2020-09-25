@@ -2,8 +2,10 @@
 
 
 LNS::LNS(const Instance& instance, double time_limit, string init_algo_name, string replan_algo_name, string destory_name,
-    int screen,PIBTPPS_option pipp_option): instance(instance), time_limit(time_limit), init_algo_name(std::move(init_algo_name)),
-                 replan_algo_name(replan_algo_name), screen(screen), path_table(instance.map_size),pipp_option(pipp_option)
+         int neighbor_size, int screen, PIBTPPS_option pipp_option) :
+         instance(instance), time_limit(time_limit), init_algo_name(std::move(init_algo_name)),
+         replan_algo_name(replan_algo_name), neighbor_size(neighbor_size), screen(screen),
+         path_table(instance.map_size),pipp_option(pipp_option), replan_time_limit(time_limit / 100)
 {
     start_time = Time::now();
     if (destory_name == "Adaptive")
@@ -125,7 +127,8 @@ bool LNS::run()
          << "solution cost = " << sum_of_costs << ", "
          << "initial solution cost = " << initial_sum_of_costs << ", "
          << "runtime = " << runtime << ", "
-         << "group size = " << average_group_size << endl;
+         << "group size = " << average_group_size << ", "
+         << "failed iterations = " << num_of_failures << endl;
     return true;
 }
 
@@ -210,6 +213,8 @@ bool LNS::runEECBS()
             path_table.insertPath(agents[id].id, agents[id].path);
         }
         neighbor.sum_of_costs = neighbor.old_sum_of_costs;
+        if (!succ)
+            num_of_failures++;
     }
     return succ;
 }
@@ -260,6 +265,8 @@ bool LNS::runCBS()
             path_table.insertPath(agents[id].id, agents[id].path);
         }
         neighbor.sum_of_costs = neighbor.old_sum_of_costs;
+        if (!succ)
+            num_of_failures++;
     }
     return succ;
 }
@@ -286,7 +293,10 @@ bool LNS::runPP()
                  << "Agent " << agents[id].id << endl;
         agents[id].path = agents[id].path_planner.findOptimalPath(path_table);
         if (agents[id].path.empty())
+        {
+            num_of_failures++;
             break;
+        }
         neighbor.sum_of_costs += (int)agents[id].path.size() - 1;
         if (neighbor.sum_of_costs >= neighbor.old_sum_of_costs)
             break;
@@ -538,15 +548,25 @@ bool LNS::generateNeighborByRandomWalk()
     set<int> neighbors_set;
     neighbors_set.insert(a);
     randomWalk(a, agents[a].path[0].location, 0, neighbors_set, neighbor_size, (int) agents[a].path.size() - 1);
-    //int T = agents[a].path.size();
-    //int count = 0;
-    //while (neighbors_set.size() < neighbor_size && count < 10 && T > 0)
-    //{
-    //    int t = rand() % T;
-    //    randomWalk(a, agents[a].path[t].location, t, neighbors_set, neighbor_size, (int) agents[a].path.size() - 1);
-    //    T = t;
-    //    count++;
-    //}
+    int count = 0;
+    while (neighbors_set.size() < neighbor_size && count < 10)
+    {
+        int t = rand() % agents[a].path.size();
+        randomWalk(a, agents[a].path[t].location, t, neighbors_set, neighbor_size, (int) agents[a].path.size() - 1);
+        count++;
+        // select the next agent randomly
+        int idx = rand() % neighbors_set.size();
+        int i = 0;
+        for (auto n : neighbors_set)
+        {
+            if (i == idx)
+            {
+                a = i;
+                break;
+            }
+            i++;
+        }
+    }
     if (neighbors_set.size() < 2)
         return false;
     neighbor.agents.assign(neighbors_set.begin(), neighbors_set.end());
@@ -609,6 +629,16 @@ void LNS::validateSolution() const
             cerr << "The path of agent " << a1_.id << " ends at location " << a1_.path.back().location
                  << ", which is different from its goal location " << a1_.path_planner.goal_location << endl;
             exit(-1);
+        }
+        for (int t = 1; t < (int) a1_.path.size(); t++ )
+        {
+            if (!instance.validMove(a1_.path[t - 1].location, a1_.path[t].location))
+            {
+                cerr << "The path of agent " << a1_.id << " jump from "
+                     << a1_.path[t - 1].location << " to " << a1_.path[t].location
+                     << " between timesteps " << t - 1 << " and " << t << endl;
+                exit(-1);
+            }
         }
         sum += (int) a1_.path.size() - 1;
         for (const auto& a2_: agents)
