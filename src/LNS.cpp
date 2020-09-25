@@ -322,14 +322,14 @@ bool LNS::runPP()
 
 bool LNS::runPPS(){
     auto shuffled_agents = neighbor.agents;
-    std::random_shuffle(shuffled_agents.begin(), shuffled_agents.end());
+//    std::random_shuffle(shuffled_agents.begin(), shuffled_agents.end());
 
     MAPF P = preparePIBTProblem(shuffled_agents);
     P.setTimestepLimit(pipp_option.timestepLimit);
 
     // seed for solver
     std::mt19937* MT_S = new std::mt19937(0);
-    PPS solver(&P,MT_S);
+    PPS solver(&P);
 //    solver.WarshallFloyd();
     bool result = solver.solve();
     if (result)
@@ -380,11 +380,15 @@ MAPF LNS::preparePIBTProblem(vector<int> shuffled_agents){
     PIBT_Agents A;
 
     for (int i : shuffled_agents){
+        assert(G->existNode(agents[i].path_planner.start_location));
+        assert(G->existNode(agents[i].path_planner.goal_location));
         PIBT_Agent* a = new PIBT_Agent(G->getNode( agents[i].path_planner.start_location));
 
 //        PIBT_Agent* a = new PIBT_Agent(G->getNode( agents[i].path_planner.start_location));
         A.push_back(a);
         Task* tau = new Task(G->getNode( agents[i].path_planner.goal_location));
+
+
         T.push_back(tau);
         if(screen>=5){
             cout<<"Agent "<<i<<" start: " <<a->getNode()->getPos()<<" goal: "<<tau->getG().front()->getPos()<<endl;

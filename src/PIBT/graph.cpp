@@ -39,6 +39,7 @@ Node* Graph::getNode(int id) {
                           [id](Node* v){ return v->getId() == id; });
   // error check
   if (itr == nodes.end()) {
+      assert(false);
     std::cout << "error@Graph::getNode, "
               << "node index is over, " << id << "\n";
     std::exit(1);

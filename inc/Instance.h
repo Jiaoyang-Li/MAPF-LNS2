@@ -19,6 +19,8 @@ public:
 
 	void printAgents() const;
 	string getMapFile() const {return map_fname;};
+    vector<int> getStarts() const {return start_locations;};
+    vector<int> getGoals() const {return goal_locations;};
 
 
     inline bool isObstacle(int loc) const { return my_map[loc]; }
@@ -79,6 +81,7 @@ private:
 
 	  bool loadAgents();
 	  void saveAgents() const;
+	  void saveNathan() const;
 
 	  void generateConnectedRandomGrid(int rows, int cols, int obstacles); // initialize new [rows x cols] map with random obstacles
 	  void generateRandomAgents(int warehouse_width);

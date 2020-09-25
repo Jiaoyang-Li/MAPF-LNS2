@@ -45,6 +45,7 @@ bool winPIBT::solve() {
   int t = 0;
   int t_sup = 0;
   int i, _w;
+  bool outof_timestep = false;
 
   while (!P->isSolved()) {
     allocate();
@@ -83,12 +84,17 @@ bool winPIBT::solve() {
     for (int i = 0; i < A.size(); ++i) A[i]->setNode(PATHS[i][t+1]);
 
     P->update();
-    if (P->getTimestep() >= P->getTimestepLimit()) break;
+    if (P->getTimestep() >= P->getTimestepLimit()) {
+        outof_timestep = true;
+        break;
+    }
 
     ++t;
   }
 
   solveEnd();
+  if (outof_timestep)
+      return false;
   return true;
 }
 

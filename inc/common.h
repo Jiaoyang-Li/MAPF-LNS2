@@ -65,9 +65,9 @@ struct IterationStats
 };
 
 struct PIBTPPS_option{
-    int windowSize = 5;
-    bool winPIBTSoft = true;
-    bool timestepLimit = 10000;
+    int windowSize ;
+    bool winPIBTSoft ;
+    int timestepLimit ;
 };
 
 

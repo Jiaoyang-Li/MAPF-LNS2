@@ -54,7 +54,7 @@ int main(int argc, char** argv)
     pipp_option.windowSize = vm["pibtWindow"].as<int>();
     pipp_option.winPIBTSoft = vm["winPibtSoftmode"].as<bool>();
 
-	po::notify(vm);
+    po::notify(vm);
 
 	srand((int)time(0));
 
