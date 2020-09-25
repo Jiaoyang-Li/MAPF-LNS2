@@ -53,7 +53,7 @@ public:
     int sum_of_distances = -1;
     double average_group_size = -1;
     LNS(const Instance& instance, double time_limit,
-            string init_algo_name, string replan_algo_name, string destory_name, int screen);
+            string init_algo_name, string replan_algo_name, string destory_name, int screen, PIBTPPS_option pipp_option);
 
     bool getInitialSolution();
     bool run();
@@ -96,6 +96,8 @@ private:
     bool runPIBT();
     bool runPPS();
     bool runWinPIBT();
+
+    PIBTPPS_option pipp_option;
 
     MAPF preparePIBTProblem(vector<int> shuffled_agents);
     void updatePIBTResult(const PIBT_Agents& A,vector<int> shuffled_agents);

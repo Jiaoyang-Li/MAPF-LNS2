@@ -2,8 +2,8 @@
 
 
 LNS::LNS(const Instance& instance, double time_limit, string init_algo_name, string replan_algo_name, string destory_name,
-    int screen): instance(instance), time_limit(time_limit), init_algo_name(std::move(init_algo_name)),
-                 replan_algo_name(replan_algo_name), screen(screen), path_table(instance.map_size)
+    int screen,PIBTPPS_option pipp_option): instance(instance), time_limit(time_limit), init_algo_name(std::move(init_algo_name)),
+                 replan_algo_name(replan_algo_name), screen(screen), path_table(instance.map_size),pipp_option(pipp_option)
 {
     start_time = Time::now();
     if (destory_name == "Adaptive")
@@ -325,7 +325,7 @@ bool LNS::runPPS(){
     std::random_shuffle(shuffled_agents.begin(), shuffled_agents.end());
 
     MAPF P = preparePIBTProblem(shuffled_agents);
-    P.setTimestepLimit(10000);
+    P.setTimestepLimit(pipp_option.timestepLimit);
 
     // seed for solver
     std::mt19937* MT_S = new std::mt19937(0);
@@ -341,7 +341,7 @@ bool LNS::runPIBT(){
      std::random_shuffle(shuffled_agents.begin(), shuffled_agents.end());
 
     MAPF P = preparePIBTProblem(shuffled_agents);
-    P.setTimestepLimit(5000);
+    P.setTimestepLimit(pipp_option.timestepLimit);
 
     // seed for solver
     std::mt19937* MT_S = new std::mt19937(0);
@@ -353,20 +353,19 @@ bool LNS::runPIBT(){
 }
 
 bool LNS::runWinPIBT(){
-//    auto shuffled_agents = neighbor.agents;
-//    std::random_shuffle(shuffled_agents.begin(), shuffled_agents.end());
-//
-//    MAPF P = preparePIBTProblem(shuffled_agents);
-//    P.setTimestepLimit(5000);
-//
-//    // seed for solver
-//    std::mt19937* MT_S = new std::mt19937(0);
-//    winPIBT solver(&P,5,true,MT_S);
-//    bool result = solver.solve();
-//    if (result)
-//        updatePIBTResult(P.getA(),shuffled_agents);
-//    return result;
-    return false;
+    auto shuffled_agents = neighbor.agents;
+    std::random_shuffle(shuffled_agents.begin(), shuffled_agents.end());
+
+    MAPF P = preparePIBTProblem(shuffled_agents);
+    P.setTimestepLimit(pipp_option.timestepLimit);
+
+    // seed for solver
+    std::mt19937* MT_S = new std::mt19937(0);
+    winPIBT solver(&P,pipp_option.windowSize,pipp_option.winPIBTSoft,MT_S);
+    bool result = solver.solve();
+    if (result)
+        updatePIBTResult(P.getA(),shuffled_agents);
+    return result;
 }
 
 MAPF LNS::preparePIBTProblem(vector<int> shuffled_agents){

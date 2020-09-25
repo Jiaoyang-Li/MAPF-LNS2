@@ -34,6 +34,12 @@ int main(int argc, char** argv)
                 "MAPF algorithm for replanning (EECBS, CBS, PP)")
         ("destoryStrategy", po::value<string>()->default_value("RandomWalk"),
                 "Heuristics for finding subgroups (RandomWalk, Intersection, Adaptive)")
+            ("pibtWindow", po::value<int>()->default_value(5),
+             "window size for winPIBT")
+            ("winPibtSoftmode", po::value<bool>()->default_value(true),
+             "winPIBT soft mode")
+            ("timestepLimit", po::value<int>()->default_value(10000),
+             "for PIBT, winPIBT and PPS")
 		;
 	po::variables_map vm;
 	po::store(po::parse_command_line(argc, argv, desc), vm);
@@ -42,6 +48,11 @@ int main(int argc, char** argv)
 		cout << desc << endl;
 		return 1;
 	}
+
+    PIBTPPS_option pipp_option;
+    pipp_option.timestepLimit = vm["timestepLimit"].as<int>();
+    pipp_option.windowSize = vm["pibtWindow"].as<int>();
+    pipp_option.winPIBTSoft = vm["winPibtSoftmode"].as<bool>();
 
 	po::notify(vm);
 
@@ -58,7 +69,7 @@ int main(int argc, char** argv)
         LNS lns(instance, time_limit,
                 vm["initAlgo"].as<string>(),
                 vm["replanAlgo"].as<string>(),
-                vm["destoryStrategy"].as<string>(), screen);
+                vm["destoryStrategy"].as<string>(), screen,pipp_option);
         bool succ = lns.run();
         if (succ)
             lns.validateSolution();

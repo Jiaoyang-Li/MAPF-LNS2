@@ -64,6 +64,13 @@ struct IterationStats
             sum_of_costs_lowerbound(sum_of_costs_lowerbound), algorithm(algorithm) {}
 };
 
+struct PIBTPPS_option{
+    int windowSize = 5;
+    bool winPIBTSoft = true;
+    bool timestepLimit = 10000;
+};
+
+
 // Only for three-tuples of std::hash-able types for simplicity.
 // You can of course template this struct to allow other hash functions
 /*struct three_tuple_hash {
