@@ -41,6 +41,7 @@ bool LNS::run()
         return false;
 
     initial_solution_runtime = ((fsec)(Time::now() - start_time)).count();
+    validateSolution();
     if (screen >= 1)
         cout << "Initial solution cost = " << initial_sum_of_costs << ", "
              << "runtime = " << initial_solution_runtime << endl;
@@ -159,8 +160,7 @@ bool LNS::getInitialSolution()
         return true;
     }
     else {
-        if (screen>=1)
-            cout<<"Failed to find initial solution"<<endl;
+        cout<<"Failed to find initial solution"<<endl;
         return false;
     }
 

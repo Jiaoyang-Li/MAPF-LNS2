@@ -88,10 +88,18 @@ void Instance::generateRandomAgents(int warehouse_width)
 			starts[start] = true;
 
 			// find goal
-			bool flag = false;
-			int goal = randomWalk(start, RANDOM_WALK_STEPS);
-			while (goals[goal])
-				goal = randomWalk(goal, 1);
+            x = rand() % num_of_rows;
+            y = rand() % num_of_cols;
+            int goal = linearizeCoordinate(x, y);
+            while (my_map[goal] || goals[goal])
+            {
+                x = rand() % num_of_rows;
+                y = rand() % num_of_cols;
+                goal = linearizeCoordinate(x, y);
+            }
+			//int goal = randomWalk(start, RANDOM_WALK_STEPS);
+			//while (goals[goal])
+			//	goal = randomWalk(goal, 1);
 
 			//update goal
 			goal_locations[k] = goal;
