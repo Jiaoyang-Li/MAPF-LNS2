@@ -28,8 +28,8 @@ int main(int argc, char** argv)
 		("solver", po::value<string>()->default_value("LNS"), "solver (LNS, A-BCBS)")
 
         // params for LNS
-        ("neighborSize", po::value<int>()->default_value(5),
-             "Size of the neighborhood")
+        ("neighborSize", po::value<int>()->default_value(5), "Size of the neighborhood")
+        ("maxIterations", po::value<int>()->default_value(1000000), "maximum number of iterations")
         ("initAlgo", po::value<string>()->default_value("EECBS"),
                 "MAPF algorithm for finding the initial solution (EECBS, CBS, PP)")
         ("replanAlgo", po::value<string>()->default_value("CBS"),
@@ -72,7 +72,8 @@ int main(int argc, char** argv)
                 vm["initAlgo"].as<string>(),
                 vm["replanAlgo"].as<string>(),
                 vm["destoryStrategy"].as<string>(),
-                vm["neighborSize"].as<int>(), screen,pipp_option);
+                vm["neighborSize"].as<int>(),
+                vm["maxIterations"].as<int>(), screen, pipp_option);
         bool succ = lns.run();
         if (succ)
             lns.validateSolution();

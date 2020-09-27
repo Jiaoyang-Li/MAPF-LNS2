@@ -32,7 +32,7 @@ Instance::Instance(const string& map_fname, const string& agent_fname,
 		if (num_of_agents > 0)
 		{
 			generateRandomAgents(warehouse_width);
-			saveAgents();
+			// saveAgents();
             saveNathan();
 		}
 		else
@@ -446,7 +446,7 @@ void Instance::saveAgents() const
 void Instance::saveNathan() const
 {
     ofstream myfile;
-    myfile.open(agent_fname+"_nathan.scen");
+    myfile.open(agent_fname); // +"_nathan.scen");
     if (!myfile.is_open())
     {
         cout << "Fail to save the agents to " << agent_fname << endl;
@@ -454,7 +454,7 @@ void Instance::saveNathan() const
     }
     myfile << "version 1" << endl;
     for (int i = 0; i < num_of_agents; i++)
-        myfile << i<<"\t"<<"mapname.map\t"<<this->num_of_cols<<"\t"<<this->num_of_rows<<"\t"
+        myfile << i<<"\t"<<map_fname<<"\t"<<this->num_of_cols<<"\t"<<this->num_of_rows<<"\t"
                 << getColCoordinate(start_locations[i]) << "\t" << getRowCoordinate(start_locations[i]) << "\t"
                 << getColCoordinate(goal_locations[i]) << "\t" << getRowCoordinate(goal_locations[i]) << "\t"  <<0<< endl;
     myfile.close();

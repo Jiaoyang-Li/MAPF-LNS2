@@ -2,10 +2,10 @@
 
 
 LNS::LNS(const Instance& instance, double time_limit, string init_algo_name, string replan_algo_name, string destory_name,
-         int neighbor_size, int screen, PIBTPPS_option pipp_option) :
+         int neighbor_size, int num_of_iterations, int screen, PIBTPPS_option pipp_option) :
          instance(instance), time_limit(time_limit), init_algo_name(std::move(init_algo_name)),
-         replan_algo_name(replan_algo_name), neighbor_size(neighbor_size), screen(screen),
-         path_table(instance.map_size),pipp_option(pipp_option), replan_time_limit(time_limit / 100)
+         replan_algo_name(replan_algo_name), neighbor_size(neighbor_size), num_of_iterations(num_of_iterations),
+         screen(screen), path_table(instance.map_size),pipp_option(pipp_option), replan_time_limit(time_limit / 100)
 {
     start_time = Time::now();
     if (destory_name == "Adaptive")
@@ -38,22 +38,34 @@ bool LNS::run()
         sum_of_distances += agent.path_planner.my_heuristic[agent.path_planner.start_location];
     }
 
-    start_time = Time::now();
-    if (!getInitialSolution())
-        return false;
-
-    initial_solution_runtime = ((fsec)(Time::now() - start_time)).count();
-    validateSolution();
-    if (screen >= 1)
-        cout << "Initial solution cost = " << initial_sum_of_costs << ", "
-             << "runtime = " << initial_solution_runtime << endl;
+    initial_solution_runtime = 0;
+    bool succ = false;
+    int count = 0;
+    while (!succ && initial_solution_runtime < time_limit)
+    {
+        start_time = Time::now();
+        succ = getInitialSolution();
+        initial_solution_runtime += ((fsec)(Time::now() - start_time)).count();
+        count++;
+    }
     iteration_stats.emplace_back(neighbor.agents.size(),
-            initial_sum_of_costs, initial_solution_runtime, init_algo_name);
-
-
-    bool succ;
+                                 initial_sum_of_costs, initial_solution_runtime, init_algo_name);
     runtime = initial_solution_runtime;
-    while (runtime < time_limit && iteration_stats.size() < num_of_iterations)
+    if (succ)
+    {
+        validateSolution();
+        if (screen >= 1)
+            cout << "Initial solution cost = " << initial_sum_of_costs << ", "
+                 << "runtime = " << initial_solution_runtime << endl;
+    }
+    else
+    {
+        cout << "Failed to find an initial solution in "
+             << runtime << " seconds and  " << count << " iterations" << endl;
+        return false; // terminate because no initial solution is found
+    }
+
+    while (runtime < time_limit && iteration_stats.size() <= num_of_iterations)
     {
         runtime =((fsec)(Time::now() - start_time)).count();
         if(screen >= 1)
@@ -151,6 +163,8 @@ bool LNS::getInitialSolution()
         succ = runPPS();
     else if (init_algo_name == "winPIBT")
         succ = runWinPIBT();
+    else if (init_algo_name == "CBS")
+        succ = runCBS();
     else
     {
         cerr <<  "Initial MAPF solver " << init_algo_name << " does not exist!" << endl;
@@ -162,8 +176,8 @@ bool LNS::getInitialSolution()
         sum_of_costs = neighbor.sum_of_costs;
         return true;
     }
-    else {
-        cout<<"Failed to find initial solution"<<endl;
+    else
+    {
         return false;
     }
 
@@ -208,11 +222,14 @@ bool LNS::runEECBS()
     }
     else // stick to old paths
     {
-        for (int id : neighbor.agents)
+        if (!neighbor.old_paths.empty())
         {
-            path_table.insertPath(agents[id].id, agents[id].path);
+            for (int id : neighbor.agents)
+            {
+                path_table.insertPath(agents[id].id, agents[id].path);
+            }
+            neighbor.sum_of_costs = neighbor.old_sum_of_costs;
         }
-        neighbor.sum_of_costs = neighbor.old_sum_of_costs;
         if (!succ)
             num_of_failures++;
     }
@@ -260,11 +277,15 @@ bool LNS::runCBS()
     }
     else // stick to old paths
     {
-        for (int id : neighbor.agents)
+        if (!neighbor.old_paths.empty())
         {
-            path_table.insertPath(agents[id].id, agents[id].path);
+            for (int id : neighbor.agents)
+            {
+                path_table.insertPath(agents[id].id, agents[id].path);
+            }
+            neighbor.sum_of_costs = neighbor.old_sum_of_costs;
+
         }
-        neighbor.sum_of_costs = neighbor.old_sum_of_costs;
         if (!succ)
             num_of_failures++;
     }
@@ -317,15 +338,18 @@ bool LNS::runPP()
             path_table.deletePath(agents[a].id, agents[a].path);
             ++p2;
         }
-        p2 = neighbor.agents.begin();
-        for (int i = 0; i < (int)neighbor.agents.size(); i++)
+        if (!neighbor.old_paths.empty())
         {
-            int a = *p2;
-            agents[a].path = neighbor.old_paths[i];
-            path_table.insertPath(agents[a].id, agents[a].path);
-            ++p2;
+            p2 = neighbor.agents.begin();
+            for (int i = 0; i < (int)neighbor.agents.size(); i++)
+            {
+                int a = *p2;
+                agents[a].path = neighbor.old_paths[i];
+                path_table.insertPath(agents[a].id, agents[a].path);
+                ++p2;
+            }
+            neighbor.sum_of_costs = neighbor.old_sum_of_costs;
         }
-        neighbor.sum_of_costs = neighbor.old_sum_of_costs;
         return false;
     }
 }
