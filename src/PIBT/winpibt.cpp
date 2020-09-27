@@ -83,9 +83,9 @@ bool winPIBT::solve() {
     for (int i = 0; i < A.size(); ++i) A[i]->setNode(PATHS[i][t+1]);
 
     P->update();
-    if (P->getTimestep() >= P->getTimestepLimit()) {
-        break;
-    }
+      if(time_limit&&((fsec)(std::chrono::system_clock::now()-startT)).count()>time_limit){
+          break;
+      }
 
     ++t;
   }

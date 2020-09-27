@@ -48,9 +48,9 @@ bool PIBT::solve() {
     allocate();
     update();
     P->update();
-    if (P->getTimestep() >= P->getTimestepLimit()) {
-        break;
-    };
+    if(time_limit&&((fsec)(std::chrono::system_clock::now()-startT)).count()>time_limit){
+      break;
+    }
   }
 
   solveEnd();

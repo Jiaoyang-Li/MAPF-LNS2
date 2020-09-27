@@ -40,8 +40,6 @@ int main(int argc, char** argv)
              "window size for winPIBT")
         ("winPibtSoftmode", po::value<bool>()->default_value(true),
              "winPIBT soft mode")
-        ("timestepLimit", po::value<int>()->default_value(10000),
-             "for PIBT, winPIBT and PPS")
 		;
 	po::variables_map vm;
 	po::store(po::parse_command_line(argc, argv, desc), vm);
@@ -52,7 +50,6 @@ int main(int argc, char** argv)
 	}
 
     PIBTPPS_option pipp_option;
-    pipp_option.timestepLimit = vm["timestepLimit"].as<int>();
     pipp_option.windowSize = vm["pibtWindow"].as<int>();
     pipp_option.winPIBTSoft = vm["winPibtSoftmode"].as<bool>();
 

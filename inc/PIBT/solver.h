@@ -8,6 +8,8 @@
 #include <unordered_map>
 #include <unordered_set>
 
+typedef std::chrono::duration<float> fsec;
+
 struct AN {
   Node* v;
   bool open;
@@ -41,6 +43,8 @@ protected:
   virtual void solveEnd();
   std::chrono::system_clock::time_point startT;
   std::chrono::system_clock::time_point endT;
+  double time_limit=0;
+
 
 public:
   Solver(Problem* _P);
@@ -48,8 +52,10 @@ public:
   ~Solver();
 
   void WarshallFloyd();
+  void setTimeLimit(double limit){this->time_limit=limit;};
 
-  virtual bool solve() { return false; };
+
+    virtual bool solve() { return false; };
   double getElapsed() { return elapsedTime; };
 
   virtual std::string logStr();
