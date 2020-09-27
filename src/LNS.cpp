@@ -329,7 +329,7 @@ bool LNS::runPPS(){
 
     // seed for solver
     std::mt19937* MT_S = new std::mt19937(0);
-    PPS solver(&P);
+    PPS solver(&P,MT_S);
 //    solver.WarshallFloyd();
     bool result = solver.solve();
     if (result)

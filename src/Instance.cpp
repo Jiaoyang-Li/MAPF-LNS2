@@ -464,7 +464,7 @@ void Instance::saveNathan() const
     for (int i = 0; i < num_of_agents; i++)
         myfile << i<<"\t"<<"mapname.map\t"<<this->num_of_cols<<"\t"<<this->num_of_rows<<"\t"
                 << getColCoordinate(start_locations[i]) << "\t" << getRowCoordinate(start_locations[i]) << "\t"
-                << getColCoordinate(goal_locations[i]) << "\t" << getRowCoordinate(goal_locations[i]) << "\t"  << endl;
+                << getColCoordinate(goal_locations[i]) << "\t" << getRowCoordinate(goal_locations[i]) << "\t"  <<0<< endl;
     myfile.close();
 }
 

@@ -43,22 +43,18 @@ void PIBT::init() {
 
 
 bool PIBT::solve() {
-    bool outof_step = false;
   solveStart();
   while (!P->isSolved()) {
     allocate();
     update();
     P->update();
     if (P->getTimestep() >= P->getTimestepLimit()) {
-        outof_step = true;
         break;
     };
   }
 
   solveEnd();
-  if (outof_step)
-      return false;
-  return true;
+  return P->isSolved();
 }
 
 void PIBT::allocate() {
