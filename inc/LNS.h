@@ -38,6 +38,9 @@ struct Neighbor
     vector<Path> old_paths;
 };
 
+// TODO: adaptively change the neighbor size, that is,
+// increase it if no progress is made for a while
+// decrease it if replanning fails to find any solutions for several times
 
 class LNS
 {
@@ -52,8 +55,10 @@ public:
     int sum_of_costs_lowerbound = -1;
     int sum_of_distances = -1;
     double average_group_size = -1;
+    int num_of_failures = 0; // #replanning that fails to find any solutions
     LNS(const Instance& instance, double time_limit,
-            string init_algo_name, string replan_algo_name, string destory_name, int screen, PIBTPPS_option pipp_option);
+        string init_algo_name, string replan_algo_name, string destory_name,
+        int neighbor_size, int screen, PIBTPPS_option pipp_option);
 
     bool getInitialSolution();
     bool run();
@@ -65,6 +70,7 @@ private:
     // intput params
     const Instance& instance; // avoid making copies of this variable as much as possible
     double time_limit;
+    double replan_time_limit; // time limit for replanning
     string init_algo_name;
     string replan_algo_name;
     int screen;

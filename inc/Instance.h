@@ -24,7 +24,14 @@ public:
 
 
     inline bool isObstacle(int loc) const { return my_map[loc]; }
-    inline bool validMove(int curr, int next) const;
+    inline bool validMove(int curr, int next) const
+    {
+        if (next < 0 || next >= map_size)
+            return false;
+        if (my_map[next])
+            return false;
+        return getManhattanDistance(curr, next) < 2;
+    }
     list<int> getNeighbors(int curr) const;
 
 

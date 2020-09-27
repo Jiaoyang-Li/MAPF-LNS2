@@ -145,14 +145,6 @@ void Instance::generateRandomAgents(int warehouse_width)
 	}
 }
 
-bool Instance::validMove(int curr, int next) const
-{
-	if (next < 0 || next >= map_size)
-		return false;
-	if (my_map[next])
-		return false;
-	return getManhattanDistance(curr, next) < 2;
-}
 
 bool Instance::addObstacle(int obstacle)
 {

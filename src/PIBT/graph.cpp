@@ -10,7 +10,7 @@
 #include <random>
 #include <unordered_set>
 #include "util.h"
-
+#include "assert.h"
 
 Graph::Graph() {
   std::random_device seed_gen;
