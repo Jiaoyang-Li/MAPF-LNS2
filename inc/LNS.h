@@ -114,6 +114,8 @@ private:
     bool generateNeighborByIntersection();
     //bool generateNeighborByTemporalIntersection();
 
+    int findMostDelayedAgent();
+    int findRandomAgent() const;
     void randomWalk(int agent_id, int start_location, int start_timestep,
                     set<int>& neighbor, int neighbor_size, int upperbound);
 

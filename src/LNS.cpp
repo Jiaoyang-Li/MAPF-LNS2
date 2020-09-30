@@ -53,7 +53,6 @@ bool LNS::run()
     runtime = initial_solution_runtime;
     if (succ)
     {
-        validateSolution();
         if (screen >= 1)
             cout << "Initial solution cost = " << initial_sum_of_costs << ", "
                  << "runtime = " << initial_solution_runtime << endl;
@@ -204,9 +203,17 @@ bool LNS::runEECBS()
     ecbs.setConflictSelectionRule(conflict_selection::EARLIEST);
     ecbs.setNodeSelectionRule(node_selection::NODE_CONFLICTPAIRS);
     ecbs.setSavingStats(false);
-    ecbs.setHighLevelSolver(high_level_solver_type::EES, 2);
+    double w;
+    if (iteration_stats.empty())
+        w = 2; // initial run
+    else
+        w = 1.1; // replan
+    ecbs.setHighLevelSolver(high_level_solver_type::EES, w);
     runtime = ((fsec)(Time::now() - start_time)).count();
-    bool succ = ecbs.solve(time_limit - runtime, 0);
+    double T = time_limit - runtime;
+    if (!iteration_stats.empty()) // replan
+        T = min(T, replan_time_limit);
+    bool succ = ecbs.solve(T, 0);
     if (succ && ecbs.solution_cost < neighbor.old_sum_of_costs) // accept new paths
     {
         auto id = neighbor.agents.begin();
@@ -261,7 +268,10 @@ bool LNS::runCBS()
     cbs.setSavingStats(false);
     cbs.setHighLevelSolver(high_level_solver_type::ASTAR, 1);
     runtime = ((fsec)(Time::now() - start_time)).count();
-    bool succ = cbs.solve(time_limit - runtime, 0);
+    double T = time_limit - runtime; // time limit
+    if (!iteration_stats.empty()) // replan
+        T = min(T, replan_time_limit);
+    bool succ = cbs.solve(T, 0);
     if (succ && cbs.solution_cost < neighbor.old_sum_of_costs) // accept new paths
     {
         auto id = neighbor.agents.begin();
@@ -305,7 +315,12 @@ bool LNS::runPP()
     int remaining_agents = (int)shuffled_agents.size();
     auto p = shuffled_agents.begin();
     neighbor.sum_of_costs = 0;
-    while (p != shuffled_agents.end())
+    runtime = ((fsec)(Time::now() - start_time)).count();
+    double T = time_limit - runtime; // time limit
+    if (!iteration_stats.empty()) // replan
+        T = min(T, replan_time_limit);
+    auto time = Time::now();
+    while (p != shuffled_agents.end() && ((fsec)(Time::now() - time)).count() < T)
     {
         int id = *p;
         if (screen >= 3)
@@ -315,7 +330,6 @@ bool LNS::runPP()
         agents[id].path = agents[id].path_planner.findOptimalPath(path_table);
         if (agents[id].path.empty())
         {
-            num_of_failures++;
             break;
         }
         neighbor.sum_of_costs += (int)agents[id].path.size() - 1;
@@ -331,6 +345,8 @@ bool LNS::runPP()
     }
     else // stick to old paths
     {
+        if (p != shuffled_agents.end())
+            num_of_failures++;
         auto p2 = shuffled_agents.begin();
         while (p2 != p)
         {
@@ -546,31 +562,10 @@ bool LNS::generateNeighborByRandomWalk()
         return true;
     }
 
-    // find the agent with max regret
-    int a = -1;
-    int max_delays = -1;
-    for (int i = 0; i < agents.size(); i++)
-    {
-        if (tabu_list.find(i) != tabu_list.end())
-            continue;
-        int delays = agents[i].path.size() - 1
-                - agents[i].path_planner.my_heuristic[agents[i].path_planner.start_location];
-        if (max_delays < delays)
-        {
-            a = i;
-            max_delays = delays;
-        }
-    }
-    if (max_delays == 0)
-    {
-        tabu_list.clear();
+    int a = findMostDelayedAgent();
+    if (a < 0)
         return false;
-    }
-    if (tabu_list.size() > agents.size() / 2)
-        tabu_list.clear();
-    else
-        tabu_list.insert(a);
-
+    
     set<int> neighbors_set;
     neighbors_set.insert(a);
     randomWalk(a, agents[a].path[0].location, 0, neighbors_set, neighbor_size, (int) agents[a].path.size() - 1);
@@ -604,6 +599,46 @@ bool LNS::generateNeighborByRandomWalk()
     return true;
 }
 
+int LNS::findMostDelayedAgent()
+{
+    int a = -1;
+    int max_delays = -1;
+    for (int i = 0; i < agents.size(); i++)
+    {
+        if (tabu_list.find(i) != tabu_list.end())
+            continue;
+        int delays = agents[i].getNumOfDelays();
+        if (max_delays < delays)
+        {
+            a = i;
+            max_delays = delays;
+        }
+    }
+    if (max_delays == 0)
+    {
+        tabu_list.clear();
+        return -1;
+    }
+    tabu_list.insert(a);
+    if (tabu_list.size() == agents.size())
+        tabu_list.clear();
+    return a;
+}
+
+int LNS::findRandomAgent() const
+{
+    int a = 0;
+    int pt = rand() % (sum_of_costs - sum_of_distances) + 1;
+    int sum = 0;
+    for (; a < (int) agents.size(); a++)
+    {
+        sum += agents[a].getNumOfDelays();
+        if (sum >= pt)
+            break;
+    }
+    assert(sum >= pt);
+    return a;
+}
 
 // a random walk with path that is shorter than upperbound and has conflicting with neighbor_size agents
 void LNS::randomWalk(int agent_id, int start_location, int start_timestep,
