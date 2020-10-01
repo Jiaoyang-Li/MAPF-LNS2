@@ -9,7 +9,10 @@ LNS::LNS(const Instance& instance, double time_limit, string init_algo_name, str
 {
     start_time = Time::now();
     if (destory_name == "Adaptive")
+    {
         ALNS = true;
+        destroy_weights.assign(DESTORY_COUNT * num_neighbor_sizes, 1);
+    }
     else if (destory_name == "RandomWalk")
         destroy_strategy = RANDOMWALK;
     else if (destory_name == "Intersection")
@@ -70,7 +73,7 @@ bool LNS::run()
         if(screen >= 1)
             validateSolution();
         if (ALNS)
-            updateDestroyHeuristicbyALNS();
+            chooseDestroyHeuristicbyALNS();
 
         switch (destroy_strategy)
         {
@@ -113,10 +116,12 @@ bool LNS::run()
         if (ALNS) // update destroy heuristics
         {
             if (neighbor.old_sum_of_costs > neighbor.sum_of_costs )
-                destroy_weights[destroy_strategy] = reaction_factor * (neighbor.old_sum_of_costs - neighbor.sum_of_costs)
-                                                       + (1 - reaction_factor) * destroy_weights[(int)destroy_strategy];
+                destroy_weights[selected_neighbor] =
+                        reaction_factor * (neighbor.old_sum_of_costs - neighbor.sum_of_costs) / neighbor.agents.size()
+                        + (1 - reaction_factor) * destroy_weights[selected_neighbor];
             else
-                destroy_weights[destroy_strategy] = (1 - decay_factor) * destroy_weights[(int)destroy_strategy];
+                destroy_weights[selected_neighbor] =
+                        (1 - decay_factor * neighbor.agents.size()) * destroy_weights[selected_neighbor];
         }
         runtime = ((fsec)(Time::now() - start_time)).count();
         sum_of_costs += neighbor.sum_of_costs - neighbor.old_sum_of_costs;
@@ -489,7 +494,7 @@ void LNS::updatePIBTResult(const PIBT_Agents& A,vector<int> shuffled_agents){
     neighbor.sum_of_costs =soc;
 }
 
-void LNS::updateDestroyHeuristicbyALNS()
+void LNS::chooseDestroyHeuristicbyALNS()
 {
     double sum = 0;
     for (const auto& h : destroy_weights)
@@ -502,21 +507,22 @@ void LNS::updateDestroyHeuristicbyALNS()
     }
     double r = (double) rand() / RAND_MAX;
     double threshold = destroy_weights[0];
-    int i = 0;
+    selected_neighbor = 0;
     while (threshold < r * sum)
     {
-        i++;
-        threshold += destroy_weights[i];
+        selected_neighbor++;
+        threshold += destroy_weights[selected_neighbor];
     }
-    switch (i)
+    switch (selected_neighbor / num_neighbor_sizes)
     {
         case 0 : destroy_strategy = RANDOMWALK; break;
         case 1 : destroy_strategy = INTERSECTION; break;
         default : cerr << "ERROR" << endl; exit(-1);
     }
+    neighbor_size = (int) pow(2, selected_neighbor % num_neighbor_sizes + 1);
 }
 
-bool LNS::generateNeighborByIntersection()
+bool LNS::generateNeighborByIntersection(bool temporal)
 {
     if (intersections.empty())
     {
@@ -536,13 +542,20 @@ bool LNS::generateNeighborByIntersection()
         auto pt = intersection_copy.begin();
         std::advance(pt, rand() % intersection_copy.size());
         location = *pt;
-        path_table.get_agents(neighbors_set, location);
+        if (temporal)
+        {
+            path_table.get_agents(neighbors_set, neighbor_size, location);
+        }
+        else
+        {
+            path_table.get_agents(neighbors_set, location);
+        }
         intersection_copy.erase(pt);
     }
     if (neighbors_set.size() <= 1)
         return false;
     neighbor.agents.assign(neighbors_set.begin(), neighbors_set.end());
-    if (neighbor.agents.size() > neighbor_size) // resize the group for CBS
+    if (neighbor.agents.size() > neighbor_size)
     {
         std::random_shuffle(neighbor.agents.begin(), neighbor.agents.end());
         neighbor.agents.resize(neighbor_size);
@@ -791,29 +804,6 @@ void LNS::writeResultToFile(string file_name) const
     stats.close();
 }
 /*
- * bool LNS::generateNeighborByTemporalIntersection()
-{
-    /*if (intersections.empty())
-    {
-        for (int i = 0; i < ml.map_size(); i++)
-        {
-            if (ml.getDegree(i) > 2)
-                intersections.push_back(i);
-        }
-    }
-
-    set<int> neighbors_set;
-    int location = intersections[rand() % intersections.size()];
-    al.constraintTable.get_agents(neighbors_set, group_size, location);
-    if (neighbors_set.size() <= 1)
-        return false;
-    neighbors.assign(neighbors_set.begin(), neighbors_set.end());
-    if (options1.debug)
-        cout << "Generate " << neighbors.size() << " neighbors by intersection " << location << endl;
-    return true;
-return false;
-}
-
 bool LNS::generateNeighborByStart()
 {
     if (start_locations.empty())
