@@ -41,7 +41,8 @@ void MAPF::init() {
 MAPF::~MAPF() {}
 
 bool MAPF::isSolved() {
-  return T_OPEN.empty();
+  if (!T_OPEN.empty()) return false;
+  return std::all_of(A.begin(), A.end(), [] (PIBT_Agent* a) { return a->getGoal() == a->getNode(); });
 }
 
 void MAPF::update() {

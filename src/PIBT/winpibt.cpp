@@ -83,9 +83,9 @@ bool winPIBT::solve() {
     for (int i = 0; i < A.size(); ++i) A[i]->setNode(PATHS[i][t+1]);
 
     P->update();
-      if(time_limit&&((fsec)(std::chrono::system_clock::now()-startT)).count()>time_limit){
-          break;
-      }
+    if(time_limit&&((fsec)(std::chrono::system_clock::now()-startT)).count()>time_limit){
+      break;
+    }
 
     ++t;
   }
@@ -266,7 +266,7 @@ Node* winPIBT::getGoal(PIBT_Agent* a) {
   return lastNode(a);
 }
 
-Nodes winPIBT::getPath(PIBT_Agent* a, Node* g, int t1, int t2) {
+Nodes winPIBT::getPath(PIBT_Agent* a, Node* _g, int t1, int t2) {
   if (t2 <= t1 || t2 <= ell(a)) {
     std::cout << "error@winPIBT::getPath"
               << ", ell : " << ell(a)
@@ -276,139 +276,86 @@ Nodes winPIBT::getPath(PIBT_Agent* a, Node* g, int t1, int t2) {
     std::exit(1);
   }
 
-  int t = t1;
   int id = a->getId();
-  Node* s = PATHS[id][t1];  // start pos
-  Nodes path, tmpPath;
-  Nodes unprefarrable;
-
-  int f = 0;
+  Node* _s = PATHS[a->getId()][t1];  // start pos
+  Nodes path, tmpPath, C;
+  int f, g;
   std::string key;
-  AN *l, *n;
-  std::unordered_set<std::string> OPEN;
-  std::unordered_map<std::string, AN*> table;
-  Nodes C;
+  bool invalid = true;  // success or not
 
-  l = new AN { s, true, t, pathDist(s, g), nullptr };
-  key = getKey(t, s);
-  table.emplace(key, l);
-  OPEN = { key };
+  boost::heap::fibonacci_heap<Fib_AN> OPEN;
+  std::unordered_map<std::string,
+                     boost::heap::fibonacci_heap<Fib_AN>::handle_type> SEARCHED;
+  std::unordered_set<std::string> CLOSE;  // key
+  AN* n = new AN { _s, t1, pathDist(_s, _g), nullptr };
+  auto handle = OPEN.push(Fib_AN(n));
+  key = getKey(n);
+  SEARCHED.emplace(key, handle);
 
   while (!OPEN.empty()) {
     // argmin
-    auto itr1 = std::min_element(OPEN.begin(), OPEN.end(),
-                                 [&table, this, id]
-                                 (std::string a, std::string b)
-                                 { auto eleA = table.at(a);
-                                   auto eleB = table.at(b);
-                                   bool flgA, flgB;
-                                   if (eleA->f == eleB->f) {
-                                     for (int i = 0; i < this->PATHS.size(); ++i) {
-                                       if (i == id) continue;
-                                       flgA = false;
-                                       flgB = false;
-                                       if (this->ell(i) < eleA->t &&
-                                           this->lastNode(i) == eleA->v) {
-                                         flgA = true;
-                                       }
-                                       if (this->ell(i) < eleB->t &&
-                                           this->lastNode(i) == eleB->v) {
-                                         flgB = true;
-                                       }
-                                       if (flgA && !flgB) return false;
-                                       if (!flgA && flgB) return true;
-                                     }
-                                     flgA = false;
-                                     flgB = false;
-                                     if (eleA->p && eleA->v == eleA->p->v) {
-                                       flgA = true;
-                                     }
-                                     if (eleB->p && eleB->v == eleB->p->v) {
-                                       flgB = true;
-                                     }
-                                     if (flgA && !flgB) return true;
-                                     if (!flgA && flgB) return false;
-                                     return eleA->t < eleB->t;
-                                   }
-                                   return eleA->f < eleB->f; });
-
-    key = *itr1;
-    n = table.at(key);
+    n = OPEN.top().node;
 
     // check goal
-    if (n->t >= t2) break;
-
-    // fast implementation
-    tmpPath = G->getPath(n->v, g);
-    while (n->t + tmpPath.size() - 1 < t2) tmpPath.push_back(g);
-    while (n->t + tmpPath.size() - 1 > t2) tmpPath.erase(tmpPath.end() - 1);
-
-    if (checkValidPath(id, tmpPath, n->t, t2)) {
-      // for path efficiency
-      bool interfere = false;
-      int k;
-      for (int i = 0; i < PATHS.size(); ++i) {
-        if (i == id) continue;
-        k = PATHS[i].size() - 1;
-        for (int j = 1;  j < tmpPath.size(); ++j) {
-          if (k >= n->t + j) continue;
-          if (lastNode(i) == tmpPath[j]) {
-            interfere = true;
-            break;
-          }
-        }
-        if (interfere) break;
-      }
-
-      if (!interfere) {
-        tmpPath.erase(tmpPath.begin());
-        for (auto v : tmpPath) n = new AN { v, true, n->t + 1, 0, n };
-        break;
-      }
+    if (n->g >= t2) {
+      invalid = false;
+      break;
     }
 
+    // ==== fast implementation ====
+    tmpPath = G->getPath(n->v, _g);
+    while (n->g + tmpPath.size() - 1 < t2) tmpPath.push_back(_g);
+    while (n->g + tmpPath.size() - 1 > t2) tmpPath.pop_back();
+    if (checkValidPath(id, tmpPath, n->g, t2)) {
+      tmpPath.erase(tmpPath.begin());
+      for (auto v : tmpPath) n = new AN { v, n->g + 1, 0, n };
+      invalid = false;
+      break;
+    }
+    // =============================
+
     // update list
-    n->open = false;
-    OPEN.erase(itr1);
+    OPEN.pop();
+    CLOSE.emplace(getKey(n));
 
     // search neighbor
     C = G->neighbor(n->v);
     C.push_back(n->v);
 
     for (auto m : C) {
-      // check other paths
-      t = n->t + 1;
+      g = n->g + 1;
+      key = getKey(g, m);
+      if (CLOSE.find(key) != CLOSE.end()) continue;
 
       // collision check
       tmpPath = { n->v, m };
-      if (!checkValidPath(id, tmpPath, n->t, t2)) continue;
+      if (!checkValidPath(id, tmpPath, n->g, t2)) continue;
 
-      key = getKey(t, m);
-      auto itr2 = table.find(key);
-      if (itr2 == table.end()) {
-        table.emplace(key, new AN { m, true, t, 100000, n });
+      f = g + pathDist(m, _g);
+      auto itrS = SEARCHED.find(key);
+      if (itrS == SEARCHED.end()) {  // new node
+        AN* l = new AN { m, g, f, n };
+        auto handle = OPEN.push(Fib_AN(l));
+        SEARCHED.emplace(key, handle);
+      } else {
+        auto handle = itrS->second;
+        AN* l = (*handle).node;
+        if (l->f > f) {
+          l->g = g;
+          l->f = f;
+          l->p = n;
+        }
+        OPEN.increase(handle);
       }
-      l = table.at(key);
-      if (!l->open) continue;
-
-      f = t + pathDist(m, g);
-      if (l->f > f) {
-        l->t = t;
-        l->f = f;
-        l->p = n;
-      }
-
-      OPEN.insert(key);
     }
   }
 
   // back tracking
-  if (n->t >= t2) {  // check failed or not
-    while (n->p) {
+  if (!invalid) {  // check failed or not
+    while (n != nullptr) {
       path.push_back(n->v);
       n = n->p;
     }
-    path.push_back(s);
     std::reverse(path.begin(), path.end());
   }
 
@@ -428,7 +375,7 @@ bool winPIBT::checkValidPath(int id, Nodes &path, int t1, int t2) {
       k = ell(i);
       for (int _t = j + t1 + 1; _t <= t2; ++_t) {
         if (k < _t) break;
-        if (PATHS[i][_t] == v2) {  // collision
+        if (PATHS[i][_t] == v2) {  // vertex collision
           return false;
         }
       }

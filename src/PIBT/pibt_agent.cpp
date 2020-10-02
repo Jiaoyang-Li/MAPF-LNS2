@@ -7,6 +7,7 @@
 
 
 #include "pibt_agent.h"
+#include "util.h"
 
 int PIBT_Agent::cntId = 0;
 
@@ -15,12 +16,14 @@ PIBT_Agent::PIBT_Agent() : id(cntId) {
     g = nullptr;
     tau = nullptr;
     updated = false;
+    beforeNode = nullptr;
 }
 
 PIBT_Agent::PIBT_Agent(Node* _v) : id(cntId) {
     ++cntId;
     g = nullptr;
     tau = nullptr;
+    v = nullptr;
     setNode(_v);
     updated = false;
 }
@@ -31,6 +34,16 @@ PIBT_Agent::~PIBT_Agent() {
 }
 
 void PIBT_Agent::setNode(Node* _v) {
+    // error check
+    if (v != nullptr) {
+        auto neigh = v->getNeighbor();
+        if (!(_v == v || inArray(_v, neigh))) {
+            std::cout << "error@Agent, set invalid node, from "
+                      << v->getId() << " to " << _v->getId() << std::endl;
+            std::exit(1);
+        }
+    }
+
     beforeNode = v;
     v = _v;
 }
