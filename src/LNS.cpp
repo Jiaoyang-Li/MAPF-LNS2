@@ -1,5 +1,5 @@
 #include "LNS.h"
-
+#include <queue>
 
 LNS::LNS(const Instance& instance, double time_limit, string init_algo_name, string replan_algo_name, string destory_name,
          int neighbor_size, int num_of_iterations, int screen, PIBTPPS_option pipp_option) :
@@ -121,7 +121,7 @@ bool LNS::run()
                         + (1 - reaction_factor) * destroy_weights[selected_neighbor];
             else
                 destroy_weights[selected_neighbor] =
-                        (1 - decay_factor * neighbor.agents.size()) * destroy_weights[selected_neighbor];
+                        (1 - decay_factor) * destroy_weights[selected_neighbor];
         }
         runtime = ((fsec)(Time::now() - start_time)).count();
         sum_of_costs += neighbor.sum_of_costs - neighbor.old_sum_of_costs;
@@ -519,7 +519,7 @@ void LNS::chooseDestroyHeuristicbyALNS()
         case 1 : destroy_strategy = INTERSECTION; break;
         default : cerr << "ERROR" << endl; exit(-1);
     }
-    neighbor_size = (int) pow(2, selected_neighbor % num_neighbor_sizes + 1);
+    // neighbor_size = (int) pow(2, selected_neighbor % num_neighbor_sizes + 1);
 }
 
 bool LNS::generateNeighborByIntersection(bool temporal)
@@ -534,7 +534,7 @@ bool LNS::generateNeighborByIntersection(bool temporal)
     }
 
     set<int> neighbors_set;
-    int location = -1;
+    /*int location = -1;
     auto intersection_copy = intersections;
     while (neighbors_set.size() <= 1 && !intersection_copy.empty())
     {
@@ -553,7 +553,36 @@ bool LNS::generateNeighborByIntersection(bool temporal)
         intersection_copy.erase(pt);
     }
     if (neighbors_set.size() <= 1)
-        return false;
+        return false;*/
+    auto pt = intersections.begin();
+    std::advance(pt, rand() % intersections.size());
+    int location = *pt;
+    path_table.get_agents(neighbors_set, neighbor_size, location);
+    if (neighbors_set.size() < neighbor_size)
+    {
+        set<int> closed;
+        closed.insert(location);
+        std::queue<int> open;
+        open.push(location);
+        while (!open.empty() && (int) neighbors_set.size() < neighbor_size)
+        {
+            int curr = open.front();
+            open.pop();
+            for (auto next : instance.getNeighbors(curr))
+            {
+                if (closed.count(next) > 0)
+                    continue;
+                open.push(next);
+                closed.insert(next);
+                if (instance.getDegree(next) >= 3)
+                {
+                    path_table.get_agents(neighbors_set, neighbor_size, next);
+                    if ((int) neighbors_set.size() == neighbor_size)
+                        break;
+                }
+            }
+        }
+    }
     neighbor.agents.assign(neighbors_set.begin(), neighbors_set.end());
     if (neighbor.agents.size() > neighbor_size)
     {
