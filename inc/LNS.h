@@ -67,6 +67,8 @@ public:
     void writeResultToFile(string file_name) const;
     string getSolverName() const { return "LNS(" + init_algo_name + ";" + replan_algo_name + ")"; }
 private:
+    int num_neighbor_sizes = 1; //4; // so the neighbor size could be 2, 4, 8, 16
+
     // intput params
     const Instance& instance; // avoid making copies of this variable as much as possible
     double time_limit;
@@ -94,6 +96,7 @@ private:
     double decay_factor = 0.01;
     double reaction_factor = 0.1;
     vector<double> destroy_weights;
+    int selected_neighbor;
 
     bool runEECBS();
     bool runCBS();
@@ -107,64 +110,14 @@ private:
     MAPF preparePIBTProblem(vector<int> shuffled_agents);
     void updatePIBTResult(const PIBT_Agents& A,vector<int> shuffled_agents);
 
-    void updateDestroyHeuristicbyALNS();
+    void chooseDestroyHeuristicbyALNS();
 
     bool generateNeighborByRandomWalk();
     //bool generateNeighborByStart();
-    bool generateNeighborByIntersection();
-    //bool generateNeighborByTemporalIntersection();
+    bool generateNeighborByIntersection(bool temporal = true);
 
+    int findMostDelayedAgent();
+    int findRandomAgent() const;
     void randomWalk(int agent_id, int start_location, int start_timestep,
                     set<int>& neighbor, int neighbor_size, int upperbound);
-
-    /*list<Path> neighbor_paths;
-    int neighbor_sum_of_costs = 0;
-    int neighbor_sum_of_showup_time = 0;
-    int neighbor_makespan = 0;
-    int delta_costs = 0;
-    int group_size = DEFAULT_GROUP_SIZE; // this is useful only when we use CBS to replan
-    int max_group_size = DEFAULT_GROUP_SIZE;
-
-
-    unordered_map<int, list<int>> start_locations;  // <start location, corresponding agents>
-
-
-
-
-
-    bool adaptive_destroy = false;
-    bool iterative_destroy = false;
-
-
-    // Generate initial solutions
-    bool runPP();
-
-    void replanByPP();
-    bool replanByCBS();
-
-
-
-    void sortNeighborsRandomly();
-    void sortNeighborsByRegrets();
-    void sortNeighborsByStrategy();
-
-    //tools
-    void updateNeighborPaths();
-    void updateNeighborPathsCosts();
-    void addAgentPath(int agent, const Path& path);
-    void deleteNeighborPaths();
-    void quickSort(vector<int>& agent_order, int low, int high, bool regret);
-
-
-    inline bool compareByRegrets(int a1, int a2)
-    {
-        int r1 = (int)(al.paths_all[a1].size() -
-                       al.agents_all[a1].distance_to_goal / al.agents_all[a1].speed);
-        int r2 = (int)(al.paths_all[a2].size() -
-                       al.agents_all[a2].distance_to_goal / al.agents_all[a2].speed);
-        if (r1 == r2)
-            return rand() % 2;
-        else
-            return r1  > r2;
-    }*/
 };
