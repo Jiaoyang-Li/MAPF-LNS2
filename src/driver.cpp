@@ -2,6 +2,7 @@
 #include <boost/tokenizer.hpp>
 #include "LNS.h"
 #include "AnytimeBCBS.h"
+#include "AnytimeEECBS.h"
 #include "PIBT/pibt.h"
 
 
@@ -25,7 +26,7 @@ int main(int argc, char** argv)
 		("stats", po::value<string>(), "output stats file")
 
 		// solver
-		("solver", po::value<string>()->default_value("LNS"), "solver (LNS, A-BCBS)")
+		("solver", po::value<string>()->default_value("LNS"), "solver (LNS, A-BCBS, A-EECBS)")
 
         // params for LNS
         ("neighborSize", po::value<int>()->default_value(5), "Size of the neighborhood")
@@ -88,6 +89,16 @@ int main(int argc, char** argv)
             bcbs.writeResultToFile(vm["output"].as<string>());
         if (vm.count("stats"))
             bcbs.writeIterStatsToFile(vm["stats"].as<string>());
+    }
+    else if (vm["solver"].as<string>() == "A-EECBS") // anytime EECBS
+    {
+        AnytimeEECBS eecbs(instance, time_limit, screen);
+        eecbs.run();
+        eecbs.validateSolution();
+        if (vm.count("output"))
+            eecbs.writeResultToFile(vm["output"].as<string>());
+        if (vm.count("stats"))
+            eecbs.writeIterStatsToFile(vm["stats"].as<string>());
     }
 	else
     {
