@@ -1,67 +1,62 @@
-#include "AnytimeBCBS.h"
-#include "CBS.h"
+#include "AnytimeEECBS.h"
+#include "ECBS.h"
 
 
-void AnytimeBCBS::run()
+void AnytimeEECBS::run()
 {
     int num_of_agents = instance.getDefaultNumberOfAgents();
     bool improvements = true;
-    double w = (double) MAX_COST / (instance.num_of_cols + instance.num_of_rows)
-            / 10 / num_of_agents; // a large enough w without integer overflow issue
-    CBS bcbs(instance, false, screen);
-    bcbs.setPrioritizeConflicts(improvements);
-    bcbs.setDisjointSplitting(false);
-    bcbs.setBypass(improvements);
-    bcbs.setRectangleReasoning(improvements);
-    bcbs.setCorridorReasoning(improvements);
-    bcbs.setHeuristicType(improvements? heuristics_type::WDG : heuristics_type::ZERO, heuristics_type::ZERO);
-    bcbs.setTargetReasoning(improvements);
-    bcbs.setMutexReasoning(false);
-    bcbs.setConflictSelectionRule(conflict_selection::EARLIEST);
-    bcbs.setNodeSelectionRule(node_selection::NODE_CONFLICTPAIRS);
-    bcbs.setSavingStats(false);
-    bcbs.setHighLevelSolver(high_level_solver_type::ASTAREPS, w);
-
-    preprocessing_time = bcbs.runtime_preprocessing;
+    ECBS ecbs(instance, false, screen);
+    ecbs.setPrioritizeConflicts(true);
+    ecbs.setDisjointSplitting(false);
+    ecbs.setBypass(true);
+    ecbs.setRectangleReasoning(true);
+    ecbs.setCorridorReasoning(true);
+    ecbs.setHeuristicType(heuristics_type::WDG, heuristics_type::GLOBAL);
+    ecbs.setTargetReasoning(true);
+    ecbs.setMutexReasoning(false);
+    ecbs.setConflictSelectionRule(conflict_selection::EARLIEST);
+    ecbs.setNodeSelectionRule(node_selection::NODE_CONFLICTPAIRS);
+    ecbs.setSavingStats(false);
+    preprocessing_time = ecbs.runtime_preprocessing;
     sum_of_distances = 0;
     for (int i = 0; i < num_of_agents; i++)
     {
-        sum_of_distances += bcbs.getSearchEngine(i)->my_heuristic[bcbs.getSearchEngine(i)->start_location];
+        sum_of_distances += ecbs.getSearchEngine(i)->my_heuristic[ecbs.getSearchEngine(i)->start_location];
     }
 
     // run
-    CBSNode* best_goal_node = nullptr;
+    double w = 2;
     while(runtime < time_limit && sum_of_costs > sum_of_costs_lowerbound)
     {
-        bcbs.solve(time_limit - runtime, sum_of_costs_lowerbound, sum_of_costs);
-        runtime += bcbs.runtime;
-        assert(sum_of_costs_lowerbound <= bcbs.getLowerBound());
-        sum_of_costs_lowerbound = bcbs.getLowerBound();
-        if (bcbs.solution_found)
+        ecbs.clear();
+        ecbs.setHighLevelSolver(high_level_solver_type::EES, w);
+        ecbs.solve(time_limit - runtime, sum_of_costs_lowerbound);
+        runtime += ecbs.runtime;
+        assert(sum_of_costs_lowerbound <= ecbs.getLowerBound());
+        sum_of_costs_lowerbound = ecbs.getLowerBound();
+        if (ecbs.solution_found)
         {
-            assert(sum_of_costs > bcbs.solution_cost);
-            sum_of_costs = bcbs.solution_cost;
-            best_goal_node = bcbs.getGoalNode();
+            if (sum_of_costs > ecbs.solution_cost)
+            {
+                sum_of_costs = ecbs.solution_cost;
+                solution.resize(num_of_agents);
+                for (int i = 0; i < num_of_agents; i++)
+                    solution[i] = *ecbs.paths[i];
+            }
+            w = max(1.0, 0.99 * sum_of_costs / sum_of_costs_lowerbound);
             iteration_stats.emplace_back(instance.getDefaultNumberOfAgents(), sum_of_costs,
-                                         runtime, "BCBS", sum_of_costs_lowerbound);
+                                         runtime, "EECBS("+ std::to_string(w) + ")", sum_of_costs_lowerbound);
         }
 
         if (screen >= 1)
             cout << "Iteration " << iteration_stats.size() << ", "
                  << "lower bound = " << sum_of_costs_lowerbound << ", "
                  << "solution cost = " << sum_of_costs << ", "
+                 << "new w = " << w << ", "
                  << "remaining time = " << time_limit - runtime << endl;
     }
-    if (best_goal_node == nullptr)
-        sum_of_costs = -1; // no solution found
-    else
-    {
-        solution.resize(num_of_agents);
-        bcbs.updatePaths(best_goal_node);
-        for (int i = 0; i < num_of_agents; i++)
-            solution[i] = *bcbs.paths[i];
-    }
-    bcbs.clearSearchEngines();
+    ecbs.clearSearchEngines();
     cout << getSolverName() << ": Iterations = " << iteration_stats.size() << ", "
          << "lower bound = " << sum_of_costs_lowerbound << ", "
          << "solution cost = " << sum_of_costs << ", "
@@ -70,7 +65,7 @@ void AnytimeBCBS::run()
 }
 
 
-void AnytimeBCBS::validateSolution() const
+void AnytimeEECBS::validateSolution() const
 {
     if (solution.empty())
         return;
@@ -91,7 +86,7 @@ void AnytimeBCBS::validateSolution() const
                     exit(-1);
                 }
                 else if (solution[a1][t].location == solution[a2][t - 1].location &&
-                        solution[a1][t - 1].location == solution[a2][t].location) // edge conflict
+                         solution[a1][t - 1].location == solution[a2][t].location) // edge conflict
                 {
                     cerr << "Find an edge conflict between agents " << a1 << " and " << a2 <<
                          " at edge (" << solution[a1][t - 1].location << "," << solution[a1][t].location <<
@@ -113,7 +108,7 @@ void AnytimeBCBS::validateSolution() const
     }
 }
 
-void AnytimeBCBS::writeIterStatsToFile(string file_name) const
+void AnytimeEECBS::writeIterStatsToFile(string file_name) const
 {
     std::ofstream output;
     output.open(file_name);
@@ -135,7 +130,7 @@ void AnytimeBCBS::writeIterStatsToFile(string file_name) const
     output.close();
 }
 
-void AnytimeBCBS::writeResultToFile(string file_name) const
+void AnytimeEECBS::writeResultToFile(string file_name) const
 {
     std::ifstream infile(file_name);
     bool exist = infile.good();
@@ -156,3 +151,4 @@ void AnytimeBCBS::writeResultToFile(string file_name) const
           preprocessing_time << "," << getSolverName() << "," << instance.getInstanceName() << endl;
     stats.close();
 }
+

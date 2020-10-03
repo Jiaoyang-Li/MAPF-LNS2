@@ -10,12 +10,14 @@ public:
     ECBS(vector<SingleAgentSolver*>& search_engines,
          const PathTable& path_table,
          int screen) : CBS(search_engines, path_table, screen) {}
-
+    ~ECBS();
 	////////////////////////////////////////////////////////////////////////////////////////////
 	// Runs the algorithm until the problem is solved or time is exhausted 
 	bool solve(double time_limit, int cost_lowerbound = 0);
 
 	ECBSNode* getGoalNode() { return goal_node; }
+    void updatePaths(ECBSNode* curr);
+	void clear();
 private:
     //ECBSNode* dummy_start = nullptr;
     ECBSNode* goal_node = nullptr;
@@ -33,6 +35,7 @@ private:
 	void pushNode(ECBSNode* node);
 	ECBSNode* selectNode();
 	bool reinsertNode(ECBSNode* node);
+    void releaseNodes();
 
 	 // high level search
 	bool generateChild(ECBSNode* child, ECBSNode* curr);
@@ -42,6 +45,5 @@ private:
 	void computeConflictPriority(shared_ptr<Conflict>& con, ECBSNode& node);
 
 	//update information
-	void updatePaths(ECBSNode* curr);
 	void printPaths() const;
 };
