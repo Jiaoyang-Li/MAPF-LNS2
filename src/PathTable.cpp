@@ -64,6 +64,7 @@ void PathTable::getConflictingAgents(int agent_id, set<int>& conflicting_agents,
     if (table[to].size() >= to_time && table[from].size() > to_time &&
         table[to][to_time - 1] != NO_AGENT && table[from][to_time] == table[to][to_time - 1])
         conflicting_agents.insert(table[from][to_time]); // edge conflict
+    // TODO: collect target conflicts as well.
 }
 
 void PathTable::get_agents(set<int>& conflicting_agents, int loc) const
