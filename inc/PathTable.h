@@ -8,7 +8,7 @@ class PathTable
 public:
     int makespan = 0;
     vector< vector<int> > table; // this stores the collision-free paths, the value is the id of the agent
-    vector<int> goals; // this stores the goal locatons of the paths: key is the location, while value is the tiemstep when the agent reaches the goal
+    vector<int> goals; // this stores the goal locatons of the paths: key is the location, while value is the timestep when the agent reaches the goal
     void reset() { auto map_size = table.size(); table.clear(); table.resize(map_size); goals.assign(map_size, MAX_COST); makespan = 0; }
     void insertPath(int agent_id, const Path& path);
     void deletePath(int agent_id, const Path& path);

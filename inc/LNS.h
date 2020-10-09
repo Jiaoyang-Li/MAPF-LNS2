@@ -94,7 +94,7 @@ private:
     // adaptive LNS
     bool ALNS = false;
     double decay_factor = 0.01;
-    double reaction_factor = 0.1;
+    double reaction_factor = 0.01;
     vector<double> destroy_weights;
     int selected_neighbor;
 
