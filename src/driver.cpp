@@ -79,6 +79,7 @@ int main(int argc, char** argv)
             lns.writeResultToFile(vm["output"].as<string>());
         if (vm.count("stats"))
             lns.writeIterStatsToFile(vm["stats"].as<string>());
+        // lns.writePathsToFile("path.txt");
     }
     else if (vm["solver"].as<string>() == "A-BCBS") // anytime BCBS(w, 1)
     {
