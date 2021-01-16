@@ -145,14 +145,28 @@ void AnytimeBCBS::writeResultToFile(string file_name) const
         ofstream addHeads(file_name);
         addHeads << "runtime,solution cost,initial solution cost,min f value,root g value," <<
                  "iterations," <<
-                 "runtime of initial solution," <<
+                 "runtime of initial solution,area under curve," <<
                  "preprocessing runtime,solver name,instance name" << endl;
         addHeads.close();
+    }
+    double auc = 0;
+    if (!iteration_stats.empty())
+    {
+        auto prev = iteration_stats.begin();
+        auto curr = prev;
+        ++curr;
+        while (curr != iteration_stats.end() && curr->runtime < time_limit)
+        {
+            auc += (prev->sum_of_costs - sum_of_distances) * (curr->runtime - prev->runtime);
+            prev = curr;
+            ++curr;
+        }
+        auc += (prev->sum_of_costs - sum_of_distances) * (time_limit - prev->runtime);
     }
     ofstream stats(file_name, std::ios::app);
     stats << runtime << "," << sum_of_costs << "," << iteration_stats.front().sum_of_costs << "," <<
           sum_of_costs_lowerbound << "," << sum_of_distances << "," <<
-          iteration_stats.size() << "," << iteration_stats.front().runtime << "," <<
+          iteration_stats.size() << "," << iteration_stats.front().runtime << "," <<  auc << "," <<
           preprocessing_time << "," << getSolverName() << "," << instance.getInstanceName() << endl;
     stats.close();
 }

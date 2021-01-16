@@ -46,11 +46,11 @@ bool LNS::run()
     initial_solution_runtime = 0;
     bool succ = false;
     int count = 0;
+    start_time = Time::now();
     while (!succ && initial_solution_runtime < time_limit)
     {
-        start_time = Time::now();
         succ = getInitialSolution();
-        initial_solution_runtime += ((fsec)(Time::now() - start_time)).count();
+        initial_solution_runtime = ((fsec)(Time::now() - start_time)).count();
         count++;
     }
     iteration_stats.emplace_back(neighbor.agents.size(),
@@ -94,6 +94,7 @@ bool LNS::run()
                     std::random_shuffle(neighbor.agents.begin(), neighbor.agents.end());
                     neighbor.agents.resize(neighbor_size);
                 }
+                succ = true;
                 break;
             default:
                 cerr << "Wrong neighbor generation strategy" << endl;
@@ -833,7 +834,7 @@ void LNS::writeResultToFile(string file_name) const
         addHeads << "runtime,solution cost,initial solution cost,min f value,root g value," <<
                  "iterations," <<
                  "group size," <<
-                 "runtime of initial solution,area under curve" <<
+                 "runtime of initial solution,area under curve," <<
                  "preprocessing runtime,solver name,instance name" << endl;
         addHeads.close();
     }
@@ -844,12 +845,13 @@ void LNS::writeResultToFile(string file_name) const
         auto prev = iteration_stats.begin();
         auto curr = prev;
         ++curr;
-        while (curr != iteration_stats.end())
+        while (curr != iteration_stats.end() && curr->runtime < time_limit)
         {
             auc += (prev->sum_of_costs - sum_of_distances) * (curr->runtime - prev->runtime);
             prev = curr;
             ++curr;
         }
+        auc += (prev->sum_of_costs - sum_of_distances) * (time_limit - prev->runtime);
     }
     stats << runtime << "," << sum_of_costs << "," << initial_sum_of_costs << "," <<
             max(sum_of_distances, sum_of_costs_lowerbound) << "," << sum_of_distances << "," <<
