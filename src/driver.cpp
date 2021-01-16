@@ -36,7 +36,7 @@ int main(int argc, char** argv)
         ("replanAlgo", po::value<string>()->default_value("CBS"),
                 "MAPF algorithm for replanning (EECBS, CBS, PP)")
         ("destoryStrategy", po::value<string>()->default_value("RandomWalk"),
-                "Heuristics for finding subgroups (RandomWalk, Intersection, Adaptive)")
+                "Heuristics for finding subgroups (Random, RandomWalk, Intersection, Adaptive)")
         ("pibtWindow", po::value<int>()->default_value(5),
              "window size for winPIBT")
         ("winPibtSoftmode", po::value<bool>()->default_value(true),
