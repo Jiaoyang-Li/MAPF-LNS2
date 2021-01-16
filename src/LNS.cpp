@@ -17,6 +17,8 @@ LNS::LNS(const Instance& instance, double time_limit, string init_algo_name, str
         destroy_strategy = RANDOMWALK;
     else if (destory_name == "Intersection")
         destroy_strategy = INTERSECTION;
+    else if (destory_name == "Random")
+        destroy_strategy = RANDOMAGENTS;
     else
     {
         cerr << "Destroy heuristic " << destory_name << " does not exists. " << endl;
@@ -82,6 +84,16 @@ bool LNS::run()
                 break;
             case INTERSECTION:
                 succ = generateNeighborByIntersection();
+                break;
+            case RANDOMAGENTS:
+                neighbor.agents.resize(agents.size());
+                for (int i = 0; i < (int)agents.size(); i++)
+                    neighbor.agents[i] = i;
+                if (neighbor.agents.size() > neighbor_size)
+                {
+                    std::random_shuffle(neighbor.agents.begin(), neighbor.agents.end());
+                    neighbor.agents.resize(neighbor_size);
+                }
                 break;
             default:
                 cerr << "Wrong neighbor generation strategy" << endl;
@@ -821,14 +833,28 @@ void LNS::writeResultToFile(string file_name) const
         addHeads << "runtime,solution cost,initial solution cost,min f value,root g value," <<
                  "iterations," <<
                  "group size," <<
-                 "runtime of initial solution," <<
+                 "runtime of initial solution,area under curve" <<
                  "preprocessing runtime,solver name,instance name" << endl;
         addHeads.close();
     }
     ofstream stats(file_name, std::ios::app);
+    double auc = 0;
+    if (!iteration_stats.empty())
+    {
+        auto prev = iteration_stats.begin();
+        auto curr = prev;
+        ++curr;
+        while (curr != iteration_stats.end())
+        {
+            auc += (prev->sum_of_costs - sum_of_distances) * (curr->runtime - prev->runtime);
+            prev = curr;
+            ++curr;
+        }
+    }
     stats << runtime << "," << sum_of_costs << "," << initial_sum_of_costs << "," <<
             max(sum_of_distances, sum_of_costs_lowerbound) << "," << sum_of_distances << "," <<
-            iteration_stats.size() << "," << average_group_size << "," << initial_solution_runtime << "," <<
+            iteration_stats.size() << "," << average_group_size << "," <<
+            initial_solution_runtime << "," << auc << "," <<
             preprocessing_time << "," << getSolverName() << "," << instance.getInstanceName() << endl;
     stats.close();
 }
