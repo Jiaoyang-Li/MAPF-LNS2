@@ -530,6 +530,7 @@ void LNS::chooseDestroyHeuristicbyALNS()
     {
         case 0 : destroy_strategy = RANDOMWALK; break;
         case 1 : destroy_strategy = INTERSECTION; break;
+        case 2 : destroy_strategy = RANDOMAGENTS; break;
         default : cerr << "ERROR" << endl; exit(-1);
     }
     // neighbor_size = (int) pow(2, selected_neighbor % num_neighbor_sizes + 1);
