@@ -35,7 +35,7 @@ You can find more details and explanations for all parameters with:
 
 ## Credits
 
-The software is develped by Jiaoyang Li and Zhen Chen.
+The software was developed by Jiaoyang Li and Zhe Chen.
 
 The PPS solver inside the software was borrowed from https://github.com/Kei18/pibt/tree/v1.2
 
