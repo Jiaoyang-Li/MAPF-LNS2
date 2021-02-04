@@ -69,7 +69,7 @@ public:
 private:
     int num_neighbor_sizes = 1; //4; // so the neighbor size could be 2, 4, 8, 16
 
-    // intput params
+    // input params
     const Instance& instance; // avoid making copies of this variable as much as possible
     double time_limit;
     double replan_time_limit; // time limit for replanning
