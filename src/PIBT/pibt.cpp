@@ -44,13 +44,14 @@ void PIBT::init() {
 
 bool PIBT::solve() {
   solveStart();
+
   while (!P->isSolved()) {
     allocate();
     update();
     P->update();
-    if(time_limit&&((fsec)(std::chrono::system_clock::now()-startT)).count()>time_limit){
-      break;
-    }
+      if(time_limit&&((fsec)(std::chrono::system_clock::now()-startT)).count()>time_limit){
+          break;
+      }
   }
 
   solveEnd();

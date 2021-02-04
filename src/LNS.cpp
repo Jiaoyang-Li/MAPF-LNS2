@@ -811,6 +811,7 @@ void LNS::writeIterStatsToFile(string file_name) const
            "sum of costs," <<
            "runtime," <<
            "cost lowerbound," <<
+           "sum of distances," <<
            "MAPF algorithm" << endl;
 
     for (const auto &data : iteration_stats)
@@ -819,6 +820,7 @@ void LNS::writeIterStatsToFile(string file_name) const
                data.sum_of_costs << "," <<
                data.runtime << "," <<
                max(sum_of_costs_lowerbound, sum_of_distances) << "," <<
+               sum_of_distances << "," <<
                data.algorithm << endl;
     }
     output.close();
@@ -860,6 +862,22 @@ void LNS::writeResultToFile(string file_name) const
             initial_solution_runtime << "," << auc << "," <<
             preprocessing_time << "," << getSolverName() << "," << instance.getInstanceName() << endl;
     stats.close();
+}
+
+void LNS::writePathsToFile(string file_name) const
+{
+    std::ofstream output;
+    output.open(file_name);
+    // header
+    output << agents.size() << endl;
+
+    for (const auto &agent : agents)
+    {
+        for (const auto &state : agent.path)
+            output << state.location << ",";
+        output << endl;
+    }
+    output.close();
 }
 /*
 bool LNS::generateNeighborByStart()
