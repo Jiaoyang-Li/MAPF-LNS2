@@ -38,7 +38,7 @@ You can find more details and explanations for all parameters with:
 The software was developed by Jiaoyang Li and Zhe Chen.
 
 The rule-based MAPF solvers (i.e., PPS, PIBT, and winPIBT) inside the software were borrowed from 
-https://github.com/Kei18/pibt/tree/v1.2
+https://github.com/Kei18/pibt/tree/v1.3
 
 MAPF-LNS is released under USC – Research License. See license.txt for further details.
  
