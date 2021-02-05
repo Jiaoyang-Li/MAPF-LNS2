@@ -1,4 +1,4 @@
-# LNS
+# MAPF-LNS
 
 Anytime Multi-Agent Path Finding via Large Neighborhood Search
 
