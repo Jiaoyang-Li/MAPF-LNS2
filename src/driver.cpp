@@ -32,10 +32,10 @@ int main(int argc, char** argv)
         ("neighborSize", po::value<int>()->default_value(5), "Size of the neighborhood")
         ("maxIterations", po::value<int>()->default_value(1000000), "maximum number of iterations")
         ("initAlgo", po::value<string>()->default_value("EECBS"),
-                "MAPF algorithm for finding the initial solution (EECBS, CBS, PP)")
-        ("replanAlgo", po::value<string>()->default_value("CBS"),
+                "MAPF algorithm for finding the initial solution (EECBS, PP, PPS, CBS, PIBT, winPIBT)")
+        ("replanAlgo", po::value<string>()->default_value("PP"),
                 "MAPF algorithm for replanning (EECBS, CBS, PP)")
-        ("destoryStrategy", po::value<string>()->default_value("RandomWalk"),
+        ("destoryStrategy", po::value<string>()->default_value("Adaptive"),
                 "Heuristics for finding subgroups (Random, RandomWalk, Intersection, Adaptive)")
         ("pibtWindow", po::value<int>()->default_value(5),
              "window size for winPIBT")

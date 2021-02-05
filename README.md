@@ -37,9 +37,10 @@ You can find more details and explanations for all parameters with:
 
 The software was developed by Jiaoyang Li and Zhe Chen.
 
-The PPS solver inside the software was borrowed from https://github.com/Kei18/pibt/tree/v1.2
+The rule-based MAPF solvers (i.e., PPS, PIBT, and winPIBT) inside the software were borrowed from 
+https://github.com/Kei18/pibt/tree/v1.2
 
-MAPF-LNS is released under USC – Research License. See license.md for further details.
+MAPF-LNS is released under USC – Research License. See license.txt for further details.
  
 ## References
 [1] Jiaoyang Li, Zhe Chen, Daniel Harabor, Peter J. Stuckey, Sven Koenig.
