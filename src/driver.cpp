@@ -29,6 +29,8 @@ int main(int argc, char** argv)
 		("solver", po::value<string>()->default_value("LNS"), "solver (LNS, A-BCBS, A-EECBS)")
 
         // params for LNS
+        ("initLNS", po::value<bool>()->default_value(true),
+             "use LNS to find initial solutions if the initial sovler fails")
         ("neighborSize", po::value<int>()->default_value(5), "Size of the neighborhood")
         ("maxIterations", po::value<int>()->default_value(1000000), "maximum number of iterations")
         ("initAlgo", po::value<string>()->default_value("EECBS"),
@@ -71,7 +73,9 @@ int main(int argc, char** argv)
                 vm["replanAlgo"].as<string>(),
                 vm["destoryStrategy"].as<string>(),
                 vm["neighborSize"].as<int>(),
-                vm["maxIterations"].as<int>(), screen, pipp_option);
+                vm["maxIterations"].as<int>(),
+                vm["initLNS"].as<bool>(),
+                screen, pipp_option);
         bool succ = lns.run();
         if (succ)
             lns.validateSolution();

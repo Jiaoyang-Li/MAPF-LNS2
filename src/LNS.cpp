@@ -1,10 +1,12 @@
 #include "LNS.h"
+#include "InitLNS.h"
 #include <queue>
 
 LNS::LNS(const Instance& instance, double time_limit, string init_algo_name, string replan_algo_name, string destory_name,
-         int neighbor_size, int num_of_iterations, int screen, PIBTPPS_option pipp_option) :
-         instance(instance), time_limit(time_limit), init_algo_name(std::move(init_algo_name)),
+         int neighbor_size, int num_of_iterations, bool init_lns, int screen, PIBTPPS_option pipp_option) :
+         instance(instance), time_limit(time_limit), init_algo_name(init_algo_name),
          replan_algo_name(replan_algo_name), neighbor_size(neighbor_size), num_of_iterations(num_of_iterations),
+         init_lns(init_lns),
          screen(screen), path_table(instance.map_size),pipp_option(pipp_option), replan_time_limit(time_limit / 100)
 {
     start_time = Time::now();
@@ -53,6 +55,8 @@ bool LNS::run()
         initial_solution_runtime = ((fsec)(Time::now() - start_time)).count();
         count++;
     }
+    if (init_lns)
+        return succ;
     iteration_stats.emplace_back(neighbor.agents.size(),
                                  initial_sum_of_costs, initial_solution_runtime, init_algo_name);
     runtime = initial_solution_runtime;
@@ -170,7 +174,22 @@ bool LNS::getInitialSolution()
     neighbor.old_sum_of_costs = MAX_COST;
     neighbor.sum_of_costs = 0;
     bool succ = false;
-    if (init_algo_name == "EECBS")
+    if (init_lns)
+    {
+        InitLNS initLNS(instance, agents, time_limit, init_algo_name, replan_algo_name, neighbor_size, screen);
+        succ = initLNS.run();
+        neighbor.sum_of_costs = initLNS.sum_of_costs;
+        auto name = instance.getInstanceName();
+        auto pos = name.rfind('/');
+        if (pos == std::string::npos)
+            pos = 0;
+        else
+            pos++;
+        auto out_name = name.substr( pos) + "-agents=" + std::to_string(agents.size()) +
+                "-neighbor=" + std::to_string(neighbor_size) + "-initLNS.csv";
+        initLNS.writeIterStatsToFile(out_name);
+    }
+    else if (init_algo_name == "EECBS")
         succ = runEECBS();
     else if (init_algo_name == "PP")
         succ = runPP();
@@ -787,8 +806,9 @@ void LNS::validateSolution() const
             {
                 if (a2.path[t].location == target)  // target conflict
                 {
-                    cerr << "Find a target conflict where agent " << a2.id << " traverses agent " << a1.id <<
-                         "'s target location " << target << " at timestep " << t << endl;
+                    cerr << "Find a target conflict where agent " << a2.id << " (of length " << a2.path.size() - 1<<
+                         ") traverses agent " << a1.id << " (of length " << a1.path.size() - 1<<
+                         ")'s target location " << target << " at timestep " << t << endl;
                     exit(-1);
                 }
             }
@@ -869,12 +889,14 @@ void LNS::writePathsToFile(string file_name) const
     std::ofstream output;
     output.open(file_name);
     // header
-    output << agents.size() << endl;
+    // output << agents.size() << endl;
 
     for (const auto &agent : agents)
     {
+        output << "Agent " << agent.id << ":";
         for (const auto &state : agent.path)
-            output << state.location << ",";
+            output << "(" << instance.getRowCoordinate(state.location) << "," <<
+                            instance.getColCoordinate(state.location) << ")->";
         output << endl;
     }
     output.close();

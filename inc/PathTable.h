@@ -21,3 +21,18 @@ public:
 
     PathTable(int map_size = 0) : table(map_size), goals(map_size, MAX_COST) {}
 };
+
+class PathTableWC // with collisions
+{
+public:
+    int makespan = 0;
+    vector< vector< list<int> > > table; // this stores the paths, the value is the id of the agent
+    vector<int> goals; // this stores the goal locatons of the paths: key is the location, while value is the timestep when the agent reaches the goal
+    void reset() { auto map_size = table.size(); table.clear(); table.resize(map_size); goals.assign(map_size, MAX_COST); makespan = 0; }
+    void insertPath(int agent_id, const Path& path);
+    void deletePath(int agent_id, const Path& path);
+    int getFutureNumOfCollisions(int loc, int time) const; // return #collisions when the agent waiting at loc starting from time forever
+    int getNumOfCollisions(int from, int to, int to_time) const;
+
+    PathTableWC(int map_size = 0) : table(map_size), goals(map_size, MAX_COST) {}
+};

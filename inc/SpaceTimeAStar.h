@@ -11,9 +11,8 @@ public:
 	open_handle_t open_handle;
 	focal_handle_t focal_handle;
 
-
 	AStarNode() : LLNode() {}
-
+    AStarNode(const AStarNode& other) : LLNode() { copy(other); }
 	AStarNode(int loc, int g_val, int h_val, LLNode* parent, int timestep, int num_of_conflicts = 0, bool in_openlist = false) :
 		LLNode(loc, g_val, h_val, parent, timestep, num_of_conflicts, in_openlist) {}
 
@@ -41,7 +40,8 @@ public:
 			return (s1 == s2) || (s1 && s2 &&
                         s1->location == s2->location &&
                         s1->timestep == s2->timestep &&
-						s1->wait_at_goal == s2->wait_at_goal);
+						s1->wait_at_goal == s2->wait_at_goal &&
+						s1->is_goal == s2->is_goal);
 		}
 	};
 };
@@ -53,6 +53,7 @@ public:
     // find path by time-space A* search
     // Returns a shortest path that does not collide with paths in the path table
     Path findOptimalPath(const PathTable& path_table);
+    Path findOptimalPath(const PathTableWC& path_table);
 	// find path by time-space A* search
 	// Returns a shortest path that satisfies the constraints of the give node  while
 	// minimizing the number of internal conflicts (that is conflicts with known_paths for other agents found so far).

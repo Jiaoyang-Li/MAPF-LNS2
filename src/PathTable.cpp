@@ -11,6 +11,7 @@ void PathTable::insertPath(int agent_id, const Path& path)
         // assert(table[path[t].location][t] == NO_AGENT);
         table[path[t].location][t] = agent_id;
     }
+    assert(goals[path.back().location] == MAX_COST);
     goals[path.back().location] = (int) path.size() - 1;
     makespan = max(makespan, (int) path.size() - 1);
 }
@@ -23,8 +24,8 @@ void PathTable::deletePath(int agent_id, const Path& path)
     {
         assert(table[path[t].location].size() > t && table[path[t].location][t] == agent_id);
         table[path[t].location][t] = NO_AGENT;
-        goals[path.back().location] = MAX_COST;
     }
+    goals[path.back().location] = MAX_COST;
     if (makespan == (int) path.size() - 1) // re-compute makespan
     {
         makespan = 0;
@@ -110,3 +111,81 @@ void PathTable::get_agents(set<int>& conflicting_agents, int neighbor_size, int 
 }
 
 
+
+void PathTableWC::insertPath(int agent_id, const Path& path)
+{
+    if (path.empty())
+        return;
+    for (int t = 0; t < (int)path.size(); t++)
+    {
+        if (table[path[t].location].size() <= t)
+            table[path[t].location].resize(t + 1);
+        table[path[t].location][t].push_back(agent_id);
+    }
+    assert(goals[path.back().location] == MAX_COST);
+    goals[path.back().location] = (int) path.size() - 1;
+    makespan = max(makespan, (int) path.size() - 1);
+}
+
+void PathTableWC::deletePath(int agent_id, const Path& path)
+{
+    if (path.empty())
+        return;
+    for (int t = 0; t < (int)path.size(); t++)
+    {
+        assert(table[path[t].location].size() > t &&
+               std::find (table[path[t].location][t].begin(), table[path[t].location][t].end(), agent_id)
+               != table[path[t].location][t].end());
+        table[path[t].location][t].remove(agent_id);
+    }
+    goals[path.back().location] = MAX_COST;
+    if (makespan == (int) path.size() - 1) // re-compute makespan
+    {
+        makespan = 0;
+        for (int time : goals)
+        {
+            if (time < MAX_COST && time > makespan)
+                makespan = time;
+        }
+
+    }
+}
+
+int PathTableWC::getFutureNumOfCollisions(int loc, int time) const
+{
+    assert(goals[loc] == MAX_COST);
+    int rst = 0;
+    if (!table.empty() && (int)table[loc].size() > time)
+    {
+        for (int t = time + 1; t < (int)table[loc].size(); t++)
+            rst += (int)table[loc][t].size();  // vertex conflict
+    }
+    return rst;
+}
+
+int PathTableWC::getNumOfCollisions(int from, int to, int to_time) const
+{
+    int rst = 0;
+    if (!table.empty())
+    {
+        if ((int)table[to].size() > to_time)
+            rst += (int)table[to][to_time].size();  // vertex conflict
+        if (from != to && table[to].size() >= to_time && table[from].size() > to_time)
+        {
+            for (auto a1 : table[to][to_time - 1])
+            {
+                for (auto a2: table[from][to_time])
+                {
+                    if (a1 == a2)
+                        rst++; // edge conflict
+                }
+            }
+        }
+    }
+    if (!goals.empty())
+    {
+        if (goals[to] < to_time)
+            rst++; // target conflict
+    }
+    return rst;
+}

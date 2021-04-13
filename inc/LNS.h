@@ -35,6 +35,8 @@ struct Neighbor
     vector<int> agents;
     int sum_of_costs;
     int old_sum_of_costs;
+    set<pair<int, int>> colliding_pairs;  // id1 < id2
+    set<pair<int, int>> old_colliding_pairs;  // id1 < id2
     vector<Path> old_paths;
 };
 
@@ -58,7 +60,7 @@ public:
     int num_of_failures = 0; // #replanning that fails to find any solutions
     LNS(const Instance& instance, double time_limit,
         string init_algo_name, string replan_algo_name, string destory_name,
-        int neighbor_size, int num_of_iterations, int screen, PIBTPPS_option pipp_option);
+        int neighbor_size, int num_of_iterations, bool init_lns, int screen, PIBTPPS_option pipp_option);
 
     bool getInitialSolution();
     bool run();
@@ -76,6 +78,7 @@ private:
     double replan_time_limit; // time limit for replanning
     string init_algo_name;
     string replan_algo_name;
+    bool init_lns; // use LNS to find initial solutions
     int screen;
     destroy_heuristic destroy_strategy = RANDOMWALK;
     int neighbor_size;

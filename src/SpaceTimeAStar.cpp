@@ -3,8 +3,10 @@
 
 void SpaceTimeAStar::updatePath(const LLNode* goal, vector<PathEntry> &path)
 {
-	path.reserve(goal->g_val + 1);
-	const LLNode* curr = goal;
+    const LLNode* curr = goal;
+    if (curr->is_goal)
+        curr = curr->parent;
+	path.reserve(curr->g_val + 1);
 	while (curr != nullptr) 
 	{
 		path.emplace_back(curr->location);
@@ -137,6 +139,132 @@ Path SpaceTimeAStar::findOptimalPath(const PathTable& path_table)
                         existing_next->focal_handle = focal_list.push(existing_next);
                     if (update_in_focal)
                         focal_list.update(existing_next->focal_handle);  // should we do update? yes, because number of conflicts may go up or down
+                }
+            }
+
+            delete(next);  // not needed anymore -- we already generated it before
+        }  // end for loop that generates successors
+    }  // end while loop
+
+    releaseNodes();
+    return path;
+}
+
+// find path by time-space A* search
+// Returns a path that minimizes the collisions with the paths in the path table, breaking ties by the length
+Path SpaceTimeAStar::findOptimalPath(const PathTableWC& path_table)
+{
+    auto t = clock();
+    Path path;
+    num_expanded = 0;
+    num_generated = 0;
+    // generate start and add it to the OPEN & FOCAL list
+    auto start = new AStarNode(start_location, 0, my_heuristic[start_location], nullptr, 0, 0, false);
+    num_generated++;
+    start->in_openlist = true;
+    start->focal_handle = focal_list.push(start); // we only use focal list; no open list is used
+    allNodes_table.insert(start);
+    while (!focal_list.empty())
+    {
+        auto* curr = focal_list.top();
+        focal_list.pop();
+        curr->in_openlist = false;
+        num_expanded++;
+        assert(curr->location >= 0);
+        // check if the popped node is a goal
+        if (curr->is_goal)
+        {
+            updatePath(curr, path);
+            break;
+        }
+        else if (curr->location == goal_location && // arrive at the goal location
+                 !curr->wait_at_goal) // not wait at the goal location
+        { // generate a goal node
+            auto goal = new AStarNode(*curr);
+            goal->is_goal = true;
+            goal->parent = curr;
+            int future_collisions = path_table.getFutureNumOfCollisions(goal->location, goal->timestep);
+            if (future_collisions == 0)
+            {
+                updatePath(curr, path);
+                break;
+            }
+            goal->num_of_conflicts += future_collisions;
+            // try to retrieve it from the hash table
+            auto it = allNodes_table.find(goal);
+            if (it == allNodes_table.end())
+            {
+                goal->focal_handle = focal_list.push(goal);
+                goal->in_openlist = true;
+                num_generated++;
+                allNodes_table.insert(goal);
+            }
+            else // update existing node's if needed (only in the open_list)
+            {
+                auto existing_next = *it;
+                if (existing_next->num_of_conflicts > goal->num_of_conflicts ||
+                   (existing_next->num_of_conflicts == goal->num_of_conflicts &&
+                    existing_next->getFVal() > goal->getFVal()))
+                {
+                    assert(existing_next->in_openlist);
+                    existing_next->copy(*goal);	// update existing node
+                    focal_list.update(existing_next->focal_handle);
+                }
+                delete (goal);
+            }
+        }
+        auto next_locations = instance.getNeighbors(curr->location);
+        next_locations.emplace_back(curr->location);
+        for (int next_location : next_locations)
+        {
+            int next_timestep = curr->timestep + 1;
+            if (path_table.makespan < next_timestep)
+            { // now everything is static, so switch to space A* where we always use the same timestep
+                if (next_location == curr->location)
+                {
+                    continue;
+                }
+                next_timestep--;
+            }
+
+            // compute cost to next_id via curr node
+            int next_g_val = curr->g_val + 1;
+            int next_h_val = my_heuristic[next_location];
+
+            // generate (maybe temporary) node
+            auto next = new AStarNode(next_location, next_g_val, next_h_val,
+                                      curr, next_timestep, 0, false);
+            next->num_of_conflicts += path_table.getNumOfCollisions(curr->location, next_location, next_timestep);
+            if (next_location == goal_location && curr->location == goal_location)
+                next->wait_at_goal = true;
+
+            // try to retrieve it from the hash table
+            auto it = allNodes_table.find(next);
+            if (it == allNodes_table.end())
+            {
+                next->focal_handle = focal_list.push(next);
+                next->in_openlist = true;
+                num_generated++;
+                allNodes_table.insert(next);
+                continue;
+            }
+            // update existing node's if needed (only in the open_list)
+
+            auto existing_next = *it;
+            if (existing_next->num_of_conflicts > next->num_of_conflicts  ||
+                (existing_next->num_of_conflicts == next->num_of_conflicts &&
+                existing_next->getFVal() > next->getFVal()))
+            {
+                if (!existing_next->in_openlist) // if its in the closed list (reopen)
+                {
+                    existing_next->copy(*next);
+                    existing_next->focal_handle = focal_list.push(existing_next);
+                    existing_next->in_openlist = true;
+                }
+                else
+                {
+                    existing_next->copy(*next);	// update existing node
+                    focal_list.update(existing_next->focal_handle);
                 }
             }
 

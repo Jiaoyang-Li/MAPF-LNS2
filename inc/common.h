@@ -58,10 +58,12 @@ struct IterationStats
     int num_of_agents;
     string algorithm;
     int sum_of_costs_lowerbound;
+    int num_of_colliding_pairs;
     IterationStats(int num_of_agents, int sum_of_costs, double runtime, string algorithm,
-            int sum_of_costs_lowerbound = 0) :
+            int sum_of_costs_lowerbound = 0, int num_of_colliding_pairs = 0) :
             num_of_agents(num_of_agents), sum_of_costs(sum_of_costs), runtime(runtime),
-            sum_of_costs_lowerbound(sum_of_costs_lowerbound), algorithm(algorithm) {}
+            sum_of_costs_lowerbound(sum_of_costs_lowerbound), algorithm(algorithm),
+            num_of_colliding_pairs(num_of_colliding_pairs) {}
 };
 
 struct PIBTPPS_option{
