@@ -1,6 +1,7 @@
 #pragma once
 #include "LNS.h"
 
+enum init_destroy_heuristic { TARGET_BASED, COLLISION_BASED, INIT_COUNT };
 
 class InitLNS
 {
@@ -17,7 +18,7 @@ public:
     double average_group_size = -1;
     int num_of_failures = 0; // #replanning that fails to find any solutions
     InitLNS(const Instance& instance, vector<Agent>& agents, double time_limit, string init_algo_name,
-            string replan_algo_name, int neighbor_size, int screen);
+            string replan_algo_name,string init_destory_name, int neighbor_size, int screen);
 
     bool getInitialSolution();
     bool run();
@@ -38,8 +39,9 @@ private:
     string replan_algo_name;
     bool init_lns; // use LNS to find initial solutions
     int screen;
-    destroy_heuristic destroy_strategy = RANDOMWALK;
+    init_destroy_heuristic init_destroy_strategy = COLLISION_BASED;
     int neighbor_size;
+
 
     high_resolution_clock::time_point start_time;
 
@@ -49,6 +51,8 @@ private:
 
     vector<set<int>> collision_graph;
     Neighbor neighbor;
+    vector<int> goal_table;
+
 
     unordered_set<int> tabu_list; // used by randomwalk strategy
     list<int> intersections;
@@ -60,7 +64,7 @@ private:
     vector<double> destroy_weights;
     int selected_neighbor;
 
-    bool runPP();
+    bool runPP(bool no_wait = false);
 
     void updateCollidingPairs(set<pair<int, int>>& colliding_pairs, int agent_id, const Path& path) const;
 
@@ -68,6 +72,9 @@ private:
     //bool generateNeighborByStart();
 
     bool generateNeighborByCollisionGraph();
+
+    bool generateNeighborByTarget();
+
 
     int findRandomAgent() const;
     int randomWalk(int agent_id);
