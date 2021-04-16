@@ -1,13 +1,37 @@
 #include "InitLNS.h"
 #include <queue>
+#include <algorithm>
+
 
 InitLNS::InitLNS(const Instance& instance, vector<Agent>& agents, double time_limit, string init_algo_name,
-         string replan_algo_name, int neighbor_size, int screen) :
+         string replan_algo_name,string init_destory_name, int neighbor_size, int screen) :
          instance(instance), agents(agents), time_limit(time_limit), init_algo_name(init_algo_name),
          replan_algo_name(replan_algo_name), neighbor_size(neighbor_size),
          screen(screen), path_table(instance.map_size), collision_graph(agents.size()),
          replan_time_limit(time_limit)
-         {}
+         {
+             if (init_destory_name == "Adaptive")
+             {
+                 ALNS = true;
+                 destroy_weights.assign(INIT_COUNT * num_neighbor_sizes, 1);
+             }
+             else if (init_destory_name == "Target")
+                 init_destroy_strategy = TARGET_BASED;
+             else if (init_destory_name == "Collision")
+                 init_destroy_strategy = COLLISION_BASED;
+             else
+             {
+                 cerr << "Init Destroy heuristic " << init_destory_name << " does not exists. " << endl;
+                 exit(-1);
+             }
+
+             goal_table.resize(instance.map_size,-1);
+
+             for (auto& i:agents) {
+                 goal_table[i.path_planner.goal_location] = i.id;
+             }
+
+         }
 
 bool InitLNS::run()
 {
@@ -30,7 +54,24 @@ bool InitLNS::run()
     {
         runtime =((fsec)(Time::now() - start_time)).count();
 
-        generateNeighborByCollisionGraph();
+
+        if (ALNS)
+            chooseDestroyHeuristicbyALNS();
+
+        switch (init_destroy_strategy)
+        {
+            case TARGET_BASED:
+                succ = generateNeighborByTarget();
+                break;
+            case COLLISION_BASED:
+                succ = generateNeighborByCollisionGraph();
+                break;
+            default:
+                cerr << "Wrong neighbor generation strategy" << endl;
+                exit(-1);
+        }
+        if(!succ)
+            continue;
 
         // store the neighbor information
         neighbor.old_paths.resize(neighbor.agents.size());
@@ -124,7 +165,7 @@ bool InitLNS::getInitialSolution()
     neighbor.sum_of_costs = 0;
     bool succ = false;
     if (init_algo_name == "PP")
-        succ = runPP();
+        succ = runPP(true);
     else
     {
         cerr <<  "Initial MAPF solver " << init_algo_name << " does not exist!" << endl;
@@ -144,11 +185,12 @@ bool InitLNS::getInitialSolution()
     return succ;
 }
 
-bool InitLNS::runPP()
+bool InitLNS::runPP(bool no_wait)
 {
     auto shuffled_agents = neighbor.agents;
     std::random_shuffle(shuffled_agents.begin(), shuffled_agents.end());
     if (screen >= 2) {
+        cout<<"Neighbors_set: ";
         for (auto id : shuffled_agents)
             cout << id << ", ";
         cout << endl;
@@ -165,7 +207,15 @@ bool InitLNS::runPP()
     while (p != shuffled_agents.end() && ((fsec)(Time::now() - time)).count() < T)
     {
         int id = *p;
-        agents[id].path = agents[id].path_planner.findOptimalPath(path_table);
+
+        if (no_wait) {
+            vector<int> goal_table;
+            goal_table.resize(instance.map_size, -1);
+            set<int> A_target;
+            agents[id].path = agents[id].path_planner.findNoWaitPath(goal_table,A_target);
+        }
+        else
+            agents[id].path = agents[id].path_planner.findOptimalPath(path_table);
         assert(!agents[id].path.empty() && agents[id].path.back().location == agents[id].path_planner.goal_location);
         updateCollidingPairs(neighbor.colliding_pairs, agents[id].id, agents[id].path);
         neighbor.sum_of_costs += (int)agents[id].path.size() - 1;
@@ -283,9 +333,8 @@ void InitLNS::chooseDestroyHeuristicbyALNS()
     }
     switch (selected_neighbor / num_neighbor_sizes)
     {
-        case 0 : destroy_strategy = RANDOMWALK; break;
-        case 1 : destroy_strategy = INTERSECTION; break;
-        case 2 : destroy_strategy = RANDOMAGENTS; break;
+        case 0 : init_destroy_strategy = TARGET_BASED; break;
+        case 1 : init_destroy_strategy = COLLISION_BASED; break;
         default : cerr << "ERROR" << endl; exit(-1);
     }
     // neighbor_size = (int) pow(2, selected_neighbor % num_neighbor_sizes + 1);
@@ -339,6 +388,115 @@ bool InitLNS::generateNeighborByCollisionGraph()
     neighbor.agents.assign(neighbors_set.begin(), neighbors_set.end());
     if (screen >= 2)
         cout << "Generate " << neighbor.agents.size() << " neighbors by collision graph" << endl;
+    return true;
+}
+
+bool InitLNS::generateNeighborByTarget()
+{
+    int a = 0;
+    int a_num_collisions= 0;
+    for (int i = 0 ; i<collision_graph.size();i++){
+        if (collision_graph[i].size()> a_num_collisions){
+            a = i;
+            a_num_collisions = collision_graph[i].size();
+        }
+    }
+    set<pair<int,int>> A_start; // an ordered set of (time, id) pair.
+    set<int> A_target;
+
+
+    for(int t = 0 ;t< path_table.table[agents[a].path_planner.start_location].size();t++){
+        for(auto id : path_table.table[agents[a].path_planner.start_location][t]){
+            if (id!=a)
+                A_start.insert(make_pair(t,id));
+        }
+    }
+
+
+
+    Path path = agents[a].path_planner.findNoWaitPath(goal_table,A_target);// generate non-wait path and collect A_target
+    assert(!path.empty());
+
+
+    if (screen >= 3){
+        cout<<"     Find path with length: "<<path.size()<<endl;
+        cout<<"     Selected a : "<< a<<endl;
+        cout<<"     Select A_start: ";
+        for(auto e: A_start)
+            cout<<"("<<e.first<<","<<e.second<<"), ";
+        cout<<endl;
+        cout<<"     Select A_target: ";
+        for(auto e: A_target)
+            cout<<e<<", ";
+        cout<<endl;
+    }
+
+    set<int> neighbors_set;
+
+    neighbors_set.insert(a);
+
+    if(A_start.size() + A_target.size() >= neighbor_size-1){
+        if (A_start.empty()){
+            vector<int> shuffled_agents;
+            shuffled_agents.assign(A_target.begin(),A_target.end());
+            std::random_shuffle(shuffled_agents.begin(), shuffled_agents.end());
+            neighbors_set.insert(shuffled_agents.begin(), shuffled_agents.begin() + neighbor_size-1);
+        }
+        else if (A_target.size() >= neighbor_size){
+            vector<int> shuffled_agents;
+            shuffled_agents.assign(A_target.begin(),A_target.end());
+            std::random_shuffle(shuffled_agents.begin(), shuffled_agents.end());
+            neighbors_set.insert(shuffled_agents.begin(), shuffled_agents.begin() + neighbor_size-2);
+
+            neighbors_set.insert(A_start.begin()->second);
+        }
+        else{
+            neighbors_set.insert(A_target.begin(), A_target.end());
+            for(auto e : A_start){
+                //A_start is ordered by time.
+                if (neighbors_set.size()>= neighbor_size)
+                    break;
+                neighbors_set.insert(e.second);
+
+            }
+        }
+    }
+    else if (!A_start.empty() || !A_target.empty()){
+        neighbors_set.insert(A_target.begin(), A_target.end());
+        for(auto e : A_start){
+            neighbors_set.insert(e.second);
+        }
+
+        set<int> tabu_set;
+        while(neighbors_set.size()<neighbor_size){
+            int rand_int = rand() % neighbors_set.size();
+            auto it = neighbors_set.begin();
+            std::advance(it, rand_int);
+            a = *it;
+            tabu_set.insert(a);
+
+            if(tabu_set.size() == neighbors_set.size())
+                break;
+
+            vector<int> targets;
+            for(auto p: agents[a].path){
+                if(goal_table[p.location]>-1){
+                    targets.push_back(goal_table[p.location]);
+                }
+            }
+
+            if(targets.empty())
+                continue;
+            rand_int = rand() %targets.size();
+            neighbors_set.insert(*(targets.begin()+rand_int));
+        }
+    }
+
+
+
+    neighbor.agents.assign(neighbors_set.begin(), neighbors_set.end());
+    if (screen >= 2)
+        cout << "Generate " << neighbor.agents.size() << " neighbors by target" << endl;
     return true;
 }
 

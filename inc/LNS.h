@@ -60,7 +60,7 @@ public:
     int num_of_failures = 0; // #replanning that fails to find any solutions
     LNS(const Instance& instance, double time_limit,
         string init_algo_name, string replan_algo_name, string destory_name,
-        int neighbor_size, int num_of_iterations, bool init_lns, int screen, PIBTPPS_option pipp_option);
+        int neighbor_size, int num_of_iterations, bool init_lns,string init_destory_name, int screen, PIBTPPS_option pipp_option);
 
     bool getInitialSolution();
     bool run();
@@ -83,6 +83,7 @@ private:
     destroy_heuristic destroy_strategy = RANDOMWALK;
     int neighbor_size;
     int num_of_iterations;
+    string init_destory_name;
 
     high_resolution_clock::time_point start_time;
 

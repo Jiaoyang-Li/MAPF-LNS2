@@ -43,6 +43,10 @@ int main(int argc, char** argv)
              "window size for winPIBT")
         ("winPibtSoftmode", po::value<bool>()->default_value(true),
              "winPIBT soft mode")
+
+         // params for initLNS
+         ("initDestoryStrategy", po::value<string>()->default_value("Adaptive"),
+          "Heuristics for finding subgroups (Target, Collision, Adaptive)")
 		;
 	po::variables_map vm;
 	po::store(po::parse_command_line(argc, argv, desc), vm);
@@ -75,6 +79,7 @@ int main(int argc, char** argv)
                 vm["neighborSize"].as<int>(),
                 vm["maxIterations"].as<int>(),
                 vm["initLNS"].as<bool>(),
+                vm["initDestoryStrategy"].as<string>(),
                 screen, pipp_option);
         bool succ = lns.run();
         if (succ)
