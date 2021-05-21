@@ -1,5 +1,4 @@
 #pragma once
-#include "ECBS.h"
 #include "SpaceTimeAStar.h"
 #include <chrono>
 #include <utility>

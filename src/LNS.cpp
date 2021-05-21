@@ -1,5 +1,6 @@
 #include "LNS.h"
 #include "InitLNS.h"
+#include "ECBS.h"
 #include <queue>
 
 LNS::LNS(const Instance& instance, double time_limit, string init_algo_name, string replan_algo_name, string destory_name,

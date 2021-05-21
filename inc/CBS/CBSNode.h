@@ -14,7 +14,7 @@ public:
 	int h_val = 0; // admissible h
 	int cost_to_go = 0; // informed but inadmissible h
 	int distance_to_go = 0; // distance to the goal state
-	size_t depth = 0; // depath of this CT node
+	size_t depth = 0; // depth of this CT node
 	size_t makespan = 0; // makespan over all paths
 	bool h_computed = false;
 

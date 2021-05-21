@@ -1,14 +1,14 @@
 #include "InitLNS.h"
 #include <queue>
 #include <algorithm>
-
+#include "GCBS.h"
 
 InitLNS::InitLNS(const Instance& instance, vector<Agent>& agents, double time_limit, string init_algo_name,
          string replan_algo_name,string init_destory_name, int neighbor_size, int screen) :
          instance(instance), agents(agents), time_limit(time_limit), init_algo_name(init_algo_name),
          replan_algo_name(replan_algo_name), neighbor_size(neighbor_size),
          screen(screen), path_table(instance.map_size), collision_graph(agents.size()),
-         replan_time_limit(time_limit)
+         replan_time_limit(time_limit / 60)
          {
              if (init_destory_name == "Adaptive")
              {
@@ -70,7 +70,7 @@ bool InitLNS::run()
                 cerr << "Wrong neighbor generation strategy" << endl;
                 exit(-1);
         }
-        if(!succ)
+        if(!succ || neighbor.agents.size() <= 1)
             continue;
 
         // store the neighbor information
@@ -80,7 +80,7 @@ bool InitLNS::run()
         for (int i = 0; i < (int)neighbor.agents.size(); i++)
         {
             int a = neighbor.agents[i];
-            if (replan_algo_name == "PP")
+            if (replan_algo_name == "PP" or replan_algo_name == "GCBS")
                 neighbor.old_paths[i] = agents[a].path;
             path_table.deletePath(neighbor.agents[i], agents[a].path);
             neighbor.old_sum_of_costs += (int) agents[a].path.size() - 1;
@@ -94,6 +94,8 @@ bool InitLNS::run()
 
         if (replan_algo_name == "PP")
             succ = runPP();
+        else if (replan_algo_name == "GCBS")
+            succ = runGCBS();
         else
         {
             cerr << "Wrong replanning strategy" << endl;
@@ -156,6 +158,67 @@ bool InitLNS::run()
 }
 
 
+bool InitLNS::runGCBS()
+{
+    vector<SpaceTimeAStar*> search_engines;
+    search_engines.reserve(neighbor.agents.size());
+    for (int i : neighbor.agents)
+    {
+        search_engines.push_back(&agents[i].path_planner);
+    }
+
+    // build path tables
+    vector<PathTable> path_tables(neighbor.agents.size(), PathTable(instance.map_size));
+    for (int i = 0; i < (int)neighbor.agents.size(); i++)
+    {
+        int agent_id = neighbor.agents[i];
+        for (int j = 0; j < instance.getDefaultNumberOfAgents(); j++)
+        {
+            if (j != agent_id and collision_graph[agent_id].count(j) == 0)
+                path_tables[i].insertPath(j, agents[j].path);
+        }
+    }
+
+    GCBS gcbs(search_engines, path_tables, neighbor.old_paths, screen - 1);
+    gcbs.setDisjointSplitting(false);
+    gcbs.setBypass(true);
+    gcbs.setTargetReasoning(true);
+
+    runtime = ((fsec)(Time::now() - start_time)).count();
+    double T = time_limit - runtime;
+    if (!iteration_stats.empty()) // replan
+        T = min(T, replan_time_limit);
+    gcbs.solve(T);
+    if (gcbs.best_node->colliding_pairs < (int) neighbor.old_colliding_pairs.size()) // accept new paths
+    {
+        auto id = neighbor.agents.begin();
+        neighbor.colliding_pairs.clear();
+        for (size_t i = 0; i < neighbor.agents.size(); i++)
+        {
+            agents[*id].path = *gcbs.paths[i];
+            updateCollidingPairs(neighbor.colliding_pairs, agents[*id].id, agents[*id].path);
+            path_table.insertPath(agents[*id].id, agents[*id].path);
+            ++id;
+        }
+        neighbor.sum_of_costs = gcbs.best_node->sum_of_costs;
+        return true;
+    }
+    else // stick to old paths
+    {
+        if (!neighbor.old_paths.empty())
+        {
+            for (int id : neighbor.agents)
+            {
+                path_table.insertPath(agents[id].id, agents[id].path);
+            }
+            neighbor.sum_of_costs = neighbor.old_sum_of_costs;
+        }
+        num_of_failures++;
+        return false;
+    }
+}
+
+
 bool InitLNS::getInitialSolution()
 {
     neighbor.agents.resize(agents.size());
@@ -165,7 +228,7 @@ bool InitLNS::getInitialSolution()
     neighbor.sum_of_costs = 0;
     bool succ = false;
     if (init_algo_name == "PP")
-        succ = runPP(true);
+        succ = runPP(false);
     else
     {
         cerr <<  "Initial MAPF solver " << init_algo_name << " does not exist!" << endl;

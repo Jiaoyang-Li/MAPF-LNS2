@@ -116,86 +116,7 @@ void ConstraintTable::build(const HLNode& node, int agent)
 	auto curr = &node;
 	while (curr->parent != nullptr)
 	{
-		int a, x, y, t;
-		constraint_type type;
-		tie(a, x, y, t, type) = curr->constraints.front();
-		switch (type)
-		{
-			case constraint_type::LEQLENGTH:
-				assert(curr->constraints.size() == 1);
-				if (agent == a) // this agent has to reach its goal at or before timestep t.
-					length_max = min(length_max, t);
-				else // other agents cannot stay at x at or after timestep t
-					insert2CT(x, t, MAX_TIMESTEP);
-				break;
-			case constraint_type::GLENGTH:
-				assert(curr->constraints.size() == 1);
-				if (a == agent) // path of agent_id should be of length at least t + 1
-					length_min = max(length_min, t + 1);
-				break;
-			case constraint_type::POSITIVE_VERTEX:
-				assert(curr->constraints.size() == 1);
-				if (agent == a) // this agent has to be at x at timestep t 
-				{
-					insertLandmark(x, t);
-				}
-				else // other agents cannot stay at x at timestep t
-				{
-					insert2CT(x, t, t + 1);
-				}
-				break;
-			case constraint_type::POSITIVE_EDGE:
-				assert(curr->constraints.size() == 1);
-				if (agent == a) // this agent has to be at x at timestep t - 1 and be at y at timestep t
-				{
-					insertLandmark(x, t - 1);
-					insertLandmark(y, t);
-				}
-				else // other agents cannot stay at x at timestep t - 1, be at y at timestep t, or traverse edge (y, x) from timesteps t - 1 to t
-				{
-					insert2CT(x, t - 1, t);
-					insert2CT(y, t, t + 1);
-					insert2CT(y, x, t, t + 1);
-				}
-				break;
-			case constraint_type::VERTEX:
-				if (a == agent)
-				{
-					for (const auto& constraint : curr->constraints)
-					{
-						tie(a, x, y, t, type) = constraint;
-						insert2CT(x, t, t + 1);
-					}
-				}
-				break;
-			case  constraint_type::EDGE:
-				assert(curr->constraints.size() == 1);
-				if (a == agent)
-					insert2CT(x, y, t, t + 1);
-				break;
-			case constraint_type::BARRIER:
-                if (a == agent)
-                {
-                    for (auto constraint : curr->constraints)
-                    {
-                        tie(a, x, y, t, type) = constraint;
-                        auto states = decodeBarrier(x, y, t);
-                        for (const auto& state : states)
-                        {
-                            insert2CT(state.first, state.second, state.second + 1);
-                        }
-
-                    }
-                }
-				break;
-			case constraint_type::RANGE:
-                if (a == agent)
-                {
-                    assert(curr->constraints.size() == 1);
-                    insert2CT(x, y, t + 1); // the agent cannot stay at x from timestep y to timestep t.
-                }
-				break;
-		}
+        add(curr->constraints, agent);
 		curr = curr->parent;
 	}
 	if (latest_timestep < length_min)
@@ -204,6 +125,93 @@ void ConstraintTable::build(const HLNode& node, int agent)
 		latest_timestep = length_max;
 }
 
+
+// add constraints for the given agent
+void ConstraintTable::add(const list<Constraint>& constraints, int agent)
+{
+    if (constraints.empty())
+        return;
+    int a, x, y, t;
+    constraint_type type;
+    tie(a, x, y, t, type) = constraints.front();
+    switch (type)
+    {
+        case constraint_type::LEQLENGTH:
+            assert(constraints.size() == 1);
+            if (agent == a) // this agent has to reach its goal at or before timestep t.
+                length_max = min(length_max, t);
+            else // other agents cannot stay at x at or after timestep t
+                insert2CT(x, t, MAX_TIMESTEP);
+            break;
+        case constraint_type::GLENGTH:
+            assert(constraints.size() == 1);
+            if (a == agent) // path of agent_id should be of length at least t + 1
+                length_min = max(length_min, t + 1);
+            break;
+        case constraint_type::POSITIVE_VERTEX:
+            assert(constraints.size() == 1);
+            if (agent == a) // this agent has to be at x at timestep t
+            {
+                insertLandmark(x, t);
+            }
+            else // other agents cannot stay at x at timestep t
+            {
+                insert2CT(x, t, t + 1);
+            }
+            break;
+        case constraint_type::POSITIVE_EDGE:
+            assert(constraints.size() == 1);
+            if (agent == a) // this agent has to be at x at timestep t - 1 and be at y at timestep t
+            {
+                insertLandmark(x, t - 1);
+                insertLandmark(y, t);
+            }
+            else // other agents cannot stay at x at timestep t - 1, be at y at timestep t, or traverse edge (y, x) from timesteps t - 1 to t
+            {
+                insert2CT(x, t - 1, t);
+                insert2CT(y, t, t + 1);
+                insert2CT(y, x, t, t + 1);
+            }
+            break;
+        case constraint_type::VERTEX:
+            if (a == agent)
+            {
+                for (const auto& constraint : constraints)
+                {
+                    tie(a, x, y, t, type) = constraint;
+                    insert2CT(x, t, t + 1);
+                }
+            }
+            break;
+        case  constraint_type::EDGE:
+            assert(constraints.size() == 1);
+            if (a == agent)
+                insert2CT(x, y, t, t + 1);
+            break;
+        case constraint_type::BARRIER:
+            if (a == agent)
+            {
+                for (auto constraint : constraints)
+                {
+                    tie(a, x, y, t, type) = constraint;
+                    auto states = decodeBarrier(x, y, t);
+                    for (const auto& state : states)
+                    {
+                        insert2CT(state.first, state.second, state.second + 1);
+                    }
+
+                }
+            }
+            break;
+        case constraint_type::RANGE:
+            if (a == agent)
+            {
+                assert(constraints.size() == 1);
+                insert2CT(x, y, t + 1); // the agent cannot stay at x from timestep y to timestep t.
+            }
+            break;
+    }
+}
 
 // build the conflict avoidance table
 void ConstraintTable::buildCAT(int agent, const vector<Path*>& paths, size_t cat_size)
@@ -246,6 +254,7 @@ int ConstraintTable::getNumOfConflictsForStep(size_t curr_id, size_t next_id, in
 // return the earliest timestep that the agent can hold its goal location
 int ConstraintTable::getHoldingTime() const
 {
+    assert(goal_location >= 0 and goal_location < path_table.table.size());
     int rst = length_min;
     if (!path_table.table.empty() &&
         (int) path_table.table[goal_location].size() > length_min)

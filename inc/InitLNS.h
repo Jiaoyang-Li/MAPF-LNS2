@@ -65,6 +65,7 @@ private:
     int selected_neighbor;
 
     bool runPP(bool no_wait = false);
+    bool runGCBS();
 
     void updateCollidingPairs(set<pair<int, int>>& colliding_pairs, int agent_id, const Path& path) const;
 

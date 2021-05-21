@@ -276,6 +276,118 @@ Path SpaceTimeAStar::findOptimalPath(const PathTableWC& path_table)
     return path;
 }
 
+// find path by time-space A* search
+// Returns a path that minimizes the collisions, breaking ties by the length
+Path SpaceTimeAStar::findPath(const ConstraintTable& constraint_table)
+{
+    Path path;
+    num_expanded = 0;
+    num_generated = 0;
+
+    if (constraint_table.constrained(start_location, 0))
+    {
+        return path;
+    }
+
+    int holding_time = constraint_table.getHoldingTime(); // the earliest timestep that the agent can hold its goal location. The length_min is considered here.
+
+    int lowerbound =  holding_time;
+
+    // generate start and add it to the OPEN & FOCAL list
+    auto start = new AStarNode(start_location, 0, max(lowerbound, my_heuristic[start_location]), nullptr, 0, 0, false);
+
+    num_generated++;
+    start->focal_handle = focal_list.push(start);
+    start->in_openlist = true;
+    allNodes_table.insert(start);
+
+    while (!focal_list.empty())
+    {
+        auto* curr = focal_list.top(); focal_list.pop();
+        curr->in_openlist = false;
+        num_expanded++;
+        assert(curr->location >= 0);
+        // check if the popped node is a goal
+        if (curr->location == goal_location && // arrive at the goal location
+            !curr->wait_at_goal && // not wait at the goal location
+            curr->timestep >= holding_time) // the agent can hold the goal location afterward
+        {
+            updatePath(curr, path);
+            break;
+        }
+
+        if (curr->timestep >= constraint_table.length_max)
+            continue;
+
+        auto next_locations = instance.getNeighbors(curr->location);
+        next_locations.emplace_back(curr->location);
+        for (int next_location : next_locations)
+        {
+            int next_timestep = curr->timestep + 1;
+            if (max(constraint_table.getCATMaxTimestep(), constraint_table.latest_timestep) + 1 < curr->timestep)
+            { // now everything is static, so switch to space A* where we always use the same timestep
+                if (next_location == curr->location)
+                {
+                    continue;
+                }
+                next_timestep--;
+            }
+
+            if (constraint_table.constrained(next_location, next_timestep) ||
+                constraint_table.constrained(curr->location, next_location, next_timestep))
+                continue;
+
+            // compute cost to next_id via curr node
+            int next_g_val = curr->g_val + 1;
+            int next_h_val = max(lowerbound - next_g_val, my_heuristic[next_location]);
+            if (next_g_val + next_h_val > constraint_table.length_max)
+                continue;
+            int next_internal_conflicts = curr->num_of_conflicts +
+                                          constraint_table.getNumOfConflictsForStep(curr->location, next_location, next_timestep);
+
+            // generate (maybe temporary) node
+            auto next = new AStarNode(next_location, next_g_val, next_h_val,
+                                      curr, next_timestep, next_internal_conflicts, false);
+            if (next_location == goal_location && curr->location == goal_location)
+                next->wait_at_goal = true;
+
+            // try to retrieve it from the hash table
+            auto it = allNodes_table.find(next);
+            if (it == allNodes_table.end())
+            {
+                next->in_openlist = true;
+                next->focal_handle = focal_list.push(next);
+                num_generated++;
+                allNodes_table.insert(next);
+                continue;
+            }
+            // update existing node's if needed (only in the open_list)
+
+            auto existing_next = *it;
+            if (existing_next->num_of_conflicts > next->num_of_conflicts or
+                    (existing_next->num_of_conflicts == next->num_of_conflicts and
+                    existing_next->getFVal() > next->getFVal()))
+            {
+                existing_next->copy(*next);
+                if (!existing_next->in_openlist) // if its in the closed list (reopen)
+                {
+                    existing_next->in_openlist = true;
+                    existing_next->focal_handle = focal_list.push(existing_next);
+                }
+                else
+                {
+                    focal_list.update(existing_next->focal_handle);
+                }
+            }
+
+            delete(next);  // not needed anymore -- we already generated it before
+        }  // end for loop that generates successors
+    }  // end while loop
+
+    releaseNodes();
+    return path;
+}
+
 // find the optimal no wait path by A* search
 // Returns a path that minimizes cost, breaking ties by number of target locations visited (treated ad num_of_conflicts).
 Path SpaceTimeAStar::findNoWaitPath(vector<int>& goal_table,set<int>& A_target)
