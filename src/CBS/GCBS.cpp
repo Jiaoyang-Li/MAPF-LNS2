@@ -647,11 +647,6 @@ bool GCBS::generateRoot()
     root->depth = 0;
     findConflicts(*root);
 
-    for (int i = 0; i < num_of_agents; i++)
-    {
-        findPathForSingleAgent(root, i);
-    }
-
     pushNode(root);
     if (screen >= 2) // print start and goals
     {
