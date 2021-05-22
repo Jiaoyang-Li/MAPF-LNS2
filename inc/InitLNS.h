@@ -81,4 +81,7 @@ private:
     int randomWalk(int agent_id);
 
     void printCollisionGraph() const;
+
+    static unordered_map<int, set<int>>& findConnectedComponent(const vector<set<int>>& graph, int vertex,
+            unordered_map<int, set<int>>& sub_graph);
 };

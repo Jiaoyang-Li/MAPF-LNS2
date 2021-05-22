@@ -49,7 +49,12 @@ bool InitLNS::run()
     iteration_stats.emplace_back(neighbor.agents.size(),
             initial_sum_of_costs, initial_solution_runtime, init_algo_name, 0, num_of_colliding_pairs);
     runtime = initial_solution_runtime;
-
+    if (screen >= 1)
+        cout << "Iteration " << iteration_stats.size() << ", "
+             << "group size = " << neighbor.agents.size() << ", "
+             << "colliding pairs = " << num_of_colliding_pairs << ", "
+             << "solution cost = " << sum_of_costs << ", "
+             << "remaining time = " << time_limit - runtime << endl;
     while (runtime < time_limit and num_of_colliding_pairs > 0)
     {
         runtime =((fsec)(Time::now() - start_time)).count();
@@ -70,7 +75,7 @@ bool InitLNS::run()
                 cerr << "Wrong neighbor generation strategy" << endl;
                 exit(-1);
         }
-        if(!succ || neighbor.agents.size() <= 1)
+        if(!succ || neighbor.agents.size() <= 1) //TODO: if size = 1, call a single-agent solver to replan?
             continue;
 
         // store the neighbor information
@@ -406,16 +411,21 @@ void InitLNS::chooseDestroyHeuristicbyALNS()
 
 bool InitLNS::generateNeighborByCollisionGraph()
 {
-    unordered_map<int, list<int>> G;
+    vector<int> all_vertices;
+    all_vertices.reserve(collision_graph.size());
     for (int i = 0; i < (int)collision_graph.size(); i++)
     {
         if (!collision_graph[i].empty())
-            G[i].assign(collision_graph[i].begin(), collision_graph[i].end());
+            all_vertices.push_back(i);
     }
-    assert(!G.empty());
+    unordered_map<int, set<int>> G;
+    auto v = all_vertices[rand() % all_vertices.size()]; // pick a random vertex
+    findConnectedComponent(collision_graph, v, G);
+    assert(G.size() > 1);
+
     assert(neighbor_size <= (int)agents.size());
     set<int> neighbors_set;
-    if ((int)G.size() < neighbor_size)
+    if ((int)G.size() <= neighbor_size)
     {
         for (const auto& node : G)
             neighbors_set.insert(node.first);
@@ -432,21 +442,12 @@ bool InitLNS::generateNeighborByCollisionGraph()
     }
     else
     {
-        int a = -1;
+        int a = std::next(G.begin(), rand() % G.size())->first;
+        neighbors_set.insert(a);
         while ((int)neighbors_set.size() < neighbor_size)
         {
-            if (a == -1)
-            {
-                a = std::next(G.begin(), rand() % G.size())->first;
-                neighbors_set.insert(a);
-            }
-            else
-            {
-                a = *std::next(G[a].begin(), rand() % G[a].size());
-                auto ret = neighbors_set.insert(a);
-                if (!ret.second) // no new element inserted
-                    a = -1;
-            }
+            a = *std::next(G[a].begin(), rand() % G[a].size());
+            neighbors_set.insert(a);
         }
     }
     neighbor.agents.assign(neighbors_set.begin(), neighbors_set.end());
@@ -763,4 +764,24 @@ void InitLNS::printCollisionGraph() const
         }
     }
     cout << endl <<  "|V|=" << collision_graph.size() << ", |E|=" << edges << endl;
+}
+
+
+unordered_map<int, set<int>>& InitLNS::findConnectedComponent(const vector<set<int>>& graph, int vertex,
+                                                               unordered_map<int, set<int>>& sub_graph)
+{
+    std::queue<int> Q;
+    Q.push(vertex);
+    sub_graph.emplace(vertex, graph[vertex]);
+    while (!Q.empty())
+    {
+        auto v = Q.front(); Q.pop();
+        for (const auto & u : graph[v])
+        {
+            auto ret = sub_graph.emplace(u, graph[u]);
+            if (ret.second) // insert successfully
+                Q.push(u);
+        }
+    }
+    return sub_graph;
 }
