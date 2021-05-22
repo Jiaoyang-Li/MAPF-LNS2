@@ -31,7 +31,6 @@ public:
 		num_of_conflicts = other.num_of_conflicts;
 		interval = other.interval;
 	}
-	inline double getFVal() const { return g_val + h_val; }
 	~SIPPNode() {}
 
 	// The following is used by for generating the hash value of a nodes
@@ -63,16 +62,19 @@ public:
 class SIPP: public SingleAgentSolver
 {
 public:
-	// find path by SIPP
+
+    // find path by SIPP
 	// Returns a shortest path that satisfies the constraints of the give node  while
 	// minimizing the number of internal conflicts (that is conflicts with known_paths for other agents found so far).
 	// lowerbound is an underestimation of the length of the path in order to speed up the search.
+    Path findOptimalPath(const PathTable& path_table) {return Path(); } // TODO: To implement
+    Path findOptimalPath(const PathTableWC& path_table);
 	Path findOptimalPath(const HLNode& node, const ConstraintTable& initial_constraints,
 		const vector<Path*>& paths, int agent, int lowerbound);
 	pair<Path, int> findSuboptimalPath(const HLNode& node, const ConstraintTable& initial_constraints,
 		const vector<Path*>& paths, int agent, int lowerbound, double w);  // return the path and the lowerbound
-
-	int getTravelTime(int start, int end, const ConstraintTable& constraint_table, int upper_bound);
+    Path findPath(const ConstraintTable& constraint_table);
+    int getTravelTime(int start, int end, const ConstraintTable& constraint_table, int upper_bound);
 
 	string getName() const { return "SIPP"; }
 
@@ -94,6 +96,8 @@ private:
 
 	void generateChild(const Interval& interval, SIPPNode* curr, int next_location,
 		const ReservationTable& reservation_table);
+    void generateChildToFocal(const Interval& interval, SIPPNode* curr, int next_location,
+                       const ReservationTable& reservation_table);
 	
 	// Updates the path datamember
 	void updatePath(const LLNode* goal, std::vector<PathEntry> &path);

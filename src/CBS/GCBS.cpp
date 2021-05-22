@@ -608,7 +608,7 @@ void GCBS::addConstraints(const GCBSNode* curr, GCBSNode* child1, GCBSNode* chil
     }
 }
 
-GCBS::GCBS(vector<SpaceTimeAStar*>& search_engines, const vector<PathTable>& path_tables,
+GCBS::GCBS(vector<SingleAgentSolver*>& search_engines, const vector<PathTable>& path_tables,
            vector<Path>& paths_found_initially, int screen) :
            search_engines(search_engines), path_tables(path_tables),
            paths_found_initially(paths_found_initially), screen(screen), num_of_agents(search_engines.size()) {}
@@ -666,13 +666,6 @@ inline void GCBS::releaseNodes()
 GCBS::~GCBS()
 {
     releaseNodes();
-}
-
-void GCBS::clearSearchEngines()
-{
-    for (auto s : search_engines)
-        delete s;
-    search_engines.clear();
 }
 
 

@@ -69,8 +69,6 @@ public:
 	pair<Path, int> findSuboptimalPath(const HLNode& node, const ConstraintTable& initial_constraints,
 		const vector<Path*>& paths, int agent, int lowerbound, double w);  // return the path and the lowerbound
 
-    Path findNoWaitPath(vector<int>& goal_table,set<int>& A_target);
-
 
     int getTravelTime(int start, int end, const ConstraintTable& constraint_table, int upper_bound);
 

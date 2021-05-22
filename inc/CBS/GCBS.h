@@ -43,12 +43,10 @@ public:
     bool solve(double time_limit);
     void updatePaths(GCBSNode* curr);
 
-    GCBS(vector<SpaceTimeAStar*>& search_engines,
+    GCBS(vector<SingleAgentSolver*>& search_engines,
          const vector<PathTable>& path_tables,
          vector<Path>& paths_found_initially,
          int screen);
-    SpaceTimeAStar* getSearchEngine(int i) { return search_engines[i]; }
-    void clearSearchEngines();
     ~GCBS();
 
     // Save results
@@ -78,7 +76,7 @@ private:
 
     vector<Path> paths_found_initially;  // contain initial paths found
     // vector<MDD*> mdds_initially;  // contain initial paths found
-    vector < SpaceTimeAStar* > search_engines;  // used to find (single) agents' paths and mdd
+    vector < SingleAgentSolver* > search_engines;  // used to find (single) agents' paths and mdd
 
     void addConstraints(const GCBSNode* curr, GCBSNode* child1, GCBSNode* child2) const;
     set<int> getInvalidAgents(const list<Constraint>& constraints); // return agents that violates the constraints

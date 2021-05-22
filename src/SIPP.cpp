@@ -1,5 +1,5 @@
 #include "SIPP.h"
-
+#include "SpaceTimeAStar.h"
 
 void SIPP::updatePath(const LLNode* goal, vector<PathEntry> &path)
 {
@@ -23,11 +23,167 @@ void SIPP::updatePath(const LLNode* goal, vector<PathEntry> &path)
 	path[0].location = curr->location;
 }
 
+// TODO:: change this to SIPP
+// find path by A*
+// Returns a path that minimizes the collisions with the paths in the path table, breaking ties by the length
+Path SIPP::findOptimalPath(const PathTableWC& path_table)
+{
+    // define typedefs and handles for heap
+    typedef pairing_heap< AStarNode*, compare<AStarNode::compare_node> > heap_open_t;
+    typedef pairing_heap< AStarNode*, compare<AStarNode::secondary_compare_node> > heap_focal_t;
+    heap_open_t open_list;
+    heap_focal_t focal_list;
+
+    // define typedef for hash_map
+    typedef unordered_set<AStarNode*, AStarNode::NodeHasher, AStarNode::eqnode> hashtable_t;
+    hashtable_t allNodes_table;
+
+    Path path;
+    num_expanded = 0;
+    num_generated = 0;
+    // generate start and add it to the OPEN & FOCAL list
+    auto start = new AStarNode(start_location, 0, my_heuristic[start_location], nullptr, 0, 0, false);
+    num_generated++;
+    start->in_openlist = true;
+    start->focal_handle = focal_list.push(start); // we only use focal list; no open list is used
+    allNodes_table.insert(start);
+    while (!focal_list.empty())
+    {
+        auto* curr = focal_list.top();
+        focal_list.pop();
+        curr->in_openlist = false;
+        num_expanded++;
+        assert(curr->location >= 0);
+        // check if the popped node is a goal
+        if (curr->is_goal)
+        {
+            const LLNode* pt = curr;
+            if (pt->is_goal)
+                pt = pt->parent;
+            path.reserve(pt->g_val + 1);
+            while (pt != nullptr)
+            {
+                path.emplace_back(pt->location);
+                pt = pt->parent;
+            }
+            std::reverse(path.begin(),path.end());
+            break;
+        }
+        else if (curr->location == goal_location && // arrive at the goal location
+                 !curr->wait_at_goal) // not wait at the goal location
+        { // generate a goal node
+            auto goal = new AStarNode(*curr);
+            goal->is_goal = true;
+            goal->parent = curr;
+            int future_collisions = path_table.getFutureNumOfCollisions(goal->location, goal->timestep);
+            if (future_collisions == 0)
+            {
+                const LLNode* pt = curr;
+                if (pt->is_goal)
+                    pt = pt->parent;
+                path.reserve(pt->g_val + 1);
+                while (pt != nullptr)
+                {
+                    path.emplace_back(pt->location);
+                    pt = pt->parent;
+                }
+                std::reverse(path.begin(),path.end());
+                break;
+            }
+            goal->num_of_conflicts += future_collisions;
+            // try to retrieve it from the hash table
+            auto it = allNodes_table.find(goal);
+            if (it == allNodes_table.end())
+            {
+                goal->focal_handle = focal_list.push(goal);
+                goal->in_openlist = true;
+                num_generated++;
+                allNodes_table.insert(goal);
+            }
+            else // update existing node's if needed (only in the open_list)
+            {
+                auto existing_next = *it;
+                if (existing_next->num_of_conflicts > goal->num_of_conflicts ||
+                    (existing_next->num_of_conflicts == goal->num_of_conflicts &&
+                     existing_next->getFVal() > goal->getFVal()))
+                {
+                    assert(existing_next->in_openlist);
+                    existing_next->copy(*goal);	// update existing node
+                    focal_list.update(existing_next->focal_handle);
+                }
+                delete (goal);
+            }
+        }
+        auto next_locations = instance.getNeighbors(curr->location);
+        next_locations.emplace_back(curr->location);
+        for (int next_location : next_locations)
+        {
+            int next_timestep = curr->timestep + 1;
+            if (path_table.makespan < next_timestep)
+            { // now everything is static, so switch to space A* where we always use the same timestep
+                if (next_location == curr->location)
+                {
+                    continue;
+                }
+                next_timestep--;
+            }
+
+            // compute cost to next_id via curr node
+            int next_g_val = curr->g_val + 1;
+            int next_h_val = my_heuristic[next_location];
+
+            // generate (maybe temporary) node
+            auto next = new AStarNode(next_location, next_g_val, next_h_val,
+                                      curr, next_timestep, 0, false);
+            next->num_of_conflicts += path_table.getNumOfCollisions(curr->location, next_location, next_timestep);
+            if (next_location == goal_location && curr->location == goal_location)
+                next->wait_at_goal = true;
+
+            // try to retrieve it from the hash table
+            auto it = allNodes_table.find(next);
+            if (it == allNodes_table.end())
+            {
+                next->focal_handle = focal_list.push(next);
+                next->in_openlist = true;
+                num_generated++;
+                allNodes_table.insert(next);
+                continue;
+            }
+            // update existing node's if needed (only in the open_list)
+
+            auto existing_next = *it;
+            if (existing_next->num_of_conflicts > next->num_of_conflicts  ||
+                (existing_next->num_of_conflicts == next->num_of_conflicts &&
+                 existing_next->getFVal() > next->getFVal()))
+            {
+                if (!existing_next->in_openlist) // if its in the closed list (reopen)
+                {
+                    existing_next->copy(*next);
+                    existing_next->focal_handle = focal_list.push(existing_next);
+                    existing_next->in_openlist = true;
+                }
+                else
+                {
+                    existing_next->copy(*next);	// update existing node
+                    focal_list.update(existing_next->focal_handle);
+                }
+            }
+
+            delete(next);  // not needed anymore -- we already generated it before
+        }  // end for loop that generates successors
+    }  // end while loop
+
+    for (auto node: allNodes_table)
+        delete node;
+    return path;
+}
+
 Path SIPP::findOptimalPath(const HLNode& node, const ConstraintTable& initial_constraints,
 	const vector<Path*>& paths, int agent, int lowerbound)
 {
 	return findSuboptimalPath(node, initial_constraints, paths, agent, lowerbound, 1).first;
 }
+
 // find path by SIPP
 // Returns a shortest path that satisfies the constraints of the give node  while
 // minimizing the number of internal conflicts (that is conflicts with known_paths for other agents found so far).
@@ -102,6 +258,70 @@ pair<Path, int> SIPP::findSuboptimalPath(const HLNode& node, const ConstraintTab
 	return {path, min_f_val};
 }
 
+// find path by SIPP
+// Returns a path that satisfies the constraints while
+// minimizing the number of conflicts
+Path SIPP::findPath(const ConstraintTable& constraint_table)
+{
+    Path path;
+
+    ReservationTable reservation_table(constraint_table);
+
+    int holding_time = reservation_table.getHoldingTime();
+
+    num_expanded = 0;
+    num_generated = 0;
+    Interval interval = reservation_table.get_first_safe_interval(start_location);
+    if (get<0>(interval) > 0)
+        return path;
+
+    // generate start and add it to the OPEN list
+    auto start = new SIPPNode(start_location, 0, my_heuristic[start_location], nullptr, 0, interval, 0, false);
+
+    num_generated++;
+    start->focal_handle = focal_list.push(start);
+    start->in_openlist = true;
+    allNodes_table.insert(start);
+    min_f_val = max(holding_time, (int)start->getFVal());
+
+
+    while (!focal_list.empty())
+    {
+        SIPPNode* curr = focal_list.top(); focal_list.pop();
+        curr->in_openlist = false;
+        num_expanded++;
+
+        // check if the popped node is a goal node
+        if (curr->location == goal_location && // arrive at the goal location
+            !curr->wait_at_goal && // not wait at the goal location
+            curr->timestep >= holding_time) // the agent can hold the goal location afterward
+        {
+            updatePath(curr, path);
+            break;
+        }
+
+        for (int next_location : instance.getNeighbors(curr->location)) // move to neighboring locations
+        {
+            for (auto interval : reservation_table.get_safe_intervals(
+                    curr->location, next_location, curr->timestep + 1, get<1>(curr->interval) + 1))
+            {
+                generateChildToFocal(interval, curr, next_location, reservation_table);
+            }
+        }  // end for loop that generates successors
+
+        // wait at the current location
+        bool found = reservation_table.find_safe_interval(interval, curr->location, get<1>(curr->interval));
+        if (found)
+        {
+            generateChildToFocal(interval, curr, curr->location, reservation_table);
+        }
+    }  // end while loop
+
+    // no path found
+    releaseNodes();
+    return path;
+}
+
 void SIPP::updateFocalList()
 {
 	auto open_head = open_list.top();
@@ -147,69 +367,114 @@ void SIPP::releaseNodes()
 	allNodes_table.clear();
 }
 
+void SIPP::generateChild(const Interval& interval, SIPPNode* curr, int next_location,
+                         const ReservationTable& reservation_table)
+{
+    // compute cost to next_id via curr node
+    int next_timestep = max(curr->timestep + 1, (int)get<0>(interval));
+    int next_g_val = next_timestep;
+    int next_h_val = my_heuristic[next_location];
+    if (next_g_val + next_h_val > reservation_table.length_max)
+        return;
+    int next_conflicts = curr->num_of_conflicts + (int)get<2>(interval);
 
-void SIPP::generateChild(const Interval& interval, SIPPNode* curr, int next_location, 
+    // generate (maybe temporary) node
+    auto next = new SIPPNode(next_location, next_g_val, next_h_val, curr, next_timestep, interval, next_conflicts, false);
+    if (next_location == goal_location && curr->location == goal_location)
+        next->wait_at_goal = true;
+    // try to retrieve it from the hash table
+    auto it = allNodes_table.find(next);
+    if (it == allNodes_table.end())
+    {
+        pushNode(next);
+        allNodes_table.insert(next);
+        return;
+    }
+    // update existing node's if needed (only in the open_list)
+
+    auto existing_next = *it;
+    if (existing_next->getFVal() > next->getFVal() || // if f-val decreased through this new path
+        (existing_next->getFVal() == next->getFVal() &&
+         existing_next->num_of_conflicts > next->num_of_conflicts)) // or it remains the same but there's fewer conflicts
+    {
+        if (!existing_next->in_openlist) // if its in the closed list (reopen)
+        {
+            existing_next->copy(*next);
+            pushNode(existing_next);
+        }
+        else
+        {
+            bool add_to_focal = false;  // check if it was above the focal bound before and now below (thus need to be inserted)
+            bool update_in_focal = false;  // check if it was inside the focal and needs to be updated (because f-val changed)
+            bool update_open = false;
+            if ((next_g_val + next_h_val) <= w * min_f_val)
+            {  // if the new f-val qualify to be in FOCAL
+                if (existing_next->getFVal() > w * min_f_val)
+                    add_to_focal = true;  // and the previous f-val did not qualify to be in FOCAL then add
+                else
+                    update_in_focal = true;  // and the previous f-val did qualify to be in FOCAL then update
+            }
+            if (existing_next->getFVal() > next_g_val + next_h_val)
+                update_open = true;
+
+            existing_next->copy(*next);	// update existing node
+
+            if (update_open)
+                open_list.increase(existing_next->open_handle);  // increase because f-val improved
+            if (add_to_focal)
+                existing_next->focal_handle = focal_list.push(existing_next);
+            if (update_in_focal)
+                focal_list.update(existing_next->focal_handle);  // should we do update? yes, because number of conflicts may go up or down
+        }
+    }
+
+    delete(next);  // not needed anymore -- we already generated it before
+}
+void SIPP::generateChildToFocal(const Interval& interval, SIPPNode* curr, int next_location,
 	const ReservationTable& reservation_table)
 {
-	// compute cost to next_id via curr node
-	int next_timestep = max(curr->timestep + 1, (int)get<0>(interval));
-	int next_g_val = next_timestep;
-	int next_h_val = my_heuristic[next_location];
-	if (next_g_val + next_h_val > reservation_table.length_max)
-		return;
-	int next_conflicts = curr->num_of_conflicts + (int)get<2>(interval);
+    // compute cost to next_id via curr node
+    int next_timestep = max(curr->timestep + 1, (int)get<0>(interval));
+    int next_g_val = next_timestep;
+    int next_h_val = my_heuristic[next_location];
+    if (next_g_val + next_h_val > reservation_table.length_max)
+        return;
+    int next_conflicts = curr->num_of_conflicts + (int)get<2>(interval);
 
-	// generate (maybe temporary) node
-	auto next = new SIPPNode(next_location, next_g_val, next_h_val, curr, next_timestep, interval, next_conflicts, false);
-	if (next_location == goal_location && curr->location == goal_location)
-		next->wait_at_goal = true;
-	// try to retrieve it from the hash table
-	auto it = allNodes_table.find(next);
-	if (it == allNodes_table.end())
-	{
-		pushNode(next);
-		allNodes_table.insert(next);
-		return;
-	}
-	// update existing node's if needed (only in the open_list)
+    // generate (maybe temporary) node
+    auto next = new SIPPNode(next_location, next_g_val, next_h_val, curr, next_timestep, interval, next_conflicts, false);
+    if (next_location == goal_location && curr->location == goal_location)
+        next->wait_at_goal = true;
+    // try to retrieve it from the hash table
+    auto it = allNodes_table.find(next);
+    if (it == allNodes_table.end())
+    {
+        next->focal_handle = focal_list.push(next);
+        next->in_openlist = true;
+        num_generated++;
+        allNodes_table.insert(next);
+        return;
+    }
+    // update existing node's if needed (only in the open_list)
 
-	auto existing_next = *it;
-	if (existing_next->getFVal() > next->getFVal() || // if f-val decreased through this new path
-		(existing_next->getFVal() == next->getFVal() &&
-			existing_next->num_of_conflicts > next->num_of_conflicts)) // or it remains the same but there's fewer conflicts
-	{
-		if (!existing_next->in_openlist) // if its in the closed list (reopen)
-		{
-			existing_next->copy(*next);
-			pushNode(existing_next);
-		}
-		else
-		{
-			bool add_to_focal = false;  // check if it was above the focal bound before and now below (thus need to be inserted)
-			bool update_in_focal = false;  // check if it was inside the focal and needs to be updated (because f-val changed)
-			bool update_open = false;
-			if ((next_g_val + next_h_val) <= w * min_f_val)
-			{  // if the new f-val qualify to be in FOCAL
-				if (existing_next->getFVal() > w * min_f_val)
-					add_to_focal = true;  // and the previous f-val did not qualify to be in FOCAL then add
-				else
-					update_in_focal = true;  // and the previous f-val did qualify to be in FOCAL then update
-			}
-			if (existing_next->getFVal() > next_g_val + next_h_val)
-				update_open = true;
+    auto existing_next = *it;
+    if (existing_next->num_of_conflicts > next->num_of_conflicts ||
+        (existing_next->num_of_conflicts == next->num_of_conflicts &&
+         existing_next->getFVal() > next->getFVal()))
+    {
+        existing_next->copy(*next);
+        if (!existing_next->in_openlist) // if its in the closed list (reopen)
+        {
+            existing_next->focal_handle = focal_list.push(existing_next);
+            existing_next->in_openlist = true;
+        }
+        else
+        {
+            focal_list.update(existing_next->focal_handle);  // should we do update? yes, because number of conflicts may go up or down
+        }
+    }
 
-			existing_next->copy(*next);	// update existing node
-
-			if (update_open)
-				open_list.increase(existing_next->open_handle);  // increase because f-val improved
-			if (add_to_focal)
-				existing_next->focal_handle = focal_list.push(existing_next);
-			if (update_in_focal)
-				focal_list.update(existing_next->focal_handle);  // should we do update? yes, because number of conflicts may go up or down			
-		}
-	}
-
-	delete(next);  // not needed anymore -- we already generated it before
+    delete(next);  // not needed anymore -- we already generated it before
 }
 
 // TODO:: currently this is implemented in A*, not SIPP

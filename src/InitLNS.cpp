@@ -112,7 +112,8 @@ bool InitLNS::run()
                 destroy_weights[selected_neighbor] =
                         (1 - decay_factor) * destroy_weights[selected_neighbor];
         }
-
+        if (screen >= 2)
+            cout << "New colliding pairs = " << neighbor.colliding_pairs.size() << endl;
         if (succ) // update collision graph
         {
             num_of_colliding_pairs += (int)neighbor.colliding_pairs.size() - (int)neighbor.old_colliding_pairs.size();
@@ -160,7 +161,7 @@ bool InitLNS::run()
 
 bool InitLNS::runGCBS()
 {
-    vector<SpaceTimeAStar*> search_engines;
+    vector<SingleAgentSolver*> search_engines;
     search_engines.reserve(neighbor.agents.size());
     for (int i : neighbor.agents)
     {

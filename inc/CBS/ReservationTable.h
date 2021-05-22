@@ -20,7 +20,7 @@ public:
 	list<Interval> get_safe_intervals(size_t from, size_t to, size_t lower_bound, size_t upper_bound);
 
 	// int get_holding_time(int location);
-   Interval get_first_safe_interval(size_t location);
+    Interval get_first_safe_interval(size_t location);
     bool find_safe_interval(Interval& interval, size_t location, size_t t_min);
 
 	void buildCAT(int agent, const vector<Path*>& paths); // build the conflict avoidance table

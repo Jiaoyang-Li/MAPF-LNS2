@@ -1,5 +1,6 @@
 #pragma once
 #include "SpaceTimeAStar.h"
+#include "SIPP.h"
 #include <chrono>
 #include <utility>
 

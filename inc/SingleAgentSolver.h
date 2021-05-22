@@ -94,11 +94,15 @@ public:
 	}
 	const Instance& instance;
 
+    virtual Path findOptimalPath(const PathTable& path_table) = 0;
+    virtual Path findOptimalPath(const PathTableWC& path_table) = 0;
 	virtual Path findOptimalPath(const HLNode& node, const ConstraintTable& initial_constraints,
 		const vector<Path*>& paths, int agent, int lower_bound) = 0;
 	virtual pair<Path, int> findSuboptimalPath(const HLNode& node, const ConstraintTable& initial_constraints,
 		const vector<Path*>& paths, int agent, int lowerbound, double w) = 0;  // return the path and the lowerbound
-	virtual int getTravelTime(int start, int end, const ConstraintTable& constraint_table, int upper_bound) = 0;
+    virtual Path findPath(const ConstraintTable& initial_constraints) = 0;  // return the path
+    Path findNoWaitPath(vector<int>& goal_table,set<int>& A_target);
+    virtual int getTravelTime(int start, int end, const ConstraintTable& constraint_table, int upper_bound) = 0;
 	virtual string getName() const = 0;
 
 	list<int> getNextLocations(int curr) const; // including itself and its neighbors
