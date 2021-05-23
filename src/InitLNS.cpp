@@ -75,7 +75,7 @@ bool InitLNS::run()
                 cerr << "Wrong neighbor generation strategy" << endl;
                 exit(-1);
         }
-        if(!succ || neighbor.agents.size() <= 1) //TODO: if size = 1, call a single-agent solver to replan?
+        if(!succ || neighbor.agents.size() < 1)
             continue;
 
         // store the neighbor information
@@ -97,7 +97,7 @@ bool InitLNS::run()
         if (screen >= 2)
             cout << "Old colliding pairs = " << neighbor.old_colliding_pairs.size() << endl;
 
-        if (replan_algo_name == "PP")
+        if (replan_algo_name == "PP" || neighbor.agents.size() == 1)
             succ = runPP();
         else if (replan_algo_name == "GCBS")
             succ = runGCBS();
