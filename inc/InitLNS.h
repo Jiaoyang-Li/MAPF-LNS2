@@ -28,6 +28,7 @@ public:
     void writePathsToFile(string file_name) const;
     string getSolverName() const { return "InitLNS(" + init_algo_name + ";" + replan_algo_name + ")"; }
 
+    void printPath() const;
 private:
     int num_neighbor_sizes = 1; //4; // so the neighbor size could be 2, 4, 8, 16
 

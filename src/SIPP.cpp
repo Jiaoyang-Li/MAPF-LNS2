@@ -317,7 +317,8 @@ Path SIPP::findPath(const ConstraintTable& constraint_table)
         }
     }  // end while loop
 
-    // no path found
+    //if (path.empty())
+    //    printSearchTree();
     releaseNodes();
     return path;
 }
@@ -376,7 +377,7 @@ void SIPP::generateChild(const Interval& interval, SIPPNode* curr, int next_loca
     int next_h_val = my_heuristic[next_location];
     if (next_g_val + next_h_val > reservation_table.length_max)
         return;
-    int next_conflicts = curr->num_of_conflicts + (int)get<2>(interval);
+    int next_conflicts = curr->num_of_conflicts + (int)get<2>(interval) * (next_timestep - curr->timestep);
 
     // generate (maybe temporary) node
     auto next = new SIPPNode(next_location, next_g_val, next_h_val, curr, next_timestep, interval, next_conflicts, false);
@@ -393,8 +394,8 @@ void SIPP::generateChild(const Interval& interval, SIPPNode* curr, int next_loca
     // update existing node's if needed (only in the open_list)
 
     auto existing_next = *it;
-    if (existing_next->getFVal() > next->getFVal() || // if f-val decreased through this new path
-        (existing_next->getFVal() == next->getFVal() &&
+    if (existing_next->timestep > next->timestep || // prefer the one with smaller timestep
+        (existing_next->timestep == next->timestep &&
          existing_next->num_of_conflicts > next->num_of_conflicts)) // or it remains the same but there's fewer conflicts
     {
         if (!existing_next->in_openlist) // if its in the closed list (reopen)
@@ -458,9 +459,12 @@ void SIPP::generateChildToFocal(const Interval& interval, SIPPNode* curr, int ne
     // update existing node's if needed (only in the open_list)
 
     auto existing_next = *it;
-    if (existing_next->num_of_conflicts > next->num_of_conflicts ||
-        (existing_next->num_of_conflicts == next->num_of_conflicts &&
-         existing_next->getFVal() > next->getFVal()))
+    //if (existing_next->num_of_conflicts > next->num_of_conflicts ||
+    //    (existing_next->num_of_conflicts == next->num_of_conflicts &&
+    //     existing_next->getFVal() > next->getFVal()))
+    if (existing_next->timestep > next->timestep || // prefer the one with smaller timestep
+        (existing_next->timestep == next->timestep &&
+         existing_next->num_of_conflicts > next->num_of_conflicts)) // or it remains the same but there's fewer conflicts
     {
         existing_next->copy(*next);
         if (!existing_next->in_openlist) // if its in the closed list (reopen)
@@ -485,6 +489,7 @@ int SIPP::getTravelTime(int start, int end, const ConstraintTable& constraint_ta
 	root->open_handle = open_list.push(root);  // add root to heap
 	allNodes_table.insert(root);       // add root to hash_table (nodes)
 	SIPPNode* curr = nullptr;
+	auto static_timestep = constraint_table.getMaxTimestep(); // everything is static after this timestep
 	while (!open_list.empty())
 	{
 		curr = open_list.top(); open_list.pop();
@@ -499,7 +504,7 @@ int SIPP::getTravelTime(int start, int end, const ConstraintTable& constraint_ta
 		{
 			int next_timestep = curr->timestep + 1;
 			int next_g_val = curr->g_val + 1;
-			if (constraint_table.latest_timestep <= curr->timestep)
+			if (static_timestep <= curr->timestep)
 			{
 				if (curr->location == next_location)
 				{
@@ -598,4 +603,24 @@ int SIPP::getTravelTime(int start, int end, const ConstraintTable& constraint_ta
 	}
 	nodes.clear();
 	return length;*/
+}
+
+
+void SIPP::printSearchTree() const
+{
+    vector<list<SIPPNode*>> nodes;
+    for (const auto& n : allNodes_table)
+    {
+        if (nodes.size() <= n->timestep)
+            nodes.resize(n->timestep + 1);
+        nodes[n->timestep].emplace_back(n);
+    }
+    cout << "Search Tree" << endl;
+    for(int t = 0; t < nodes.size(); t++)
+    {
+        cout << "t=" << t << ":\t";
+        for (const auto & n : nodes[t])
+            cout << *n << "[" << get<0>(n->interval) << "," << get<1>(n->interval) << "],\t";
+        cout << endl;
+    }
 }

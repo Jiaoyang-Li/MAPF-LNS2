@@ -288,9 +288,9 @@ Path SpaceTimeAStar::findPath(const ConstraintTable& constraint_table)
         return path;
     }
 
-    int holding_time = constraint_table.getHoldingTime(); // the earliest timestep that the agent can hold its goal location. The length_min is considered here.
-
-    int lowerbound =  holding_time;
+    auto holding_time = constraint_table.getHoldingTime(); // the earliest timestep that the agent can hold its goal location. The length_min is considered here.
+    auto static_timestep = constraint_table.getMaxTimestep(); // everything is static after this timestep
+    auto lowerbound =  holding_time;
 
     // generate start and add it to the OPEN & FOCAL list
     auto start = new AStarNode(start_location, 0, max(lowerbound, my_heuristic[start_location]), nullptr, 0, 0, false);
@@ -323,7 +323,7 @@ Path SpaceTimeAStar::findPath(const ConstraintTable& constraint_table)
         for (int next_location : next_locations)
         {
             int next_timestep = curr->timestep + 1;
-            if (max(constraint_table.getCATMaxTimestep(), constraint_table.latest_timestep) + 1 < curr->timestep)
+            if (static_timestep + 1 < curr->timestep)
             { // now everything is static, so switch to space A* where we always use the same timestep
                 if (next_location == curr->location)
                 {
@@ -409,11 +409,12 @@ pair<Path, int> SpaceTimeAStar::findSuboptimalPath(const HLNode& node, const Con
 		return {path, 0};
 	}
 
-	int holding_time = constraint_table.getHoldingTime(); // the earliest timestep that the agent can hold its goal location. The length_min is considered here.
 	t = clock();
-	constraint_table.buildCAT(agent, paths, node.makespan + 1);
+	constraint_table.buildCAT(agent, paths);
 	runtime_build_CAT = (double)(clock() - t) / CLOCKS_PER_SEC;
 
+    auto holding_time = constraint_table.getHoldingTime(); // the earliest timestep that the agent can hold its goal location. The length_min is considered here.
+    auto static_timestep = constraint_table.getMaxTimestep(); // everything is static after this timestep
     lowerbound =  max(holding_time, lowerbound);
 
 	// generate start and add it to the OPEN & FOCAL list
@@ -449,7 +450,7 @@ pair<Path, int> SpaceTimeAStar::findSuboptimalPath(const HLNode& node, const Con
 		for (int next_location : next_locations)
 		{
 			int next_timestep = curr->timestep + 1;
-			if (max((int)node.makespan, constraint_table.latest_timestep) + 1 < curr->timestep)
+			if (static_timestep + 1 < curr->timestep)
 			{ // now everything is static, so switch to space A* where we always use the same timestep
 				if (next_location == curr->location)
 				{
@@ -534,6 +535,7 @@ pair<Path, int> SpaceTimeAStar::findSuboptimalPath(const HLNode& node, const Con
 int SpaceTimeAStar::getTravelTime(int start, int end, const ConstraintTable& constraint_table, int upper_bound)
 {
 	int length = MAX_TIMESTEP;
+    auto static_timestep = constraint_table.getMaxTimestep(); // everything is static after this timestep
 	auto root = new AStarNode(start, 0, compute_heuristic(start, end), nullptr, 0);
 	root->open_handle = open_list.push(root);  // add root to heap
 	allNodes_table.insert(root);       // add root to hash_table (nodes)
@@ -552,7 +554,7 @@ int SpaceTimeAStar::getTravelTime(int start, int end, const ConstraintTable& con
 		{
 			int next_timestep = curr->timestep + 1;
 			int next_g_val = curr->g_val + 1;
-			if (constraint_table.latest_timestep <= curr->timestep)
+			if (static_timestep <= curr->timestep)
 			{
 				if (curr->location == next_location)
 				{

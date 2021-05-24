@@ -52,9 +52,11 @@ public:
 		bool operator()(const SIPPNode* n1, const SIPPNode* n2) const
 		{
 			return (n1 == n2) ||
-				(n1 && n2 && n1->location == n2->location && 
-					n1->wait_at_goal == n2->wait_at_goal &&
-					get<0>(n1->interval) == get<0>(n2->interval)); //TODO: do we need to compare timestep here?
+			            (n1 && n2 && n1->location == n2->location &&
+				        n1->wait_at_goal == n2->wait_at_goal &&
+                        get<1>(n1->interval) == get<1>(n2->interval)); //&&
+                        //(n1->num_of_conflicts == n2->num_of_conflicts || // we prefer the one with smaller timestep
+				        //n1->timestep == n2->timestep)); // we prefer the one with smaller number of conflicts
 		}
 	};
 };
@@ -105,5 +107,7 @@ private:
 	inline void pushNode(SIPPNode* node);
 	void updateFocalList();
 	void releaseNodes();
+
+	void printSearchTree() const;
 };
 

@@ -18,6 +18,7 @@ using boost::unordered_set;
 using std::vector;
 using std::list;
 using std::set;
+using std::map;
 using std::get;
 using std::tuple;
 using std::make_tuple;
@@ -44,7 +45,7 @@ using std::string;
 struct PathEntry
 {
 	int location = -1;
-	PathEntry(int loc = -1) { location = loc; }
+	explicit PathEntry(int loc = -1) { location = loc; }
 };
 
 typedef vector<PathEntry> Path;
@@ -59,7 +60,7 @@ struct IterationStats
     string algorithm;
     int sum_of_costs_lowerbound;
     int num_of_colliding_pairs;
-    IterationStats(int num_of_agents, int sum_of_costs, double runtime, string algorithm,
+    IterationStats(int num_of_agents, int sum_of_costs, double runtime, const string& algorithm,
             int sum_of_costs_lowerbound = 0, int num_of_colliding_pairs = 0) :
             num_of_agents(num_of_agents), sum_of_costs(sum_of_costs), runtime(runtime),
             sum_of_costs_lowerbound(sum_of_costs_lowerbound), algorithm(algorithm),

@@ -49,6 +49,8 @@ bool InitLNS::run()
     iteration_stats.emplace_back(neighbor.agents.size(),
             initial_sum_of_costs, initial_solution_runtime, init_algo_name, 0, num_of_colliding_pairs);
     runtime = initial_solution_runtime;
+    if (screen >= 3)
+        printPath();
     if (screen >= 1)
         cout << "Iteration " << iteration_stats.size() << ", "
              << "group size = " << neighbor.agents.size() << ", "
@@ -75,7 +77,7 @@ bool InitLNS::run()
                 cerr << "Wrong neighbor generation strategy" << endl;
                 exit(-1);
         }
-        if(!succ || neighbor.agents.size() < 1)
+        if(!succ || neighbor.agents.empty())
             continue;
 
         // store the neighbor information
@@ -85,7 +87,7 @@ bool InitLNS::run()
         for (int i = 0; i < (int)neighbor.agents.size(); i++)
         {
             int a = neighbor.agents[i];
-            if (replan_algo_name == "PP" or replan_algo_name == "GCBS")
+            if (replan_algo_name == "PP")
                 neighbor.old_paths[i] = agents[a].path;
             path_table.deletePath(neighbor.agents[i], agents[a].path);
             neighbor.old_sum_of_costs += (int) agents[a].path.size() - 1;
@@ -95,7 +97,19 @@ bool InitLNS::run()
             }
         }
         if (screen >= 2)
-            cout << "Old colliding pairs = " << neighbor.old_colliding_pairs.size() << endl;
+        {
+            cout << "Neighbors: ";
+            for (auto a : neighbor.agents)
+                cout << a << ", ";
+            cout << endl;
+            cout << "Old colliding pairs (" << neighbor.old_colliding_pairs.size() << "): ";
+            for (const auto & p : neighbor.old_colliding_pairs)
+            {
+                cout << "(" << p.first << "," << p.second << "), ";
+            }
+            cout << endl;
+
+        }
 
         if (replan_algo_name == "PP" || neighbor.agents.size() == 1)
             succ = runPP();
@@ -185,7 +199,7 @@ bool InitLNS::runGCBS()
         }
     }
 
-    GCBS gcbs(search_engines, path_tables, neighbor.old_paths, screen - 1);
+    GCBS gcbs(search_engines, path_tables, screen - 1);
     gcbs.setDisjointSplitting(false);
     gcbs.setBypass(true);
     gcbs.setTargetReasoning(true);
@@ -411,6 +425,54 @@ void InitLNS::chooseDestroyHeuristicbyALNS()
 
 bool InitLNS::generateNeighborByCollisionGraph()
 {
+    /*unordered_map<int, list<int>> G;
+    for (int i = 0; i < (int)collision_graph.size(); i++)
+    {
+        if (!collision_graph[i].empty())
+            G[i].assign(collision_graph[i].begin(), collision_graph[i].end());
+    }
+    assert(!G.empty());
+    assert(neighbor_size <= (int)agents.size());
+    set<int> neighbors_set;
+    if ((int)G.size() < neighbor_size)
+    {
+        for (const auto& node : G)
+            neighbors_set.insert(node.first);
+        int count = 0;
+        while ((int)neighbors_set.size() < neighbor_size && count < 10)
+        {
+            int a1 = *std::next(neighbors_set.begin(), rand() % neighbors_set.size());
+            int a2 = randomWalk(a1);
+            if (a2 != NO_AGENT)
+                neighbors_set.insert(a2);
+            else
+                count++;
+        }
+    }
+    else
+    {
+        int a = -1;
+        while ((int)neighbors_set.size() < neighbor_size)
+        {
+            if (a == -1)
+            {
+                a = std::next(G.begin(), rand() % G.size())->first;
+                neighbors_set.insert(a);
+            }
+            else
+            {
+                a = *std::next(G[a].begin(), rand() % G[a].size());
+                auto ret = neighbors_set.insert(a);
+                if (!ret.second) // no new element inserted
+                    a = -1;
+            }
+        }
+    }
+    neighbor.agents.assign(neighbors_set.begin(), neighbors_set.end());
+    if (screen >= 2)
+        cout << "Generate " << neighbor.agents.size() << " neighbors by collision graph" << endl;
+    return true;*/
+
     vector<int> all_vertices;
     all_vertices.reserve(collision_graph.size());
     for (int i = 0; i < (int)collision_graph.size(); i++)
@@ -454,6 +516,7 @@ bool InitLNS::generateNeighborByCollisionGraph()
     if (screen >= 2)
         cout << "Generate " << neighbor.agents.size() << " neighbors by collision graph" << endl;
     return true;
+
 }
 
 bool InitLNS::generateNeighborByTarget()
@@ -784,4 +847,10 @@ unordered_map<int, set<int>>& InitLNS::findConnectedComponent(const vector<set<i
         }
     }
     return sub_graph;
+}
+
+void InitLNS::printPath() const
+{
+    for (const auto& agent : agents)
+        cout << "Agent " << agent.id << ": " << agent.path << endl;
 }

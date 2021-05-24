@@ -27,97 +27,51 @@
 	return t;
 }*/
 
-
-// build the constraint table and the conflict avoidance table
-void ReservationTable::buildCAT(int agent, const vector<Path*>& paths)
+ReservationTable::ReservationTable(const ConstraintTable& other) :
+    ConstraintTable(other.path_table, other.num_col, other.map_size)
 {
-	for (size_t ag = 0; ag < paths.size(); ag++)
-	{
-		if (ag == agent || paths[ag] == nullptr)
-			continue;
-		if (paths[ag]->size() == 1) // its start location is its goal location
-		{
-			cat[paths[ag]->front().location].emplace_back(0, MAX_TIMESTEP);
-			continue;
-		}
-		int prev_location = paths[ag]->front().location;
-		int prev_timestep = 0;
-		for (int timestep = 0; timestep < (int) paths[ag]->size(); timestep++)
-		{
-			int curr_location = paths[ag]->at(timestep).location;
-			if (prev_location != curr_location)
-			{
-				cat[prev_location].emplace_back(prev_timestep, timestep); // add vertex conflict
-				cat[getEdgeIndex(curr_location, prev_location)].emplace_back(timestep, timestep + 1); // add edge conflict
-				prev_location = curr_location;
-				prev_timestep = timestep;
-			}
-		}
-		cat[paths[ag]->back().location].emplace_back(paths[ag]->size() - 1, MAX_TIMESTEP);
-	}
+    copy(other);
 }
 
-int ReservationTable::getNumOfConflictsForStep(size_t curr_id, size_t next_id, size_t next_timestep) const
-{
-	int rst = 0;
-	const auto& it = cat.find(next_id);
-	if (it != cat.end())
-	{
-		for (const auto& constraint : it->second)
-		{
-			if (constraint.first <= (int)next_timestep && (int)next_timestep < constraint.second)
-				rst++;
-		}
-	}
-	const auto& it2 = cat.find(getEdgeIndex(curr_id, next_id));
-	if (it2 != cat.end())
-	{
-		for (const auto& constraint : it2->second)
-		{
-			if (constraint.first <= (int)next_timestep && (int)next_timestep < constraint.second)
-				rst++;
-		}
-	}
-	return rst;
-}
-
-void ReservationTable::insert2RT(size_t location, size_t t_min, size_t t_max)
+void ReservationTable::insert2SIT(size_t location, size_t t_min, size_t t_max)
 {
 	assert(t_min >= 0 && t_min < t_max);
-    if (sit.find(location) == sit.end())
+    auto pi = sit.find(location);
+    if (pi == sit.end())
     {
 		assert(length_min <= length_max);
 		int latest_timestep = min(length_max, MAX_TIMESTEP - 1) + 1;
 		if (t_min > 0)
 		{
-			sit[location].emplace_back(0, t_min, 0);
+			sit[location].emplace_back(0, t_min, false);
 		}
 		if ((int)t_max < latest_timestep)
 		{
-			sit[location].emplace_back(t_max, latest_timestep, 0);
+			sit[location].emplace_back(t_max, latest_timestep, false);
 		}
         return;
     }
-    for (auto it = sit[location].begin(); it != sit[location].end();)
+    auto& intervals = pi->second;
+    for (auto it = intervals.begin(); it != intervals.end();)
     {
         if (t_min >= get<1>(*it))
 			++it; 
         else if (t_max <= get<0>(*it))
             break;
-       else  if (get<0>(*it) < t_min && get<1>(*it) <= t_max)
+        else if (get<0>(*it) < t_min && get<1>(*it) <= t_max)
         {
-            (*it) = make_tuple(get<0>(*it), t_min, 0);
+            (*it) = make_tuple(get<0>(*it), t_min, get<2>(*it));
 			++it;
         }
         else if (t_min <= get<0>(*it) && t_max < get<1>(*it))
         {
-            (*it) = make_tuple(t_max, get<1>(*it), 0);
+            (*it) = make_tuple(t_max, get<1>(*it), get<2>(*it));
             break;
         }
         else if (get<0>(*it) < t_min && t_max < get<1>(*it))
         {
-			sit[location].insert(it, make_tuple(get<0>(*it), t_min, 0));
-            (*it) = make_tuple(t_max, get<1>(*it), 0);
+            intervals.insert(it, make_tuple(get<0>(*it), t_min, get<2>(*it)));
+            (*it) = make_tuple(t_max, get<1>(*it), get<2>(*it));
             break;
         }
         else // constraint_min <= get<0>(*it) && get<1> <= constraint_max
@@ -127,47 +81,100 @@ void ReservationTable::insert2RT(size_t location, size_t t_min, size_t t_max)
     }
 }
 
-
-void ReservationTable::insertSoftConstraint2RT(size_t location, size_t t_min, size_t t_max)
+void ReservationTable::insertSoftConstraint2SIT(size_t location, size_t t_min, size_t t_max)
 {
-    if (sit.find(location) == sit.end())
+    assert(t_min >= 0 && t_min < t_max);
+    auto pi = sit.find(location);
+    if (pi == sit.end())
     {
         if (t_min > 0)
         {
-			sit[location].emplace_back(0, t_min, 0);
+			sit[location].emplace_back(0, t_min, false);
         }
-		sit[location].emplace_back(t_min, t_max, 1);
-		sit[location].emplace_back(t_max, min(length_max, MAX_TIMESTEP - 1) + 1, 0);
+		sit[location].emplace_back(t_min, t_max, true);
+		sit[location].emplace_back(t_max, min(length_max + 1, MAX_TIMESTEP), false);
         return;
     }
-    for (auto it = sit[location].begin(); it != sit[location].end(); it++)
+    auto& intervals = pi->second;
+    for (auto it = intervals.begin(); it != intervals.end(); ++it)
     {
-        if (t_min >= get<1>(*it))
+        if (t_min >= get<1>(*it) || get<2>(*it))
             continue;
         else if (t_max <= get<0>(*it))
             break;
 
-        auto conflicts = get<2>(*it);
+        auto i_min = get<0>(*it);
+        auto i_max = get<1>(*it);
+        if (i_min < t_min && i_max <= t_max)
+        {
+            if (it != intervals.end() and std::next(it) != intervals.end() and
+                    (location != goal_location || i_max != length_min) and
+                    i_max == get<0>(*std::next(it)) and get<2>(*std::next(it))) // we can merge the current interval with the next one
+            {
+                (*it) = make_tuple(i_min, t_min, false);
+                ++it;
+                (*it) = make_tuple(t_min, get<1>(*it), true);
+            }
+            else
+            {
+                intervals.insert(it, make_tuple(i_min, t_min, false));
+                (*it) = make_tuple(t_min, i_max, true);
+            }
 
-        if (get<0>(*it) < t_min && get<1>(*it) <= t_max)
-        {
-			sit[location].insert(it, make_tuple(get<0>(*it), t_min, conflicts));
-            (*it) = make_tuple(t_min, get<1>(*it), conflicts + 1);
         }
-        else if (t_min <= get<0>(*it) && t_max < get<1>(*it))
+        else if (t_min <= i_min && t_max < i_max)
         {
-			sit[location].insert(it, make_tuple(get<0>(*it), t_max, conflicts + 1));
-            (*it) = make_tuple(t_max, get<1>(*it), conflicts);
+            if (it != intervals.begin() and (location != goal_location || i_min != length_min) and
+                    i_min == get<1>(*std::prev(it)) and get<2>(*std::prev(it))) // we can merge the current interval with the previous one
+            {
+                (*std::prev(it)) = make_tuple(get<0>(*std::prev(it)), t_max, true);
+            }
+            else
+            {
+                intervals.insert(it, make_tuple(i_min, t_max, true));
+            }
+            (*it) = make_tuple(t_max, i_max, false);
         }
-        else if (get<0>(*it) < t_min && t_max < get<1>(*it))
+        else if (i_min < t_min && t_max < i_max)
         {
-			sit[location].insert(it, make_tuple(get<0>(*it), t_min, conflicts));
-			sit[location].insert(it, make_tuple(t_min, t_max, conflicts + 1));
-            (*it) = make_tuple(t_max, get<1>(*it), conflicts);
+			intervals.insert(it, make_tuple(i_min, t_min, false));
+			intervals.insert(it, make_tuple(t_min, t_max, true));
+            (*it) = make_tuple(t_max, i_max, false);
         }
         else // constraint_min <= get<0>(*it) && get<1> <= constraint_max
         {
-            (*it) = make_tuple(get<0>(*it), get<1>(*it), conflicts + 1);
+            if (it != intervals.begin() and (location != goal_location || i_min != length_min) and
+                i_min == get<1>(*std::prev(it)) and get<2>(*std::prev(it))) // we can merge the current interval with the previous one
+            {
+                if (it != intervals.end() and std::next(it) != intervals.end() and
+                        (location != goal_location || i_max != length_min) and
+                        i_max == get<0>(*std::next(it)) and get<2>(*std::next(it))) // we can merge the current interval with the next one
+                {
+                    (*std::prev(it)) = make_tuple(get<0>(*std::prev(it)), get<1>(*std::next(it)), true);
+                    intervals.erase(std::next(it));
+                    it = intervals.erase(it);
+                }
+                else
+                {
+                    (*std::prev(it)) = make_tuple(get<0>(*std::prev(it)), i_max, true);
+                    it = intervals.erase(it);
+                }
+                --it;
+            }
+            else
+            {
+                if (it != intervals.end() and std::next(it) != intervals.end() and
+                        (location != goal_location || i_max != length_min) and
+                        i_max == get<0>(*std::next(it)) and get<2>(*std::next(it))) // we can merge the current interval with the next one
+                {
+                    (*it) = make_tuple(i_min, get<1>(*std::next(it)), true);
+                    intervals.erase(std::next(it));
+                }
+                else
+                {
+                    (*it) = make_tuple(i_min, i_max, true);
+                }
+            }
         }
     }
 }
@@ -203,29 +210,62 @@ void ReservationTable::updateSIT(size_t location)
 	if (sit.find(location) == sit.end())
 	{
 		// length constraints for the goal location
-		if (location == goal_location) // we need to divide the same intevals into 2 parts [0, length_min) and [length_min, length_max + 1)
+		if (location == goal_location) // we need to divide the same intervals into 2 parts [0, length_min) and [length_min, length_max + 1)
 		{
-			int latest_timestep = min(length_max, MAX_TIMESTEP - 1) + 1;
 			if (length_min > length_max) // the location is blocked for the entire time horizon
 			{
-				sit[location].emplace_back(0, 0, 0);
+				sit[location].emplace_back(0, 0, false);
 				return;
 			}
 			if (0 < length_min)
 			{
-				sit[location].emplace_back(0, length_min, 0);
+				sit[location].emplace_back(0, length_min, false);
 			}
 			assert(length_min >= 0);
-			sit[location].emplace_back(length_min, latest_timestep, 0);
+			sit[location].emplace_back(length_min, min(length_max + 1, MAX_TIMESTEP), false);
 		}
+
+
+		// path table
+		if (!path_table.table.empty())
+        {
+		    if (location < map_size) // vertex conflict
+            {
+                for (int t = 0; t < (int)path_table.table[location].size(); t++)
+                {
+                    if (path_table.table[location][t] != NO_AGENT)
+                    {
+                        insert2SIT(location, t, t+1);
+                    }
+                }
+                if (path_table.goals[location] < MAX_TIMESTEP) // target conflict
+                    insert2SIT(location, path_table.goals[location], MAX_TIMESTEP + 1);
+            }
+		    else // edge conflict
+            {
+		        auto from = location / map_size - 1;
+		        auto to = location % map_size;
+		        if (from != to)
+                {
+		            int t_max = (int) min(path_table.table[from].size(), path_table.table[to].size() + 1);
+                    for (int t = 1; t < t_max; t++)
+                    {
+                        if (path_table.table[to][t - 1] != NO_AGENT and
+                                path_table.table[to][t - 1] == path_table.table[from][t])
+                        {
+                            insert2SIT(location, t, t+1);
+                        }
+                    }
+                }
+            }
+        }
 
 		// negative constraints
 		const auto& it = ct.find(location); 
 		if (it != ct.end())
 		{
 			for (auto time_range : it->second)
-				insert2RT(location, time_range.first, time_range.second);
-			ct.erase(it);
+                insert2SIT(location, time_range.first, time_range.second);
 		}
 
 		// positive constraints
@@ -235,7 +275,7 @@ void ReservationTable::updateSIT(size_t location)
 			{
 				if (landmark.second != location)
 				{
-					insert2RT(location, landmark.first, landmark.first + 1);
+                    insert2SIT(location, landmark.first, landmark.first + 1);
 				}
 			}
 		}
@@ -245,26 +285,7 @@ void ReservationTable::updateSIT(size_t location)
 		if (it2 != cat.end())
 		{
 			for (auto time_range : it2->second)
-				insertSoftConstraint2RT(location, time_range.first, time_range.second);
-			cat.erase(it2);
-			// merge the intervals if possible
-			auto prev = sit[location].begin();
-			auto curr = prev;
-			++curr;
-			while (curr != sit[location].end())
-			{
-				if (get<1>(*prev) == get<0>(*curr) && get<2>(*prev) == get<2>(*curr) &&
-					(location != goal_location || get<1>(*prev) != length_min))
-				{
-					*prev = make_tuple(get<0>(*prev), get<1>(*curr), get<2>(*prev));
-					curr = sit[location].erase(curr);
-				}
-				else
-				{
-					prev = curr;
-					++curr;
-				}
-			}
+                insertSoftConstraint2SIT(location, time_range.first, time_range.second);
 		}
 	}
 }
@@ -315,7 +336,7 @@ list<Interval> ReservationTable::get_safe_intervals(size_t from, size_t to, size
 		auto t_min = max(get<0>(*it1), get<0>(*it2));
 		auto t_max = min(get<1>(*it1), get<1>(*it2));
 		if (t_min < t_max)
-			rst.emplace_back(t_min, t_max, get<2>(*it1) + get<2>(*it2));
+			rst.emplace_back(t_min, t_max, get<2>(*it1) or get<2>(*it2));
 		if (t_max == get<1>(*it1))
 			++it1;
 		if (t_max == get<1>(*it2))

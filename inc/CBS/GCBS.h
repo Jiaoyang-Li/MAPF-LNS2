@@ -45,7 +45,6 @@ public:
 
     GCBS(vector<SingleAgentSolver*>& search_engines,
          const vector<PathTable>& path_tables,
-         vector<Path>& paths_found_initially,
          int screen);
     ~GCBS();
 
@@ -54,7 +53,6 @@ public:
 
     void clear(); // used for rapid random  restart
 
-    int getInitialPathLength(int agent) const {return (int) paths_found_initially[agent].size() - 1; }
 private:
     bool target_reasoning;  // using target reasoning
     bool disjoint_splitting;  // disjoint splitting
@@ -74,7 +72,7 @@ private:
     clock_t start;
     int num_of_agents;
 
-    vector<Path> paths_found_initially;  // contain initial paths found
+    // vector<Path> paths_found_initially;  // contain initial paths found
     // vector<MDD*> mdds_initially;  // contain initial paths found
     vector < SingleAgentSolver* > search_engines;  // used to find (single) agents' paths and mdd
 

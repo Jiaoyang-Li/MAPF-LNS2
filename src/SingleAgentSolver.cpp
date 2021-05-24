@@ -210,3 +210,9 @@ Path SingleAgentSolver::findNoWaitPath(vector<int>& goal_table,set<int>& A_targe
         delete node;
     return path;
 }
+
+std::ostream& operator<<(std::ostream& os, const LLNode& node)
+{
+    os << node.location << "@" << node.timestep << "(f=" << node.g_val << "+" << node.h_val << ")";
+    return os;
+}

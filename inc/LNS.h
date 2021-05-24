@@ -20,7 +20,7 @@ enum destroy_heuristic { RANDOMAGENTS, RANDOMWALK, INTERSECTION, DESTORY_COUNT }
 struct Agent
 {
     int id;
-    SpaceTimeAStar path_planner; // start, goal, and heuristics are stored in the path planner
+    SIPP path_planner; // start, goal, and heuristics are stored in the path planner
     Path path;
 
     Agent(const Instance& instance, int id) : id(id), path_planner(instance, id) {}

@@ -8,10 +8,7 @@
 // takes the paths_found_initially and UPDATE all (constrained) paths found for agents from curr to start
 void GCBS::updatePaths(GCBSNode* curr)
 {
-    for (int i = 0; i < num_of_agents; i++)
-        paths[i] = &paths_found_initially[i];
     vector<bool> updated(num_of_agents, false);  // initialized for false
-
     while (curr != nullptr)
     {
         for (auto & path : curr->paths)
@@ -191,15 +188,11 @@ bool GCBS::findPathForSingleAgent(GCBSNode* node, int agent)
         constraint_table.add(curr->constraints, agent);
         curr = curr->parent;
     }
-    if (constraint_table.latest_timestep < constraint_table.length_min)
-        constraint_table.latest_timestep = constraint_table.length_min;
-    if (constraint_table.length_max < MAX_TIMESTEP && constraint_table.latest_timestep < constraint_table.length_max)
-        constraint_table.latest_timestep = constraint_table.length_max;
     runtime_build_CT = (double)(clock() - t) / CLOCKS_PER_SEC;
 
     // build CAT
     t = clock();
-    constraint_table.buildCAT(agent, paths, node->makespan + 1);
+    constraint_table.buildCAT(agent, paths);
     runtime_build_CAT = (double)(clock() - t) / CLOCKS_PER_SEC;
 
     // find a path
@@ -217,9 +210,12 @@ bool GCBS::findPathForSingleAgent(GCBSNode* node, int agent)
             cout << "\t\t\t\tFail to find a path" << endl;
         return false;
     }
-    assert(!isSamePath(*paths[agent], new_path));
+    assert(paths[agent] == nullptr or !isSamePath(*paths[agent], new_path));
     node->paths.emplace_back(agent, new_path);
-    node->sum_of_costs = node->sum_of_costs - (int)paths[agent]->size() + (int)new_path.size();
+    if (paths[agent] == nullptr)
+        node->sum_of_costs += (int)new_path.size() - 1;
+    else
+        node->sum_of_costs += - (int)paths[agent]->size() + (int)new_path.size();
     paths[agent] = &node->paths.back().second;
     node->makespan = max(node->makespan, new_path.size() - 1);
     return true;
@@ -349,8 +345,7 @@ void GCBS::printPaths() const
 {
     for (int i = 0; i < num_of_agents; i++)
     {
-        cout << "Agent " << i << " (" << paths_found_initially[i].size() - 1 << " -->" <<
-             paths[i]->size() - 1 << "): ";
+        cout << "Agent " << i << " (" << paths[i]->size() - 1 << "): ";
         for (const auto & t : *paths[i])
             cout << t.location << "->";
         cout << endl;
@@ -608,10 +603,9 @@ void GCBS::addConstraints(const GCBSNode* curr, GCBSNode* child1, GCBSNode* chil
     }
 }
 
-GCBS::GCBS(vector<SingleAgentSolver*>& search_engines, const vector<PathTable>& path_tables,
-           vector<Path>& paths_found_initially, int screen) :
+GCBS::GCBS(vector<SingleAgentSolver*>& search_engines, const vector<PathTable>& path_tables, int screen) :
            search_engines(search_engines), path_tables(path_tables),
-           paths_found_initially(paths_found_initially), screen(screen), num_of_agents(search_engines.size()) {}
+           screen(screen), num_of_agents(search_engines.size()) {}
 
 
 //generate random permuattion of agent indices
@@ -636,13 +630,10 @@ bool GCBS::generateRoot()
 {
     auto root = new GCBSNode();
     paths.resize(num_of_agents, nullptr);
-    assert(paths_found_initially.size() == num_of_agents);
     for (int i = 0; i < num_of_agents; i++)
     {
-        assert(!paths_found_initially[i].empty());
-        paths[i] = &paths_found_initially[i];
-        root->makespan = max(root->makespan, paths_found_initially[i].size() - 1);
-        root->sum_of_costs += (int) paths_found_initially[i].size() - 1;
+        auto succ = findPathForSingleAgent(root, i);
+        assert(succ);
     }
     root->depth = 0;
     findConflicts(*root);
@@ -743,7 +734,6 @@ void GCBS::clear()
 {
     releaseNodes();
     paths.clear();
-    paths_found_initially.clear();
 }
 
 bool GCBS::terminate()

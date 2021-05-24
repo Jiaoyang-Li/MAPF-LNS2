@@ -75,6 +75,7 @@ public:
 	}
 };
 
+std::ostream& operator<<(std::ostream& os, const LLNode& node);
 
 class SingleAgentSolver
 {

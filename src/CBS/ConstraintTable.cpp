@@ -1,5 +1,15 @@
 #include "ConstraintTable.h"
 
+int ConstraintTable::getMaxTimestep() const // everything is static after the max timestep
+{
+    int rst = max(max(max(ct_max_timestep, cat_max_timestep), length_min), path_table.makespan);
+    if (length_max < MAX_TIMESTEP)
+        rst = max(rst, length_max);
+    if (!landmarks.empty())
+        rst = max(rst, landmarks.rbegin()->first);
+    return rst;
+}
+
 void ConstraintTable::insert2CT(size_t from, size_t to, int t_min, int t_max)
 {
 	insert2CT(getEdgeIndex(from, to), t_min, t_max);
@@ -9,13 +19,13 @@ void ConstraintTable::insert2CT(size_t loc, int t_min, int t_max)
 {
 	assert(loc >= 0);
 	ct[loc].emplace_back(t_min, t_max);
-	if (t_max < MAX_TIMESTEP && t_max > latest_timestep)
+	if (t_max < MAX_TIMESTEP && t_max > ct_max_timestep)
 	{
-		latest_timestep = t_max;
+        ct_max_timestep = t_max;
 	}
-	else if (t_max == MAX_TIMESTEP && t_min > latest_timestep)
+	else if (t_max == MAX_TIMESTEP && t_min > ct_max_timestep)
 	{
-		latest_timestep = t_min;
+        ct_max_timestep = t_min;
 	}
 }
 
@@ -25,8 +35,6 @@ void ConstraintTable::insertLandmark(size_t loc, int t)
 	if (it == landmarks.end())
 	{
 		landmarks[t] = loc;
-		if (t > latest_timestep)
-			latest_timestep = t;
 	}
 	else
 		assert(it->second == loc);
@@ -102,15 +110,16 @@ void ConstraintTable::copy(const ConstraintTable& other)
 	length_min = other.length_min;
 	length_max = other.length_max;
 	goal_location = other.goal_location;
-	latest_timestep = other.latest_timestep;
 	num_col = other.num_col;
 	map_size = other.map_size;
 	ct = other.ct;
+	ct_max_timestep = other.ct_max_timestep;
+	cat = other.cat;
+	cat_max_timestep = other.cat_max_timestep;
 	landmarks = other.landmarks;
-	// we do not copy cat
 }
 
-// build the constraint table for the given agent at the give node 
+// build the constraint table for the given agent at the give node
 void ConstraintTable::build(const HLNode& node, int agent)
 {
 	auto curr = &node;
@@ -119,10 +128,6 @@ void ConstraintTable::build(const HLNode& node, int agent)
         add(curr->constraints, agent);
 		curr = curr->parent;
 	}
-	if (latest_timestep < length_min)
-		latest_timestep = length_min;
-	if (length_max < MAX_TIMESTEP && latest_timestep < length_max)
-		latest_timestep = length_max;
 }
 
 
@@ -214,38 +219,59 @@ void ConstraintTable::add(const list<Constraint>& constraints, int agent)
 }
 
 // build the conflict avoidance table
-void ConstraintTable::buildCAT(int agent, const vector<Path*>& paths, size_t cat_size)
+void ConstraintTable::buildCAT(int agent, const vector<Path*>& paths)
 {
-	cat_size = std::max(cat_size, (size_t)latest_timestep);
-	cat.resize(cat_size, vector<bool>(map_size, false));
-	for (size_t ag = 0; ag < paths.size(); ag++)
-	{
-		if (ag == agent || paths[ag] == nullptr)
-			continue;
-		for (size_t timestep = 0; timestep < paths[ag]->size(); timestep++)
-		{
-			cat[timestep][paths[ag]->at(timestep).location] = true;
-		}
-		int goal = paths[ag]->back().location;
-		for (size_t timestep = paths[ag]->size(); timestep < cat_size; timestep++)
-			cat[timestep][goal] = true;
-	}
+    for (size_t ag = 0; ag < paths.size(); ag++)
+    {
+        if (ag == agent || paths[ag] == nullptr)
+            continue;
+        if (paths[ag]->size() == 1) // its start location is its goal location
+        {
+            cat[paths[ag]->front().location].emplace(0, MAX_TIMESTEP);
+            continue;
+        }
+        int prev_location = paths[ag]->front().location;
+        int prev_timestep = 0;
+        for (int timestep = 0; timestep < (int) paths[ag]->size(); timestep++)
+        {
+            int curr_location = paths[ag]->at(timestep).location;
+            if (prev_location != curr_location)
+            {
+                cat[prev_location].emplace(prev_timestep, timestep); // add vertex conflict
+                cat[getEdgeIndex(curr_location, prev_location)].emplace(timestep, timestep + 1); // add edge conflict
+                prev_location = curr_location;
+                prev_timestep = timestep;
+            }
+        }
+        cat[paths[ag]->back().location].emplace(paths[ag]->size() - 1, MAX_TIMESTEP);
+        cat_max_timestep = max(cat_max_timestep, (int)paths[ag]->size() - 1);
+    }
 }
 
 int ConstraintTable::getNumOfConflictsForStep(size_t curr_id, size_t next_id, int next_timestep) const
 {
-	if (next_timestep >= (int)cat.size())
-	{
-		if (cat.back()[next_id])
-			return 1;
-		else
-			return 0;
-	}
-	if (cat[next_timestep][next_id] ||
-		(curr_id != next_id && cat[next_timestep - 1][next_id] && cat[next_timestep][curr_id]))
-		return 1;
-	else
-		return 0;
+    int rst = 0;
+    list<size_t> ids;
+    ids.push_back(next_id); // vertex
+    if (curr_id != next_id)
+    {
+        ids.push_back(getEdgeIndex(curr_id, next_id)); // edge
+    }
+    for (auto id : ids)
+    {
+        const auto& v1 = cat.find(id);
+        if (v1 != cat.end())
+        {
+            for (const auto& action: v1->second)
+            {
+                if (action.first <= next_timestep && next_timestep < action.second)
+                    return 1; //rst++;
+                else if (action.first > next_timestep)
+                    break;
+            }
+        }
+    }
+    return rst;
 }
 
 
