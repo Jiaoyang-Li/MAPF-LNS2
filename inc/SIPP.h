@@ -98,11 +98,10 @@ private:
 
 	void generateChild(const Interval& interval, SIPPNode* curr, int next_location,
 		const ReservationTable& reservation_table);
-    void generateChildToFocal(const Interval& interval, SIPPNode* curr, int next_location,
-                       const ReservationTable& reservation_table);
+    void generateChildToFocal(const Interval& interval, SIPPNode* curr, int next_location, int next_h_val);
 	
 	// Updates the path datamember
-	void updatePath(const LLNode* goal, std::vector<PathEntry> &path);
+	static void updatePath(const LLNode* goal, std::vector<PathEntry> &path);
 	inline SIPPNode* popNode();
 	inline void pushNode(SIPPNode* node);
 	void updateFocalList();

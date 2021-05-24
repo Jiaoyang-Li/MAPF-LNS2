@@ -178,16 +178,17 @@ Path SpaceTimeAStar::findOptimalPath(const PathTableWC& path_table)
         }
         else if (curr->location == goal_location && // arrive at the goal location
                  !curr->wait_at_goal) // not wait at the goal location
-        { // generate a goal node
-            auto goal = new AStarNode(*curr);
-            goal->is_goal = true;
-            goal->parent = curr;
-            int future_collisions = path_table.getFutureNumOfCollisions(goal->location, goal->timestep);
+        {
+            int future_collisions = path_table.getFutureNumOfCollisions(curr->location, curr->timestep);
             if (future_collisions == 0)
             {
                 updatePath(curr, path);
                 break;
             }
+            // generate a goal node
+            auto goal = new AStarNode(*curr);
+            goal->is_goal = true;
+            goal->parent = curr;
             goal->num_of_conflicts += future_collisions;
             // try to retrieve it from the hash table
             auto it = allNodes_table.find(goal);

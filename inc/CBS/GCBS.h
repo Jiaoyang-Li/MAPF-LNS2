@@ -28,7 +28,6 @@ public:
     uint64_t num_LL_generated = 0;
 
     GCBSNode* best_node = nullptr;
-    int initial_colliding_pairs = -1;
     vector<Path*> paths;
 
     /////////////////////////////////////////////////////////////////////////////////////////

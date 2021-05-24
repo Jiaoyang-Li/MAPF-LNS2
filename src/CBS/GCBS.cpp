@@ -554,7 +554,9 @@ bool GCBS::solve(double _time_limit)
         }
     }  // end of while loop
     updatePaths(best_node);
-    return best_node->colliding_pairs < initial_colliding_pairs;
+    if (screen > 0 )
+        validateSolution();
+    return best_node->colliding_pairs == 0;
 }
 
 
@@ -677,7 +679,8 @@ bool GCBS::validateSolution() const
                 int loc2 = paths[a2]->at(timestep).location;
                 if (loc1 == loc2)
                 {
-                    cout << "Agents " << a1 << " and " << a2 << " collides at " << loc1 << " at timestep " << timestep << endl;
+                    if (best_node->colliding_pairs == 0)
+                        cout << "Agents " << a1 << " and " << a2 << " collides at " << loc1 << " at timestep " << timestep << endl;
                     colliding_pairs++;
                     break;
                 }
@@ -685,8 +688,9 @@ bool GCBS::validateSolution() const
                          && loc1 == paths[a2]->at(timestep + 1).location
                          && loc2 == paths[a1]->at(timestep + 1).location)
                 {
-                    cout << "Agents " << a1 << " and " << a2 << " collides at (" <<
-                         loc1 << "-->" << loc2 << ") at timestep " << timestep << endl;
+                    if (best_node->colliding_pairs == 0)
+                        cout << "Agents " << a1 << " and " << a2 << " collides at (" <<
+                            loc1 << "-->" << loc2 << ") at timestep " << timestep << endl;
                     colliding_pairs++;
                     break;
                 }
@@ -701,7 +705,8 @@ bool GCBS::validateSolution() const
                     int loc2 = paths[a2_]->at(timestep).location;
                     if (loc1 == loc2)
                     {
-                        cout << "Agents " << a1 << " and " << a2 << " collides at " << loc1 << " at timestep " << timestep << endl;
+                        if (best_node->colliding_pairs == 0)
+                            cout << "Agents " << a1 << " and " << a2 << " collides at " << loc1 << " at timestep " << timestep << endl;
                         colliding_pairs++;
                         break;
                     }
@@ -709,14 +714,14 @@ bool GCBS::validateSolution() const
             }
         }
     }
-    if ((int)soc != focal_list.top()->sum_of_costs)
+    if ((int)soc != best_node->sum_of_costs)
     {
-        cout << "The solution cost is wrong!" << endl;
+        cerr << "The solution cost is wrong!" << endl;
         return false;
     }
-    if (colliding_pairs != focal_list.top()->colliding_pairs)
+    if (colliding_pairs != best_node->colliding_pairs)
     {
-        cout << "The number of collisions is wrong!" << endl;
+        cerr << "The number of collisions is wrong!" << endl;
         return false;
     }
     return true;

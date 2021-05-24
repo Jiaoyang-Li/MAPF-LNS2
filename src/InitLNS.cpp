@@ -87,7 +87,7 @@ bool InitLNS::run()
         for (int i = 0; i < (int)neighbor.agents.size(); i++)
         {
             int a = neighbor.agents[i];
-            if (replan_algo_name == "PP")
+            if (replan_algo_name == "PP" || neighbor.agents.size() == 1)
                 neighbor.old_paths[i] = agents[a].path;
             path_table.deletePath(neighbor.agents[i], agents[a].path);
             neighbor.old_sum_of_costs += (int) agents[a].path.size() - 1;

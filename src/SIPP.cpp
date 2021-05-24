@@ -28,21 +28,18 @@ void SIPP::updatePath(const LLNode* goal, vector<PathEntry> &path)
 // Returns a path that minimizes the collisions with the paths in the path table, breaking ties by the length
 Path SIPP::findOptimalPath(const PathTableWC& path_table)
 {
-    // define typedefs and handles for heap
-    typedef pairing_heap< AStarNode*, compare<AStarNode::compare_node> > heap_open_t;
-    typedef pairing_heap< AStarNode*, compare<AStarNode::secondary_compare_node> > heap_focal_t;
-    heap_open_t open_list;
-    heap_focal_t focal_list;
-
-    // define typedef for hash_map
-    typedef unordered_set<AStarNode*, AStarNode::NodeHasher, AStarNode::eqnode> hashtable_t;
-    hashtable_t allNodes_table;
+    PathTable dummy_table;
+    ReservationTable reservation_table(dummy_table, instance.num_of_cols, instance.map_size, goal_location);
 
     Path path;
     num_expanded = 0;
     num_generated = 0;
+    Interval interval = reservation_table.get_first_safe_interval(start_location, path_table);
+    if (get<0>(interval) > 0)
+        return path;
+
     // generate start and add it to the OPEN & FOCAL list
-    auto start = new AStarNode(start_location, 0, my_heuristic[start_location], nullptr, 0, 0, false);
+    auto start = new SIPPNode(start_location, 0, my_heuristic[start_location], nullptr, 0, interval, 0, false);
     num_generated++;
     start->in_openlist = true;
     start->focal_handle = focal_list.push(start); // we only use focal list; no open list is used
@@ -57,39 +54,22 @@ Path SIPP::findOptimalPath(const PathTableWC& path_table)
         // check if the popped node is a goal
         if (curr->is_goal)
         {
-            const LLNode* pt = curr;
-            if (pt->is_goal)
-                pt = pt->parent;
-            path.reserve(pt->g_val + 1);
-            while (pt != nullptr)
-            {
-                path.emplace_back(pt->location);
-                pt = pt->parent;
-            }
-            std::reverse(path.begin(),path.end());
+            updatePath(curr->parent, path);
             break;
         }
         else if (curr->location == goal_location && // arrive at the goal location
                  !curr->wait_at_goal) // not wait at the goal location
-        { // generate a goal node
-            auto goal = new AStarNode(*curr);
-            goal->is_goal = true;
-            goal->parent = curr;
-            int future_collisions = path_table.getFutureNumOfCollisions(goal->location, goal->timestep);
+        {
+            int future_collisions = path_table.getFutureNumOfCollisions(curr->location, curr->timestep);
             if (future_collisions == 0)
             {
-                const LLNode* pt = curr;
-                if (pt->is_goal)
-                    pt = pt->parent;
-                path.reserve(pt->g_val + 1);
-                while (pt != nullptr)
-                {
-                    path.emplace_back(pt->location);
-                    pt = pt->parent;
-                }
-                std::reverse(path.begin(),path.end());
+                updatePath(curr, path);
                 break;
             }
+            // generate a goal node
+            auto goal = new SIPPNode(*curr);
+            goal->is_goal = true;
+            goal->parent = curr;
             goal->num_of_conflicts += future_collisions;
             // try to retrieve it from the hash table
             auto it = allNodes_table.find(goal);
@@ -103,9 +83,9 @@ Path SIPP::findOptimalPath(const PathTableWC& path_table)
             else // update existing node's if needed (only in the open_list)
             {
                 auto existing_next = *it;
-                if (existing_next->num_of_conflicts > goal->num_of_conflicts ||
-                    (existing_next->num_of_conflicts == goal->num_of_conflicts &&
-                     existing_next->getFVal() > goal->getFVal()))
+                if (existing_next->timestep > goal->timestep || // prefer the one with smaller timestep
+                    (existing_next->timestep == goal->timestep &&
+                     existing_next->num_of_conflicts > goal->num_of_conflicts)) // or it remains the same but there's fewer conflicts
                 {
                     assert(existing_next->in_openlist);
                     existing_next->copy(*goal);	// update existing node
@@ -114,67 +94,29 @@ Path SIPP::findOptimalPath(const PathTableWC& path_table)
                 delete (goal);
             }
         }
-        auto next_locations = instance.getNeighbors(curr->location);
-        next_locations.emplace_back(curr->location);
-        for (int next_location : next_locations)
+        for (int next_location : instance.getNeighbors(curr->location)) // move to neighboring locations
         {
-            int next_timestep = curr->timestep + 1;
-            if (path_table.makespan < next_timestep)
-            { // now everything is static, so switch to space A* where we always use the same timestep
-                if (next_location == curr->location)
-                {
-                    continue;
-                }
-                next_timestep--;
-            }
-
-            // compute cost to next_id via curr node
-            int next_g_val = curr->g_val + 1;
             int next_h_val = my_heuristic[next_location];
-
-            // generate (maybe temporary) node
-            auto next = new AStarNode(next_location, next_g_val, next_h_val,
-                                      curr, next_timestep, 0, false);
-            next->num_of_conflicts += path_table.getNumOfCollisions(curr->location, next_location, next_timestep);
-            if (next_location == goal_location && curr->location == goal_location)
-                next->wait_at_goal = true;
-
-            // try to retrieve it from the hash table
-            auto it = allNodes_table.find(next);
-            if (it == allNodes_table.end())
+            for (auto& interval : reservation_table.get_safe_intervals(
+                    curr->location, next_location, curr->timestep + 1, get<1>(curr->interval) + 1, path_table))
             {
-                next->focal_handle = focal_list.push(next);
-                next->in_openlist = true;
-                num_generated++;
-                allNodes_table.insert(next);
-                continue;
+                int next_timestep = max(curr->timestep + 1, (int)get<0>(interval));
+                if (next_timestep + next_h_val > reservation_table.length_max)
+                    break;
+                generateChildToFocal(interval, curr, next_location, next_h_val);
             }
-            // update existing node's if needed (only in the open_list)
-
-            auto existing_next = *it;
-            if (existing_next->num_of_conflicts > next->num_of_conflicts  ||
-                (existing_next->num_of_conflicts == next->num_of_conflicts &&
-                 existing_next->getFVal() > next->getFVal()))
-            {
-                if (!existing_next->in_openlist) // if its in the closed list (reopen)
-                {
-                    existing_next->copy(*next);
-                    existing_next->focal_handle = focal_list.push(existing_next);
-                    existing_next->in_openlist = true;
-                }
-                else
-                {
-                    existing_next->copy(*next);	// update existing node
-                    focal_list.update(existing_next->focal_handle);
-                }
-            }
-
-            delete(next);  // not needed anymore -- we already generated it before
         }  // end for loop that generates successors
+        // wait at the current location
+        bool found = reservation_table.find_safe_interval(interval, curr->location, get<1>(curr->interval), path_table);
+        if (found)
+        {
+            generateChildToFocal(interval, curr, curr->location, curr->h_val);
+        }
     }  // end while loop
 
-    for (auto node: allNodes_table)
-        delete node;
+    //if (path.empty())
+    //    printSearchTree();
+    releaseNodes();
     return path;
 }
 
@@ -277,17 +219,14 @@ Path SIPP::findPath(const ConstraintTable& constraint_table)
 
     // generate start and add it to the OPEN list
     auto start = new SIPPNode(start_location, 0, my_heuristic[start_location], nullptr, 0, interval, 0, false);
-
     num_generated++;
     start->focal_handle = focal_list.push(start);
     start->in_openlist = true;
     allNodes_table.insert(start);
-    min_f_val = max(holding_time, (int)start->getFVal());
-
 
     while (!focal_list.empty())
     {
-        SIPPNode* curr = focal_list.top(); focal_list.pop();
+        auto curr = focal_list.top(); focal_list.pop();
         curr->in_openlist = false;
         num_expanded++;
 
@@ -302,10 +241,14 @@ Path SIPP::findPath(const ConstraintTable& constraint_table)
 
         for (int next_location : instance.getNeighbors(curr->location)) // move to neighboring locations
         {
-            for (auto interval : reservation_table.get_safe_intervals(
+            int next_h_val = my_heuristic[next_location];
+            for (auto& interval : reservation_table.get_safe_intervals(
                     curr->location, next_location, curr->timestep + 1, get<1>(curr->interval) + 1))
             {
-                generateChildToFocal(interval, curr, next_location, reservation_table);
+                int next_timestep = max(curr->timestep + 1, (int)get<0>(interval));
+                if (next_timestep + next_h_val > reservation_table.length_max)
+                    break;
+                generateChildToFocal(interval, curr, next_location, next_h_val);
             }
         }  // end for loop that generates successors
 
@@ -313,7 +256,7 @@ Path SIPP::findPath(const ConstraintTable& constraint_table)
         bool found = reservation_table.find_safe_interval(interval, curr->location, get<1>(curr->interval));
         if (found)
         {
-            generateChildToFocal(interval, curr, curr->location, reservation_table);
+            generateChildToFocal(interval, curr, curr->location, curr->h_val);
         }
     }  // end while loop
 
@@ -431,19 +374,12 @@ void SIPP::generateChild(const Interval& interval, SIPPNode* curr, int next_loca
 
     delete(next);  // not needed anymore -- we already generated it before
 }
-void SIPP::generateChildToFocal(const Interval& interval, SIPPNode* curr, int next_location,
-	const ReservationTable& reservation_table)
+void SIPP::generateChildToFocal(const Interval& interval, SIPPNode* curr, int next_location, int next_h_val)
 {
-    // compute cost to next_id via curr node
     int next_timestep = max(curr->timestep + 1, (int)get<0>(interval));
-    int next_g_val = next_timestep;
-    int next_h_val = my_heuristic[next_location];
-    if (next_g_val + next_h_val > reservation_table.length_max)
-        return;
-    int next_conflicts = curr->num_of_conflicts + (int)get<2>(interval);
-
     // generate (maybe temporary) node
-    auto next = new SIPPNode(next_location, next_g_val, next_h_val, curr, next_timestep, interval, next_conflicts, false);
+    auto next = new SIPPNode(next_location, next_timestep, next_h_val, curr, next_timestep, interval,
+            curr->num_of_conflicts + (int)get<2>(interval), false);
     if (next_location == goal_location && curr->location == goal_location)
         next->wait_at_goal = true;
     // try to retrieve it from the hash table
