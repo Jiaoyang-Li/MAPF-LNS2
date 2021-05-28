@@ -8,7 +8,7 @@ InitLNS::InitLNS(const Instance& instance, vector<Agent>& agents, double time_li
          instance(instance), agents(agents), time_limit(time_limit), init_algo_name(init_algo_name),
          replan_algo_name(replan_algo_name), neighbor_size(neighbor_size),
          screen(screen), path_table(instance.map_size), collision_graph(agents.size()),
-         replan_time_limit(time_limit / 60)
+         replan_time_limit(time_limit)
          {
              if (init_destory_name == "Adaptive")
              {

@@ -39,7 +39,7 @@ public:
 		std::size_t operator()(const SIPPNode* n) const
 		{
 			size_t loc_hash = std::hash<int>()(n->location);
-			size_t timestep_hash = std::hash<size_t>()(get<0>(n->interval));
+			size_t timestep_hash = std::hash<size_t>()(get<1>(n->interval));
 			return (loc_hash ^ (timestep_hash << 1));
 		}
 	};
