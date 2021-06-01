@@ -120,19 +120,19 @@ void ConstraintTable::copy(const ConstraintTable& other)
 }
 
 // build the constraint table for the given agent at the give node
-void ConstraintTable::build(const HLNode& node, int agent)
+void ConstraintTable::insert2CT(const HLNode& node, int agent)
 {
 	auto curr = &node;
 	while (curr->parent != nullptr)
 	{
-        add(curr->constraints, agent);
+        insert2CT(curr->constraints, agent);
 		curr = curr->parent;
 	}
 }
 
 
 // add constraints for the given agent
-void ConstraintTable::add(const list<Constraint>& constraints, int agent)
+void ConstraintTable::insert2CT(const list<Constraint>& constraints, int agent)
 {
     if (constraints.empty())
         return;
@@ -219,33 +219,49 @@ void ConstraintTable::add(const list<Constraint>& constraints, int agent)
 }
 
 // build the conflict avoidance table
-void ConstraintTable::buildCAT(int agent, const vector<Path*>& paths)
+void ConstraintTable::insert2CAT(int agent, const vector<Path*>& paths)
 {
     for (size_t ag = 0; ag < paths.size(); ag++)
     {
         if (ag == agent || paths[ag] == nullptr)
             continue;
-        if (paths[ag]->size() == 1) // its start location is its goal location
-        {
-            cat[paths[ag]->front().location].emplace(0, MAX_TIMESTEP);
-            continue;
-        }
-        int prev_location = paths[ag]->front().location;
-        int prev_timestep = 0;
-        for (int timestep = 0; timestep < (int) paths[ag]->size(); timestep++)
-        {
-            int curr_location = paths[ag]->at(timestep).location;
-            if (prev_location != curr_location)
-            {
-                cat[prev_location].emplace(prev_timestep, timestep); // add vertex conflict
-                cat[getEdgeIndex(curr_location, prev_location)].emplace(timestep, timestep + 1); // add edge conflict
-                prev_location = curr_location;
-                prev_timestep = timestep;
-            }
-        }
-        cat[paths[ag]->back().location].emplace(paths[ag]->size() - 1, MAX_TIMESTEP);
-        cat_max_timestep = max(cat_max_timestep, (int)paths[ag]->size() - 1);
+        insert2CAT(*paths[ag]);
     }
+}
+void ConstraintTable::insert2CT(const Path& path)
+{
+    int prev_location = path.front().location;
+    int prev_timestep = 0;
+    for (int timestep = 0; timestep < (int) path.size(); timestep++)
+    {
+        auto curr_location = path[timestep].location;
+        if (prev_location != curr_location)
+        {
+            insert2CT(prev_location, prev_timestep, timestep); // add vertex conflict
+            insert2CT(curr_location, prev_location, timestep, timestep + 1); // add edge conflict
+            prev_location = curr_location;
+            prev_timestep = timestep;
+        }
+    }
+    insert2CT(path.back().location, (int) path.size() - 1, MAX_TIMESTEP);
+}
+void ConstraintTable::insert2CAT(const Path& path)
+{
+    int prev_location = path.front().location;
+    int prev_timestep = 0;
+    for (int timestep = 0; timestep < (int) path.size(); timestep++)
+    {
+        int curr_location = path[timestep].location;
+        if (prev_location != curr_location)
+        {
+            cat[prev_location].emplace(prev_timestep, timestep); // add vertex conflict
+            cat[getEdgeIndex(curr_location, prev_location)].emplace(timestep, timestep + 1); // add edge conflict
+            prev_location = curr_location;
+            prev_timestep = timestep;
+        }
+    }
+    cat[path.back().location].emplace(path.size() - 1, MAX_TIMESTEP);
+    cat_max_timestep = max(cat_max_timestep, (int)path.size() - 1);
 }
 
 int ConstraintTable::getNumOfConflictsForStep(size_t curr_id, size_t next_id, int next_timestep) const
@@ -280,7 +296,7 @@ int ConstraintTable::getNumOfConflictsForStep(size_t curr_id, size_t next_id, in
 // return the earliest timestep that the agent can hold its goal location
 int ConstraintTable::getHoldingTime() const
 {
-    assert(goal_location >= 0 and goal_location < path_table.table.size());
+    assert(goal_location >= 0);
     int rst = length_min;
     if (!path_table.table.empty() &&
         (int) path_table.table[goal_location].size() > length_min)

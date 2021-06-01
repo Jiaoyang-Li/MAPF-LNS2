@@ -96,7 +96,7 @@ public:
 	const Instance& instance;
 
     virtual Path findOptimalPath(const PathTable& path_table) = 0;
-    virtual Path findOptimalPath(const PathTableWC& path_table) = 0;
+    virtual Path findOptimalPath(const ConstraintTable& constraint_table, const PathTableWC& path_table) = 0;
 	virtual Path findOptimalPath(const HLNode& node, const ConstraintTable& initial_constraints,
 		const vector<Path*>& paths, int agent, int lower_bound) = 0;
 	virtual pair<Path, int> findSuboptimalPath(const HLNode& node, const ConstraintTable& initial_constraints,

@@ -23,13 +23,13 @@ void SIPP::updatePath(const LLNode* goal, vector<PathEntry> &path)
 	path[0].location = curr->location;
 }
 
-// TODO:: change this to SIPP
+
 // find path by A*
 // Returns a path that minimizes the collisions with the paths in the path table, breaking ties by the length
-Path SIPP::findOptimalPath(const PathTableWC& path_table)
+Path SIPP::findOptimalPath(const ConstraintTable& constraint_table, const PathTableWC& path_table)
 {
     PathTable dummy_table;
-    ReservationTable reservation_table(dummy_table, instance.num_of_cols, instance.map_size, goal_location);
+    ReservationTable reservation_table(constraint_table);
 
     Path path;
     num_expanded = 0;
@@ -37,7 +37,7 @@ Path SIPP::findOptimalPath(const PathTableWC& path_table)
     Interval interval = reservation_table.get_first_safe_interval(start_location, path_table);
     if (get<0>(interval) > 0)
         return path;
-
+    auto holding_time = reservation_table.getHoldingTime();
     // generate start and add it to the OPEN & FOCAL list
     auto start = new SIPPNode(start_location, 0, my_heuristic[start_location], nullptr, 0, interval, 0, false);
     num_generated++;
@@ -58,7 +58,8 @@ Path SIPP::findOptimalPath(const PathTableWC& path_table)
             break;
         }
         else if (curr->location == goal_location && // arrive at the goal location
-                 !curr->wait_at_goal) // not wait at the goal location
+                 !curr->wait_at_goal && // not wait at the goal location
+                 curr->timestep >= holding_time) // the agent can hold the goal location afterward
         {
             int future_collisions = path_table.getFutureNumOfCollisions(curr->location, curr->timestep);
             if (future_collisions == 0)
@@ -137,11 +138,11 @@ pair<Path, int> SIPP::findSuboptimalPath(const HLNode& node, const ConstraintTab
 	Path path;
 	auto t = clock();
 	ReservationTable reservation_table(initial_constraints);
-	reservation_table.build(node, agent);
+    reservation_table.insert2CT(node, agent);
 	runtime_build_CT = (double)(clock() - t) / CLOCKS_PER_SEC;
 	int holding_time = reservation_table.getHoldingTime();
 	t = clock();
-	reservation_table.buildCAT(agent, paths);
+    reservation_table.insert2CAT(agent, paths);
 	runtime_build_CAT = (double)(clock() - t) / CLOCKS_PER_SEC;
 
 	num_expanded = 0;

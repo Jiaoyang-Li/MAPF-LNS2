@@ -114,6 +114,7 @@ void PathTable::get_agents(set<int>& conflicting_agents, int neighbor_size, int 
 
 void PathTableWC::insertPath(int agent_id, const Path& path)
 {
+    paths[agent_id] = &path;
     if (path.empty())
         return;
     for (int t = 0; t < (int)path.size(); t++)
@@ -126,9 +127,13 @@ void PathTableWC::insertPath(int agent_id, const Path& path)
     goals[path.back().location] = (int) path.size() - 1;
     makespan = max(makespan, (int) path.size() - 1);
 }
-
-void PathTableWC::deletePath(int agent_id, const Path& path)
+void PathTableWC::insertPath(int agent_id)
 {
+    insertPath(agent_id, *paths[agent_id]);
+}
+void PathTableWC::deletePath(int agent_id)
+{
+    const Path & path = *paths[agent_id];
     if (path.empty())
         return;
     for (int t = 0; t < (int)path.size(); t++)
@@ -188,4 +193,19 @@ int PathTableWC::getNumOfCollisions(int from, int to, int to_time) const
             rst++; // target conflict
     }
     return rst;
+}
+
+int PathTableWC::getAgentWithTarget(int target_location, int latest_timestep) const
+{
+    if (table.empty() or goals.empty() or goals[target_location] > latest_timestep)
+        return -1;
+    for (auto id : table[target_location][goals[target_location]]) // look at all agents at the goal time
+    {
+        if (paths[id]->back().location == target_location) // if agent id's goal is to, then this is the agent we want
+        {
+            return id;
+        }
+    }
+    assert(false); // this should never happen
+    return -1;
 }

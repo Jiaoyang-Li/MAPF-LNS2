@@ -2,12 +2,13 @@
 #include <queue>
 #include <algorithm>
 #include "GCBS.h"
+#include "PBS.h"
 
 InitLNS::InitLNS(const Instance& instance, vector<Agent>& agents, double time_limit, string init_algo_name,
          string replan_algo_name,string init_destory_name, int neighbor_size, int screen) :
          instance(instance), agents(agents), time_limit(time_limit), init_algo_name(init_algo_name),
          replan_algo_name(replan_algo_name), neighbor_size(neighbor_size),
-         screen(screen), path_table(instance.map_size), collision_graph(agents.size()),
+         screen(screen), path_table(instance.map_size, agents.size()), collision_graph(agents.size()),
          replan_time_limit(time_limit)
          {
              if (init_destory_name == "Adaptive")
@@ -89,7 +90,7 @@ bool InitLNS::run()
             int a = neighbor.agents[i];
             if (replan_algo_name == "PP" || neighbor.agents.size() == 1)
                 neighbor.old_paths[i] = agents[a].path;
-            path_table.deletePath(neighbor.agents[i], agents[a].path);
+            path_table.deletePath(neighbor.agents[i]);
             neighbor.old_sum_of_costs += (int) agents[a].path.size() - 1;
             for (auto j: collision_graph[a])
             {
@@ -115,6 +116,8 @@ bool InitLNS::run()
             succ = runPP();
         else if (replan_algo_name == "GCBS")
             succ = runGCBS();
+        else if (replan_algo_name == "PBS")
+            succ = runPBS();
         else
         {
             cerr << "Wrong replanning strategy" << endl;
@@ -176,8 +179,6 @@ bool InitLNS::run()
          << "failed iterations = " << num_of_failures << endl;
     return (num_of_colliding_pairs == 0);
 }
-
-
 bool InitLNS::runGCBS()
 {
     vector<SingleAgentSolver*> search_engines;
@@ -237,7 +238,50 @@ bool InitLNS::runGCBS()
         return false;
     }
 }
+bool InitLNS::runPBS()
+{
+    vector<SingleAgentSolver*> search_engines;
+    search_engines.reserve(neighbor.agents.size());
+    for (int i : neighbor.agents)
+    {
+        search_engines.push_back(&agents[i].path_planner);
+    }
 
+    PBS pbs(search_engines, path_table, screen - 1);
+    runtime = ((fsec)(Time::now() - start_time)).count();
+    double T = time_limit - runtime;
+    if (!iteration_stats.empty()) // replan
+        T = min(T, replan_time_limit);
+    bool succ = pbs.solve(T, (int)neighbor.agents.size() * 2, neighbor.old_colliding_pairs.size());
+    if (succ and pbs.best_node->getCollidingPairs() < (int) neighbor.old_colliding_pairs.size()) // accept new paths
+    {
+        auto id = neighbor.agents.begin();
+        neighbor.colliding_pairs.clear();
+        for (size_t i = 0; i < neighbor.agents.size(); i++)
+        {
+            agents[*id].path = *pbs.paths[i];
+            updateCollidingPairs(neighbor.colliding_pairs, agents[*id].id, agents[*id].path);
+            path_table.insertPath(agents[*id].id);
+            ++id;
+        }
+        assert(neighbor.colliding_pairs.size() == pbs.best_node->getCollidingPairs());
+        neighbor.sum_of_costs = pbs.best_node->sum_of_costs;
+        return true;
+    }
+    else // stick to old paths
+    {
+        if (!neighbor.old_paths.empty())
+        {
+            for (int id : neighbor.agents)
+            {
+                path_table.insertPath(agents[id].id);
+            }
+            neighbor.sum_of_costs = neighbor.old_sum_of_costs;
+        }
+        num_of_failures++;
+        return false;
+    }
+}
 
 bool InitLNS::getInitialSolution()
 {
@@ -287,6 +331,8 @@ bool InitLNS::runPP(bool no_wait)
     if (!iteration_stats.empty()) // replan
         T = min(T, replan_time_limit);
     auto time = Time::now();
+    PathTable dummy_path_table;
+    ConstraintTable dummy_constraint_table(dummy_path_table, instance.num_of_cols, instance.map_size, -1);
     while (p != shuffled_agents.end() && ((fsec)(Time::now() - time)).count() < T)
     {
         int id = *p;
@@ -298,7 +344,10 @@ bool InitLNS::runPP(bool no_wait)
             agents[id].path = agents[id].path_planner.findNoWaitPath(goal_table,A_target);
         }
         else
-            agents[id].path = agents[id].path_planner.findOptimalPath(path_table);
+        {
+            dummy_constraint_table.goal_location = agents[id].path_planner.goal_location;
+            agents[id].path = agents[id].path_planner.findOptimalPath(dummy_constraint_table, path_table);
+        }
         assert(!agents[id].path.empty() && agents[id].path.back().location == agents[id].path_planner.goal_location);
         updateCollidingPairs(neighbor.colliding_pairs, agents[id].id, agents[id].path);
         neighbor.sum_of_costs += (int)agents[id].path.size() - 1;
@@ -332,7 +381,7 @@ bool InitLNS::runPP(bool no_wait)
         while (p2 != p)
         {
             int a = *p2;
-            path_table.deletePath(agents[a].id, agents[a].path);
+            path_table.deletePath(agents[a].id);
             ++p2;
         }
         if (!neighbor.old_paths.empty())
@@ -362,7 +411,9 @@ void InitLNS::updateCollidingPairs(set<pair<int, int>>& colliding_pairs, int age
         if ((int)path_table.table[to].size() > t) // vertex conflicts
         {
             for (auto id : path_table.table[to][t])
+            {
                 colliding_pairs.emplace(min(agent_id, id), max(agent_id, id));
+            }
         }
         if (from != to && path_table.table[to].size() >= t && path_table.table[from].size() > t) // edge conflicts
         {
@@ -375,6 +426,9 @@ void InitLNS::updateCollidingPairs(set<pair<int, int>>& colliding_pairs, int age
                 }
             }
         }
+        //auto id = getAgentWithTarget(to, t);
+        //if (id >= 0) // this agent traverses the target of another agent
+        //    colliding_pairs.emplace(min(agent_id, id), max(agent_id, id));
         if (!path_table.goals.empty() && path_table.goals[to] < t) // target conflicts
         { // this agent traverses the target of another agent
             for (auto id : path_table.table[to][path_table.goals[to]]) // look at all agents at the goal time

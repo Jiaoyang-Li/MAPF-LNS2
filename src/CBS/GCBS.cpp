@@ -185,14 +185,14 @@ bool GCBS::findPathForSingleAgent(GCBSNode* node, int agent)
     auto curr = node;
     while (curr->parent != nullptr)
     {
-        constraint_table.add(curr->constraints, agent);
+        constraint_table.insert2CT(curr->constraints, agent);
         curr = curr->parent;
     }
     runtime_build_CT = (double)(clock() - t) / CLOCKS_PER_SEC;
 
     // build CAT
     t = clock();
-    constraint_table.buildCAT(agent, paths);
+    constraint_table.insert2CAT(agent, paths);
     runtime_build_CAT = (double)(clock() - t) / CLOCKS_PER_SEC;
 
     // find a path

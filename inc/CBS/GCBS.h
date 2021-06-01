@@ -61,15 +61,15 @@ private:
     list<GCBSNode*> allNodes_table;
     const vector<PathTable>& path_tables;
 
-    string getSolverName() const;
+    pairing_heap< GCBSNode*, compare<GCBSNode::compare_node_by_d> > focal_list;
 
     int screen;
-
     double time_limit = -1;
     int collision_upperbound = MAX_COST;
-    
     clock_t start;
     int num_of_agents;
+
+    string getSolverName() const;
 
     // vector<Path> paths_found_initially;  // contain initial paths found
     // vector<MDD*> mdds_initially;  // contain initial paths found
@@ -95,7 +95,7 @@ private:
 
     vector<int> shuffleAgents() const;  //generate random permutation of agent indices
 
-    pairing_heap< GCBSNode*, compare<GCBSNode::compare_node_by_d> > focal_list;
+
 
     // node operators
     inline void pushNode(GCBSNode* node);

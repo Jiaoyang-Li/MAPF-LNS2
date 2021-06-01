@@ -604,7 +604,7 @@ MDD * MDDTable::getMDD(HLNode& node, int id, size_t mdd_levels)
 	clock_t t = clock();
 	MDD * mdd = new MDD();
 	ConstraintTable ct(initial_constraints[id]);
-	ct.build(node, id);
+    ct.insert2CT(node, id);
 	if (node.getName() == "CBS Node")
 		mdd->buildMDD(ct, mdd_levels, search_engines[id]);
 	else // ECBS node

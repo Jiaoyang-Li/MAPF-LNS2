@@ -35,12 +35,13 @@ public:
 	    landmarks.clear();
 	    cat.clear();
 	}
-	void build(const HLNode& node, int agent); // build the constraint table for the given agent at the give node
-	void buildCAT(int agent, const vector<Path*>& paths); // build the conflict avoidance table
-    void add(const list<Constraint>& constraints, int agent); // add constraints for the given agent
-	void insert2CT(size_t loc, int t_min, int t_max); // insert a vertex constraint to the constraint table
-	void insert2CT(size_t from, size_t to, int t_min, int t_max); // insert an edge constraint to the constraint table
-
+	void insert2CT(const HLNode& node, int agent); // build the constraint table for the given agent at the give node
+	void insert2CT(const list<Constraint>& constraints, int agent); // insert constraints for the given agent to the constraint table
+    void insert2CT(const Path& path); // insert a path to the constraint table
+    void insert2CT(size_t loc, int t_min, int t_max); // insert a vertex constraint to the constraint table
+    void insert2CT(size_t from, size_t to, int t_min, int t_max); // insert an edge constraint to the constraint table
+    void insert2CAT(int agent, const vector<Path*>& paths); // build the conflict avoidance table using a set of paths
+    void insert2CAT(const Path& path); // insert a path to the collision avoidance table
 	int getCATMaxTimestep() const {return cat_max_timestep;}
 
 protected:
@@ -52,7 +53,7 @@ protected:
 	int cat_max_timestep = 0;
     map<int, size_t> landmarks; // <timestep, location>: the agent must be at the given location at the given timestep
 
-	void insertLandmark(size_t loc, int t); // insert a landmark, i.e., the agent has to be at the given location at the given timestep
+    void insertLandmark(size_t loc, int t); // insert a landmark, i.e., the agent has to be at the given location at the given timestep
 	list<pair<int, int> > decodeBarrier(int B1, int B2, int t) const;
 	inline size_t getEdgeIndex(size_t from, size_t to) const { return (1 + from) * map_size + to; }
 };
