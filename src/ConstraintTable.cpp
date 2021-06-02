@@ -2,7 +2,11 @@
 
 int ConstraintTable::getMaxTimestep() const // everything is static after the max timestep
 {
-    int rst = max(max(max(ct_max_timestep, cat_max_timestep), length_min), path_table.makespan);
+    int rst = max(max(ct_max_timestep, cat_max_timestep), length_min);
+    if (path_table_for_CT != nullptr)
+        rst = max(rst, path_table_for_CT->makespan);
+    if (path_table_for_CAT != nullptr)
+        rst = max(rst, path_table_for_CAT->makespan);
     if (length_max < MAX_TIMESTEP)
         rst = max(rst, length_max);
     if (!landmarks.empty())
@@ -14,7 +18,6 @@ void ConstraintTable::insert2CT(size_t from, size_t to, int t_min, int t_max)
 {
 	insert2CT(getEdgeIndex(from, to), t_min, t_max);
 }
-
 void ConstraintTable::insert2CT(size_t loc, int t_min, int t_max)
 {
 	assert(loc >= 0);
@@ -28,109 +31,16 @@ void ConstraintTable::insert2CT(size_t loc, int t_min, int t_max)
         ct_max_timestep = t_min;
 	}
 }
-
-void ConstraintTable::insertLandmark(size_t loc, int t)
-{
-	auto it = landmarks.find(t);
-	if (it == landmarks.end())
-	{
-		landmarks[t] = loc;
-	}
-	else
-		assert(it->second == loc);
-}
-
-// return the location-time pairs on the barrier in an increasing order of their timesteps
-list<pair<int, int> > ConstraintTable::decodeBarrier(int x, int y, int t) const
-{
-	list<pair<int, int> > rst;
-	int x1 = x / num_col, y1 = x % num_col;
-	int x2 = y / num_col, y2 = y % num_col;
-	if (x1 == x2)
-	{
-		if (y1 < y2)
-			for (int i = min(y2 - y1, t); i>= 0; i--)
-			{
-				rst.emplace_back(x1 * num_col + y2 - i, t - i);
-			}
-		else
-			for (int i = min(y1 - y2, t); i >= 0; i--)
-			{
-				rst.emplace_back(x1 * num_col + y2 + i, t - i);
-			}
-	}
-	else // y1== y2
-	{
-		if (x1 < x2)
-			for (int i = min(x2 - x1, t); i>= 0; i--)
-			{
-				rst.emplace_back((x2 - i) * num_col + y1, t - i);
-			}
-		else
-			for (int i = min(x1 - x2, t); i>= 0; i--)
-			{
-				rst.emplace_back((x2 + i) * num_col + y1, t - i);
-			}
-	}
-	return rst;
-}
-
-bool ConstraintTable::constrained(size_t loc, int t) const
-{
-	assert(loc >= 0);
-	if (loc < map_size)
-	{
-	    if (path_table.constrained(loc, loc, t))
-	        return true;
-		const auto& it = landmarks.find(t);
-		if (it != landmarks.end() && it->second != loc)
-			return true;  // violate the positive vertex constraint
-	}	
-
-	const auto& it = ct.find(loc);
-	if (it == ct.end())
-	{
-		return false;
-	}
-	for (const auto& constraint: it->second)
-	{
-		if (constraint.first <= t && t < constraint.second)
-			return true;
-	}
-	return false;
-}
-
-bool ConstraintTable::constrained(size_t curr_loc, size_t next_loc, int next_t) const
-{
-    return path_table.constrained(curr_loc, next_loc, next_t) || constrained(getEdgeIndex(curr_loc, next_loc), next_t);
-}
-
-void ConstraintTable::copy(const ConstraintTable& other)
-{
-	length_min = other.length_min;
-	length_max = other.length_max;
-	goal_location = other.goal_location;
-	num_col = other.num_col;
-	map_size = other.map_size;
-	ct = other.ct;
-	ct_max_timestep = other.ct_max_timestep;
-	cat = other.cat;
-	cat_max_timestep = other.cat_max_timestep;
-	landmarks = other.landmarks;
-}
-
 // build the constraint table for the given agent at the give node
 void ConstraintTable::insert2CT(const HLNode& node, int agent)
 {
-	auto curr = &node;
-	while (curr->parent != nullptr)
-	{
+    auto curr = &node;
+    while (curr->parent != nullptr)
+    {
         insert2CT(curr->constraints, agent);
-		curr = curr->parent;
-	}
+        curr = curr->parent;
+    }
 }
-
-
 // add constraints for the given agent
 void ConstraintTable::insert2CT(const list<Constraint>& constraints, int agent)
 {
@@ -217,17 +127,6 @@ void ConstraintTable::insert2CT(const list<Constraint>& constraints, int agent)
             break;
     }
 }
-
-// build the conflict avoidance table
-void ConstraintTable::insert2CAT(int agent, const vector<Path*>& paths)
-{
-    for (size_t ag = 0; ag < paths.size(); ag++)
-    {
-        if (ag == agent || paths[ag] == nullptr)
-            continue;
-        insert2CAT(*paths[ag]);
-    }
-}
 void ConstraintTable::insert2CT(const Path& path)
 {
     int prev_location = path.front().location;
@@ -244,6 +143,28 @@ void ConstraintTable::insert2CT(const Path& path)
         }
     }
     insert2CT(path.back().location, (int) path.size() - 1, MAX_TIMESTEP);
+}
+
+void ConstraintTable::insertLandmark(size_t loc, int t)
+{
+	auto it = landmarks.find(t);
+	if (it == landmarks.end())
+	{
+		landmarks[t] = loc;
+	}
+	else
+		assert(it->second == loc);
+}
+
+// build the conflict avoidance table
+void ConstraintTable::insert2CAT(int agent, const vector<Path*>& paths)
+{
+    for (size_t ag = 0; ag < paths.size(); ag++)
+    {
+        if (ag == agent || paths[ag] == nullptr)
+            continue;
+        insert2CAT(*paths[ag]);
+    }
 }
 void ConstraintTable::insert2CAT(const Path& path)
 {
@@ -264,9 +185,93 @@ void ConstraintTable::insert2CAT(const Path& path)
     cat_max_timestep = max(cat_max_timestep, (int)path.size() - 1);
 }
 
+
+// return the location-time pairs on the barrier in an increasing order of their timesteps
+list<pair<int, int> > ConstraintTable::decodeBarrier(int x, int y, int t) const
+{
+	list<pair<int, int> > rst;
+	int x1 = x / num_col, y1 = x % num_col;
+	int x2 = y / num_col, y2 = y % num_col;
+	if (x1 == x2)
+	{
+		if (y1 < y2)
+			for (int i = min(y2 - y1, t); i>= 0; i--)
+			{
+				rst.emplace_back(x1 * num_col + y2 - i, t - i);
+			}
+		else
+			for (int i = min(y1 - y2, t); i >= 0; i--)
+			{
+				rst.emplace_back(x1 * num_col + y2 + i, t - i);
+			}
+	}
+	else // y1== y2
+	{
+		if (x1 < x2)
+			for (int i = min(x2 - x1, t); i>= 0; i--)
+			{
+				rst.emplace_back((x2 - i) * num_col + y1, t - i);
+			}
+		else
+			for (int i = min(x1 - x2, t); i>= 0; i--)
+			{
+				rst.emplace_back((x2 + i) * num_col + y1, t - i);
+			}
+	}
+	return rst;
+}
+
+bool ConstraintTable::constrained(size_t loc, int t) const
+{
+	assert(loc >= 0);
+	if (loc < map_size)
+	{
+	    if (path_table_for_CT != nullptr and path_table_for_CT->constrained(loc, loc, t))
+	        return true;
+		const auto& it = landmarks.find(t);
+		if (it != landmarks.end() && it->second != loc)
+			return true;  // violate the positive vertex constraint
+	}	
+
+	const auto& it = ct.find(loc);
+	if (it == ct.end())
+	{
+		return false;
+	}
+	for (const auto& constraint: it->second)
+	{
+		if (constraint.first <= t && t < constraint.second)
+			return true;
+	}
+	return false;
+}
+bool ConstraintTable::constrained(size_t curr_loc, size_t next_loc, int next_t) const
+{
+    return (path_table_for_CT != nullptr and path_table_for_CT->constrained(curr_loc, next_loc, next_t)) or
+        constrained(getEdgeIndex(curr_loc, next_loc), next_t);
+}
+
+void ConstraintTable::copy(const ConstraintTable& other)
+{
+	length_min = other.length_min;
+	length_max = other.length_max;
+	num_col = other.num_col;
+	map_size = other.map_size;
+	ct = other.ct;
+	ct_max_timestep = other.ct_max_timestep;
+	cat = other.cat;
+	cat_max_timestep = other.cat_max_timestep;
+	landmarks = other.landmarks;
+    path_table_for_CT = other.path_table_for_CT;
+    path_table_for_CAT = other.path_table_for_CAT;
+}
+
+
 int ConstraintTable::getNumOfConflictsForStep(size_t curr_id, size_t next_id, int next_timestep) const
 {
     int rst = 0;
+    if (path_table_for_CAT != nullptr)
+        rst = path_table_for_CAT->getNumOfCollisions(curr_id, next_id, next_timestep);
     list<size_t> ids;
     ids.push_back(next_id); // vertex
     if (curr_id != next_id)
@@ -281,7 +286,7 @@ int ConstraintTable::getNumOfConflictsForStep(size_t curr_id, size_t next_id, in
             for (const auto& action: v1->second)
             {
                 if (action.first <= next_timestep && next_timestep < action.second)
-                    return 1; //rst++;
+                    rst++;
                 else if (action.first > next_timestep)
                     break;
             }
@@ -289,33 +294,71 @@ int ConstraintTable::getNumOfConflictsForStep(size_t curr_id, size_t next_id, in
     }
     return rst;
 }
-
-
-
-
-// return the earliest timestep that the agent can hold its goal location
-int ConstraintTable::getHoldingTime() const
+bool ConstraintTable::hasConflictForStep(size_t curr_id, size_t next_id, int next_timestep) const
 {
-    assert(goal_location >= 0);
-    int rst = length_min;
-    if (!path_table.table.empty() &&
-        (int) path_table.table[goal_location].size() > length_min)
+    if (path_table_for_CAT != nullptr and path_table_for_CAT->hasCollisions(curr_id, next_id, next_timestep))
+        return true;
+    list<size_t> ids;
+    ids.push_back(next_id); // vertex
+    if (curr_id != next_id)
     {
-        rst = (int) path_table.table[goal_location].size();
-        while (rst > length_min && path_table.table[goal_location][rst - 1] == NO_AGENT)
-            rst--;
+        ids.push_back(getEdgeIndex(curr_id, next_id)); // edge
     }
+    for (auto id : ids)
+    {
+        const auto& v1 = cat.find(id);
+        if (v1 != cat.end())
+        {
+            for (const auto& action: v1->second)
+            {
+                if (action.first <= next_timestep && next_timestep < action.second)
+                    return true;
+                else if (action.first > next_timestep)
+                    break;
+            }
+        }
+    }
+    return false;
+}
+int ConstraintTable::getFutureNumOfCollisions(int loc, int t) const
+{
+    int rst = 0;
+    if (path_table_for_CAT != nullptr)
+        rst = path_table_for_CAT->getFutureNumOfCollisions(loc, t);
+    const auto& p = cat.find(loc);
+    if (p != cat.end())
+    {
+        set<int> colliding_timesteps;
+        for (const auto& action: p->second)
+        {
+            for (int i = max(t, action.first); i < action.second; i++)
+                colliding_timesteps.insert(i);
+        }
+        rst += (int)colliding_timesteps.size();
+    }
+    return rst;
+}
 
-	auto it = ct.find(goal_location);
+// return the earliest timestep that the agent can hold the location
+int ConstraintTable::getHoldingTime(int location, int earliest_timestep) const
+{
+    // path table
+    int rst = earliest_timestep;
+    if (path_table_for_CT!= nullptr)
+        rst = path_table_for_CT->getHoldingTime(location, earliest_timestep);
+    // CT
+	auto it = ct.find(location);
 	if (it != ct.end())
 	{
 		for (auto time_range : it->second)
 			rst = max(rst, time_range.second);
 	}
+	// Landmark
 	for (auto landmark : landmarks)
 	{
-		if (landmark.second != goal_location)
+		if (landmark.second != location)
 			rst = max(rst, (int)landmark.first + 1);
 	}
+
 	return rst;
 }

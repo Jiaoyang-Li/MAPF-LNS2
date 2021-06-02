@@ -1476,10 +1476,10 @@ CBS::CBS(vector<SingleAgentSolver*>& search_engines,
 	mutex_helper.search_engines = search_engines;
 }
 
-CBS::CBS(vector<SingleAgentSolver*>& search_engines, const PathTable& path_table, int screen) :
+CBS::CBS(vector<SingleAgentSolver*>& search_engines, int screen, const PathTable* path_table = nullptr) :
     screen(screen), suboptimality(1),
-    initial_constraints(search_engines.size(), ConstraintTable(path_table,
-            search_engines[0]->instance.num_of_cols, search_engines[0]->instance.map_size)),
+    initial_constraints(search_engines.size(), ConstraintTable(
+            search_engines[0]->instance.num_of_cols, search_engines[0]->instance.map_size, path_table)),
     search_engines(search_engines),
     mdd_helper(initial_constraints, search_engines),
     rectangle_helper(search_engines[0]->instance),
@@ -1489,10 +1489,6 @@ CBS::CBS(vector<SingleAgentSolver*>& search_engines, const PathTable& path_table
 {
     num_of_agents = (int) search_engines.size();
     mutex_helper.search_engines = search_engines;
-    for (int i = 0; i < num_of_agents; i++)
-    {
-        initial_constraints[i].goal_location = search_engines[i]->goal_location;
-    }
 }
 
 CBS::CBS(const Instance& instance, bool sipp, int screen) :
@@ -1505,23 +1501,20 @@ CBS::CBS(const Instance& instance, bool sipp, int screen) :
 	heuristic_helper(instance.getDefaultNumberOfAgents(), paths, search_engines, initial_constraints, mdd_helper)
 {
 	clock_t t = clock();
+
+    search_engines.resize(num_of_agents);
     initial_constraints.reserve(num_of_agents);
     for (int i = 0; i < num_of_agents; i++)
-	    initial_constraints.emplace_back(path_table, instance.num_of_cols, instance.map_size);
+    {
+        if (sipp)
+            search_engines[i] = new SIPP(instance, i);
+        else
+            search_engines[i] = new SpaceTimeAStar(instance, i);
 
-	search_engines.resize(num_of_agents);
-	for (int i = 0; i < num_of_agents; i++)
-	{
-		if (sipp)
-			search_engines[i] = new SIPP(instance, i);
-		else
-			search_engines[i] = new SpaceTimeAStar(instance, i);
-
-		initial_constraints[i].goal_location = search_engines[i]->goal_location;
-	}
+        initial_constraints.emplace_back(instance.num_of_cols, instance.map_size);
+    }
+    mutex_helper.search_engines = search_engines;
 	runtime_preprocessing = (double)(clock() - t) / CLOCKS_PER_SEC;
-
-	mutex_helper.search_engines = search_engines;
 
 	if (screen >= 2) // print start and goals
 	{

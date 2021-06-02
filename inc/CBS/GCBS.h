@@ -42,9 +42,8 @@ public:
     bool solve(double time_limit);
     void updatePaths(GCBSNode* curr);
 
-    GCBS(vector<SingleAgentSolver*>& search_engines,
-         const vector<PathTable>& path_tables,
-         int screen);
+    GCBS(vector<SingleAgentSolver*>& search_engines, int screen,
+         const vector<PathTable>* path_tables);
     ~GCBS();
 
     // Save results
@@ -59,7 +58,7 @@ private:
     bool save_stats;
 
     list<GCBSNode*> allNodes_table;
-    const vector<PathTable>& path_tables;
+    const vector<PathTable>* path_tables;
 
     pairing_heap< GCBSNode*, compare<GCBSNode::compare_node_by_d> > focal_list;
 

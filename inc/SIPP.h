@@ -10,29 +10,20 @@ public:
 	typedef boost::heap::pairing_heap< SIPPNode*, compare<SIPPNode::secondary_compare_node> >::handle_type focal_handle_t;
 	open_handle_t open_handle;
 	focal_handle_t focal_handle;
-
 	Interval interval;
 
 	SIPPNode() : LLNode() {}
-
-	SIPPNode(int loc, int g_val, int h_val, SIPPNode* parent, int timestep, const Interval& interval, int num_of_conflicts = 0, bool in_openlist = false) :
-		LLNode(loc, g_val, h_val, parent, timestep, num_of_conflicts, in_openlist), interval(interval) {}
-
-	SIPPNode(const SIPPNode& other)
-	{
-		location = other.location;
-		g_val = other.g_val;
-		h_val = other.h_val;
-		parent = other.parent;
-		timestep = other.timestep;
-		in_openlist = other.in_openlist;
-		open_handle = other.open_handle;
-		focal_handle = other.focal_handle;
-		num_of_conflicts = other.num_of_conflicts;
-		interval = other.interval;
-	}
+	SIPPNode(int loc, int g_val, int h_val, SIPPNode* parent, int timestep, const Interval& interval,
+	        int num_of_conflicts) :
+		LLNode(loc, g_val, h_val, parent, timestep, num_of_conflicts), interval(interval) {}
+	SIPPNode(const SIPPNode& other): LLNode(other), open_handle(other.open_handle) {} // copy everything except for handles
 	~SIPPNode() {}
 
+	void copy(const SIPPNode& other)
+    {
+	    LLNode::copy(other);
+	    interval = other.interval;
+    }
 	// The following is used by for generating the hash value of a nodes
 	struct NodeHasher
 	{
@@ -69,13 +60,13 @@ public:
 	// Returns a shortest path that satisfies the constraints of the give node  while
 	// minimizing the number of internal conflicts (that is conflicts with known_paths for other agents found so far).
 	// lowerbound is an underestimation of the length of the path in order to speed up the search.
-    Path findOptimalPath(const PathTable& path_table) {return Path(); } // TODO: To implement
-    Path findOptimalPath(const ConstraintTable& constraint_table, const PathTableWC& path_table);
+    //Path findOptimalPath(const PathTable& path_table) {return Path(); } // TODO: To implement
+    //Path findOptimalPath(const ConstraintTable& constraint_table, const PathTableWC& path_table);
 	Path findOptimalPath(const HLNode& node, const ConstraintTable& initial_constraints,
 		const vector<Path*>& paths, int agent, int lowerbound);
 	pair<Path, int> findSuboptimalPath(const HLNode& node, const ConstraintTable& initial_constraints,
 		const vector<Path*>& paths, int agent, int lowerbound, double w);  // return the path and the lowerbound
-    Path findPath(const ConstraintTable& constraint_table);
+    Path findPath(const ConstraintTable& constraint_table); // return A path that minimizes collisions, breaking ties by cost
     int getTravelTime(int start, int end, const ConstraintTable& constraint_table, int upper_bound);
 
 	string getName() const { return "SIPP"; }

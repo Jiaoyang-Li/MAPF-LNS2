@@ -5,16 +5,15 @@
 class LLNode // low-level node
 {
 public:
-	int location;
-	int g_val;
+	int location = 0;
+	int g_val = 0;
 	int h_val = 0;
-	LLNode* parent;
+	LLNode* parent = nullptr;
 	int timestep = 0;
 	int num_of_conflicts = 0;
 	bool in_openlist = false;
-	bool wait_at_goal; // the action is to wait at the goal vertex or not. This is used for >lenghth constraints
+	bool wait_at_goal = false; // the action is to wait at the goal vertex or not. This is used for >lenghth constraints
     bool is_goal = false;
-
 	// the following is used to comapre nodes in the OPEN list
 	struct compare_node
 	{
@@ -55,13 +54,12 @@ public:
 	};  // used by FOCAL (heap) to compare nodes (top of the heap has min number-of-conflicts)
 
 
-	LLNode() : location(0), g_val(0), h_val(0), parent(nullptr), timestep(0), num_of_conflicts(0), wait_at_goal(false) {}
-
-	LLNode(int location, int g_val, int h_val, LLNode* parent, int timestep, int num_of_conflicts = 0, bool in_openlist = false) :
+	LLNode() {}
+	LLNode(int location, int g_val, int h_val, LLNode* parent, int timestep, int num_of_conflicts) :
 		location(location), g_val(g_val), h_val(h_val), parent(parent), timestep(timestep),
-		num_of_conflicts(num_of_conflicts), in_openlist(in_openlist), wait_at_goal(false) {}
+		num_of_conflicts(num_of_conflicts) {}
+	LLNode(const LLNode& other) { copy(other); }
 
-	inline double getFVal() const { return g_val + h_val; }
 	void copy(const LLNode& other)
 	{
 		location = other.location;
@@ -73,6 +71,7 @@ public:
 		wait_at_goal = other.wait_at_goal;
 		is_goal = other.is_goal;
 	}
+    inline int getFVal() const { return g_val + h_val; }
 };
 
 std::ostream& operator<<(std::ostream& os, const LLNode& node);
@@ -95,8 +94,8 @@ public:
 	}
 	const Instance& instance;
 
-    virtual Path findOptimalPath(const PathTable& path_table) = 0;
-    virtual Path findOptimalPath(const ConstraintTable& constraint_table, const PathTableWC& path_table) = 0;
+    //virtual Path findOptimalPath(const PathTable& path_table) = 0;
+    //virtual Path findOptimalPath(const ConstraintTable& constraint_table, const PathTableWC& path_table) = 0;
 	virtual Path findOptimalPath(const HLNode& node, const ConstraintTable& initial_constraints,
 		const vector<Path*>& paths, int agent, int lower_bound) = 0;
 	virtual pair<Path, int> findSuboptimalPath(const HLNode& node, const ConstraintTable& initial_constraints,

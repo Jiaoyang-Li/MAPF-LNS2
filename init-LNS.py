@@ -12,13 +12,13 @@ fontsize = 10
 labelsize = 18
 
 time_limit = 10
-folder = '../cmake-build-release/'
+folder = 'D:/LNS/experiments/initLNS/GCBS/' # 'cmake-build-release/'
 instance_name = 'random-32-32-20-random-'  # 'warehouse-10-20-10-2-1-random-150'  #
 algorithms = ["neighbor=4", "neighbor=8", "neighbor=16", "neighbor=32"]
 algo_names = ["neighbor=4", "neighbor=8", "neighbor=16", "neighbor=32"]
 
 instance_ids = [i for i in range(1, 26)]
-agents = [i for i in range(100, 300, 50)]
+agents = [i for i in range(100, 350, 50)]
 rsts = {}
 for agent in agents:
     rst = {}
@@ -127,6 +127,6 @@ for agent in agents:
         #plt.xscale('log')
         #plt.legend(frameon=True, fontsize=fontsize)
 
-        plt.savefig("figures/init-LNS/init_LNS_agents_" + str(agent) + "_instance_" + str(instance_id), bbox_inches='tight')
+        plt.savefig("analysis/figures/init-LNS/init_LNS_agents_" + str(agent) + "_instance_" + str(instance_id), bbox_inches='tight')
         plt.close()
         # plt.show()

@@ -176,7 +176,8 @@ bool InitLNS::run()
          << "initial solution cost = " << initial_sum_of_costs << ", "
          << "runtime = " << runtime << ", "
          << "group size = " << average_group_size << ", "
-         << "failed iterations = " << num_of_failures << endl;
+         << "failed iterations = " << num_of_failures << ","
+         << "LL nodes = " << num_LL_generated << endl;
     return (num_of_colliding_pairs == 0);
 }
 bool InitLNS::runGCBS()
@@ -200,7 +201,7 @@ bool InitLNS::runGCBS()
         }
     }
 
-    GCBS gcbs(search_engines, path_tables, screen - 1);
+    GCBS gcbs(search_engines, screen - 1, &path_tables);
     gcbs.setDisjointSplitting(false);
     gcbs.setBypass(true);
     gcbs.setTargetReasoning(true);
@@ -210,6 +211,7 @@ bool InitLNS::runGCBS()
     if (!iteration_stats.empty()) // replan
         T = min(T, replan_time_limit);
     gcbs.solve(T);
+    num_LL_generated += gcbs.num_LL_generated;
     if (gcbs.best_node->colliding_pairs < (int) neighbor.old_colliding_pairs.size()) // accept new paths
     {
         auto id = neighbor.agents.begin();
@@ -257,6 +259,7 @@ bool InitLNS::runPBS()
     if (!iteration_stats.empty()) // replan
         T = min(T, replan_time_limit);
     bool succ = pbs.solve(T, (int)neighbor.agents.size(), neighbor.old_colliding_pairs.size());
+    num_LL_generated += pbs.num_LL_generated;
     if (succ and pbs.best_node->getCollidingPairs() < (int) neighbor.old_colliding_pairs.size()) // accept new paths
     {
         auto id = neighbor.agents.begin();
@@ -335,13 +338,12 @@ bool InitLNS::runPP()
     if (!iteration_stats.empty()) // replan
         T = min(T, replan_time_limit);
     auto time = Time::now();
-    PathTable dummy_path_table;
-    ConstraintTable dummy_constraint_table(dummy_path_table, instance.num_of_cols, instance.map_size, -1);
+    ConstraintTable constraint_table(instance.num_of_cols, instance.map_size, nullptr, &path_table);
     while (p != shuffled_agents.end() && ((fsec)(Time::now() - time)).count() < T)
     {
         int id = *p;
-        dummy_constraint_table.goal_location = agents[id].path_planner.goal_location;
-        agents[id].path = agents[id].path_planner.findOptimalPath(dummy_constraint_table, path_table);
+        agents[id].path = agents[id].path_planner.findPath(constraint_table);
+        num_LL_generated += agents[id].path_planner.num_generated;
         assert(!agents[id].path.empty() && agents[id].path.back().location == agents[id].path_planner.goal_location);
         updateCollidingPairs(neighbor.colliding_pairs, agents[id].id, agents[id].path);
         neighbor.sum_of_costs += (int)agents[id].path.size() - 1;

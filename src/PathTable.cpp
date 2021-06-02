@@ -110,7 +110,16 @@ void PathTable::get_agents(set<int>& conflicting_agents, int neighbor_size, int 
     }
 }
 
-
+// get the holding time after the earliest_timestep for a location
+int PathTable::getHoldingTime(int location, int earliest_timestep = 0) const
+{
+    if (table.empty() or (int) table[location].size() <= earliest_timestep)
+        return earliest_timestep;
+    int rst = (int) table[location].size();
+    while (rst > earliest_timestep and table[location][rst - 1] == NO_AGENT)
+        rst--;
+    return rst;
+}
 
 void PathTableWC::insertPath(int agent_id, const Path& path)
 {
@@ -194,6 +203,32 @@ int PathTableWC::getNumOfCollisions(int from, int to, int to_time) const
     }
     return rst;
 }
+bool PathTableWC::hasCollisions(int from, int to, int to_time) const
+{
+    int rst = 0;
+    if (!table.empty())
+    {
+        if ((int)table[to].size() > to_time and !table[to][to_time].empty())
+            return true; // vertex conflict
+        if (from != to && table[to].size() >= to_time && table[from].size() > to_time)
+        {
+            for (auto a1 : table[to][to_time - 1])
+            {
+                for (auto a2: table[from][to_time])
+                {
+                    if (a1 == a2)
+                        return true; // edge conflict
+                }
+            }
+        }
+    }
+    if (!goals.empty())
+    {
+        if (goals[to] < to_time)
+            return true; // target conflict
+    }
+    return false;
+}
 
 int PathTableWC::getAgentWithTarget(int target_location, int latest_timestep) const
 {
@@ -209,3 +244,4 @@ int PathTableWC::getAgentWithTarget(int target_location, int latest_timestep) co
     assert(false); // this should never happen
     return -1;
 }
+

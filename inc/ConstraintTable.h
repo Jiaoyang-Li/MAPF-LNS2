@@ -8,27 +8,30 @@ class ConstraintTable
 public:
 	int length_min = 0;
 	int length_max = MAX_TIMESTEP;
-	int goal_location;
 	size_t num_col;
 	size_t map_size;
+    const PathTable * path_table_for_CT;
+    const PathTableWC * path_table_for_CAT;
 
-    const PathTable& path_table;
-
-	int getHoldingTime() const; // the earliest timestep that the agent can hold its goal location
+	int getHoldingTime(int location, int earliest_timestep) const; // the earliest timestep that the agent can hold the location after earliest_timestep
     int getMaxTimestep() const; // everything is static after the max timestep
-	// void clear(){ct.clear(); cat_small.clear(); cat_large.clear(); landmarks.clear(); length_min = 0, length_max = INT_MAX; latest_timestep = 0;}
+    // void clear(){ct.clear(); cat_small.clear(); cat_large.clear(); landmarks.clear(); length_min = 0, length_max = INT_MAX; latest_timestep = 0;}
 
 	bool constrained(size_t loc, int t) const;
     bool constrained(size_t curr_loc, size_t next_loc, int next_t) const;
 	int getNumOfConflictsForStep(size_t curr_id, size_t next_id, int next_timestep) const;
-	// ConstraintTable() = default;
-	ConstraintTable(const PathTable& path_table, size_t num_col, size_t map_size, int goal_location = -1) :
-            path_table(path_table), goal_location(goal_location), num_col(num_col), map_size(map_size) {}
-	ConstraintTable(const ConstraintTable& other) : path_table(other.path_table) {copy(other); }
+	bool hasConflictForStep(size_t curr_id, size_t next_id, int next_timestep) const;
+    int getFutureNumOfCollisions(int loc, int t) const;
+
+	ConstraintTable(size_t num_col, size_t map_size, const PathTable* path_table_for_CT = nullptr,
+	        const PathTableWC * path_table_for_CAT = nullptr) :
+            num_col(num_col), map_size(map_size), path_table_for_CT(path_table_for_CT),
+            path_table_for_CAT(path_table_for_CAT) {}
+	ConstraintTable(const ConstraintTable& other) { copy(other); }
     ~ConstraintTable() = default;
 
 	void copy(const ConstraintTable& other);
-	void init(const ConstraintTable& other) {copy(other); }
+	void init(const ConstraintTable& other) { copy(other); }
 	void clear()
 	{
 	    ct.clear();
@@ -45,6 +48,7 @@ public:
 	int getCATMaxTimestep() const {return cat_max_timestep;}
 
 protected:
+    friend class ReservationTable;
     typedef unordered_map<size_t, list< pair<int, int> > > CT; // constraint table
 	CT ct; // location -> time range, or edge -> time range
 	int ct_max_timestep = 0;

@@ -229,7 +229,7 @@ bool LNS::runEECBS()
         search_engines.push_back(&agents[i].path_planner);
     }
 
-    ECBS ecbs(search_engines, path_table, screen - 1);
+    ECBS ecbs(search_engines, screen - 1, &path_table);
     ecbs.setPrioritizeConflicts(true);
     ecbs.setDisjointSplitting(false);
     ecbs.setBypass(true);
@@ -292,7 +292,7 @@ bool LNS::runCBS()
         search_engines.push_back(&agents[i].path_planner);
     }
 
-    CBS cbs(search_engines, path_table, screen - 1);
+    CBS cbs(search_engines, screen - 1, &path_table);
     cbs.setPrioritizeConflicts(true);
     cbs.setDisjointSplitting(false);
     cbs.setBypass(true);
@@ -358,6 +358,7 @@ bool LNS::runPP()
     if (!iteration_stats.empty()) // replan
         T = min(T, replan_time_limit);
     auto time = Time::now();
+    ConstraintTable constraint_table(instance.num_of_cols, instance.map_size, &path_table);
     while (p != shuffled_agents.end() && ((fsec)(Time::now() - time)).count() < T)
     {
         int id = *p;
@@ -365,7 +366,7 @@ bool LNS::runPP()
             cout << "Remaining agents = " << remaining_agents <<
                  ", remaining time = " << time_limit - runtime << " seconds. " << endl
                  << "Agent " << agents[id].id << endl;
-        agents[id].path = agents[id].path_planner.findOptimalPath(path_table);
+        agents[id].path = agents[id].path_planner.findPath(constraint_table);
         if (agents[id].path.empty())
         {
             break;

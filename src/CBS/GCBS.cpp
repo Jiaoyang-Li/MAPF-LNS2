@@ -178,10 +178,8 @@ bool GCBS::findPathForSingleAgent(GCBSNode* node, int agent)
 {
     // build constraint table
     auto t = clock();
-    ConstraintTable constraint_table(path_tables[agent],
-                    search_engines[agent]->instance.num_of_cols,
-                    search_engines[agent]->instance.map_size,
-                    search_engines[agent]->goal_location);
+    ConstraintTable constraint_table(search_engines[agent]->instance.num_of_cols,
+                    search_engines[agent]->instance.map_size, &path_tables->at(agent));
     auto curr = node;
     while (curr->parent != nullptr)
     {
@@ -605,7 +603,7 @@ void GCBS::addConstraints(const GCBSNode* curr, GCBSNode* child1, GCBSNode* chil
     }
 }
 
-GCBS::GCBS(vector<SingleAgentSolver*>& search_engines, const vector<PathTable>& path_tables, int screen) :
+GCBS::GCBS(vector<SingleAgentSolver*>& search_engines, int screen, const vector<PathTable>* path_tables = nullptr) :
            search_engines(search_engines), path_tables(path_tables),
            screen(screen), num_of_agents(search_engines.size()) {}
 

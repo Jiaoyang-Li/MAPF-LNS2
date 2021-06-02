@@ -81,9 +81,7 @@ public:
     void updatePaths(CBSNode* curr);
 
 	CBS(const Instance& instance, bool sipp, int screen);
-    CBS(vector<SingleAgentSolver*>& search_engines,
-        const PathTable& path_atble,
-        int screen);
+    CBS(vector<SingleAgentSolver*>& search_engines, int screen, const PathTable* path_table);
 	CBS(vector<SingleAgentSolver*>& search_engines,
 		const vector<ConstraintTable>& constraints,
 		vector<Path>& paths_found_initially, int screen);
@@ -119,7 +117,6 @@ protected:
 	CBSHeuristic heuristic_helper;
 
 	list<HLNode*> allNodes_table; // this is ued for both ECBS and EES
-    PathTable path_table; // place holder
 
 	string getSolverName() const;
 

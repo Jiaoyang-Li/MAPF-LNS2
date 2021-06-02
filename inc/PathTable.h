@@ -17,7 +17,7 @@ public:
     void get_agents(set<int>& conflicting_agents, int loc) const;
     void get_agents(set<int>& conflicting_agents, int neighbor_size, int loc) const;
     void getConflictingAgents(int agent_id, set<int>& conflicting_agents, int from, int to, int to_time) const;;
-
+    int getHoldingTime(int location, int earliest_timestep) const;
     PathTable(int map_size = 0) : table(map_size), goals(map_size, MAX_COST) {}
 };
 
@@ -32,8 +32,10 @@ public:
     void insertPath(int agent_id);
     void deletePath(int agent_id);
     const Path* getPath(int agent_id) const {return paths[agent_id]; }
+    // TODO:: add future collisions to CAT
     int getFutureNumOfCollisions(int loc, int time) const; // return #collisions when the agent waiting at loc starting from time forever
     int getNumOfCollisions(int from, int to, int to_time) const;
+    bool hasCollisions(int from, int to, int to_time) const;
     // return the agent who reaches its target target_location before timestep earliest_timestep
     int getAgentWithTarget(int target_location, int latest_timestep) const;
     PathTableWC(int map_size = 0, int num_of_agents = 0) : table(map_size), goals(map_size, MAX_COST),

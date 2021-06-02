@@ -26,20 +26,20 @@ void SIPP::updatePath(const LLNode* goal, vector<PathEntry> &path)
 
 // find path by A*
 // Returns a path that minimizes the collisions with the paths in the path table, breaking ties by the length
-Path SIPP::findOptimalPath(const ConstraintTable& constraint_table, const PathTableWC& path_table)
+Path SIPP::findPath(const ConstraintTable& constraint_table)
 {
-    PathTable dummy_table;
-    ReservationTable reservation_table(constraint_table);
+    ReservationTable reservation_table(constraint_table, goal_location);
 
     Path path;
     num_expanded = 0;
     num_generated = 0;
-    Interval interval = reservation_table.get_first_safe_interval(start_location, path_table);
+    Interval interval = reservation_table.get_first_safe_interval(start_location);
     if (get<0>(interval) > 0)
         return path;
-    auto holding_time = reservation_table.getHoldingTime();
+    auto holding_time = constraint_table.getHoldingTime(goal_location, constraint_table.length_min);
     // generate start and add it to the OPEN & FOCAL list
-    auto start = new SIPPNode(start_location, 0, my_heuristic[start_location], nullptr, 0, interval, 0, false);
+    
+    auto start = new SIPPNode(start_location, 0, max(my_heuristic[start_location], holding_time), nullptr, 0, interval, 0);
     num_generated++;
     start->in_openlist = true;
     start->focal_handle = focal_list.push(start); // we only use focal list; no open list is used
@@ -61,7 +61,7 @@ Path SIPP::findOptimalPath(const ConstraintTable& constraint_table, const PathTa
                  !curr->wait_at_goal && // not wait at the goal location
                  curr->timestep >= holding_time) // the agent can hold the goal location afterward
         {
-            int future_collisions = path_table.getFutureNumOfCollisions(curr->location, curr->timestep);
+            int future_collisions = constraint_table.getFutureNumOfCollisions(curr->location, curr->timestep);
             if (future_collisions == 0)
             {
                 updatePath(curr, path);
@@ -99,16 +99,16 @@ Path SIPP::findOptimalPath(const ConstraintTable& constraint_table, const PathTa
         {
             int next_h_val = my_heuristic[next_location];
             for (auto& interval : reservation_table.get_safe_intervals(
-                    curr->location, next_location, curr->timestep + 1, get<1>(curr->interval) + 1, path_table))
+                    curr->location, next_location, curr->timestep + 1, get<1>(curr->interval) + 1))
             {
                 int next_timestep = max(curr->timestep + 1, (int)get<0>(interval));
-                if (next_timestep + next_h_val > reservation_table.length_max)
+                if (next_timestep + next_h_val > constraint_table.length_max)
                     break;
                 generateChildToFocal(interval, curr, next_location, next_h_val);
             }
         }  // end for loop that generates successors
         // wait at the current location
-        bool found = reservation_table.find_safe_interval(interval, curr->location, get<1>(curr->interval), path_table);
+        bool found = reservation_table.find_safe_interval(interval, curr->location, get<1>(curr->interval));
         if (found)
         {
             generateChildToFocal(interval, curr, curr->location, curr->h_val);
@@ -135,16 +135,21 @@ pair<Path, int> SIPP::findSuboptimalPath(const HLNode& node, const ConstraintTab
 	const vector<Path*>& paths, int agent, int lowerbound, double w)
 {
 	this->w = w;
-	Path path;
-	auto t = clock();
-	ReservationTable reservation_table(initial_constraints);
-    reservation_table.insert2CT(node, agent);
+
+	// build constraint table
+    auto t = clock();
+    ConstraintTable constraint_table(initial_constraints);
+    constraint_table.insert2CT(node, agent);
 	runtime_build_CT = (double)(clock() - t) / CLOCKS_PER_SEC;
-	int holding_time = reservation_table.getHoldingTime();
+	int holding_time = constraint_table.getHoldingTime(goal_location, constraint_table.length_min);
 	t = clock();
-    reservation_table.insert2CAT(agent, paths);
+    constraint_table.insert2CAT(agent, paths);
 	runtime_build_CAT = (double)(clock() - t) / CLOCKS_PER_SEC;
 
+	// build reservation table
+	ReservationTable reservation_table(constraint_table, goal_location);
+
+    Path path;
 	num_expanded = 0;
 	num_generated = 0;
 	Interval interval = reservation_table.get_first_safe_interval(start_location);
@@ -152,7 +157,7 @@ pair<Path, int> SIPP::findSuboptimalPath(const HLNode& node, const ConstraintTab
 		return {path, 0};
 
 	 // generate start and add it to the OPEN list
-	auto start = new SIPPNode(start_location, 0, my_heuristic[start_location], nullptr, 0, interval, 0, false);
+	auto start = new SIPPNode(start_location, 0, max(my_heuristic[start_location], holding_time), nullptr, 0, interval, 0);
 
 	num_generated++;
 	start->open_handle = open_list.push(start);
@@ -199,72 +204,6 @@ pair<Path, int> SIPP::findSuboptimalPath(const HLNode& node, const ConstraintTab
 	  // no path found
 	releaseNodes();
 	return {path, min_f_val};
-}
-
-// find path by SIPP
-// Returns a path that satisfies the constraints while
-// minimizing the number of conflicts
-Path SIPP::findPath(const ConstraintTable& constraint_table)
-{
-    Path path;
-
-    ReservationTable reservation_table(constraint_table);
-
-    int holding_time = reservation_table.getHoldingTime();
-
-    num_expanded = 0;
-    num_generated = 0;
-    Interval interval = reservation_table.get_first_safe_interval(start_location);
-    if (get<0>(interval) > 0)
-        return path;
-
-    // generate start and add it to the OPEN list
-    auto start = new SIPPNode(start_location, 0, my_heuristic[start_location], nullptr, 0, interval, 0, false);
-    num_generated++;
-    start->focal_handle = focal_list.push(start);
-    start->in_openlist = true;
-    allNodes_table.insert(start);
-
-    while (!focal_list.empty())
-    {
-        auto curr = focal_list.top(); focal_list.pop();
-        curr->in_openlist = false;
-        num_expanded++;
-
-        // check if the popped node is a goal node
-        if (curr->location == goal_location && // arrive at the goal location
-            !curr->wait_at_goal && // not wait at the goal location
-            curr->timestep >= holding_time) // the agent can hold the goal location afterward
-        {
-            updatePath(curr, path);
-            break;
-        }
-
-        for (int next_location : instance.getNeighbors(curr->location)) // move to neighboring locations
-        {
-            int next_h_val = my_heuristic[next_location];
-            for (auto& interval : reservation_table.get_safe_intervals(
-                    curr->location, next_location, curr->timestep + 1, get<1>(curr->interval) + 1))
-            {
-                int next_timestep = max(curr->timestep + 1, (int)get<0>(interval));
-                if (next_timestep + next_h_val > reservation_table.length_max)
-                    break;
-                generateChildToFocal(interval, curr, next_location, next_h_val);
-            }
-        }  // end for loop that generates successors
-
-        // wait at the current location
-        bool found = reservation_table.find_safe_interval(interval, curr->location, get<1>(curr->interval));
-        if (found)
-        {
-            generateChildToFocal(interval, curr, curr->location, curr->h_val);
-        }
-    }  // end while loop
-
-    //if (path.empty())
-    //    printSearchTree();
-    releaseNodes();
-    return path;
 }
 
 void SIPP::updateFocalList()
@@ -318,13 +257,13 @@ void SIPP::generateChild(const Interval& interval, SIPPNode* curr, int next_loca
     // compute cost to next_id via curr node
     int next_timestep = max(curr->timestep + 1, (int)get<0>(interval));
     int next_g_val = next_timestep;
-    int next_h_val = my_heuristic[next_location];
-    if (next_g_val + next_h_val > reservation_table.length_max)
+    int next_h_val = max(my_heuristic[next_location], curr->getFVal() - next_g_val);  // path max
+    if (next_g_val + next_h_val > reservation_table.constraint_table.length_max)
         return;
     int next_conflicts = curr->num_of_conflicts + (int)get<2>(interval) * (next_timestep - curr->timestep);
 
     // generate (maybe temporary) node
-    auto next = new SIPPNode(next_location, next_g_val, next_h_val, curr, next_timestep, interval, next_conflicts, false);
+    auto next = new SIPPNode(next_location, next_g_val, next_h_val, curr, next_timestep, interval, next_conflicts);
     if (next_location == goal_location && curr->location == goal_location)
         next->wait_at_goal = true;
     // try to retrieve it from the hash table
@@ -378,9 +317,10 @@ void SIPP::generateChild(const Interval& interval, SIPPNode* curr, int next_loca
 void SIPP::generateChildToFocal(const Interval& interval, SIPPNode* curr, int next_location, int next_h_val)
 {
     int next_timestep = max(curr->timestep + 1, (int)get<0>(interval));
+    next_h_val = max(next_h_val, curr->getFVal() - next_timestep); // path max
     // generate (maybe temporary) node
     auto next = new SIPPNode(next_location, next_timestep, next_h_val, curr, next_timestep, interval,
-            curr->num_of_conflicts + (int)get<2>(interval), false);
+            curr->num_of_conflicts + (int)get<2>(interval));
     if (next_location == goal_location && curr->location == goal_location)
         next->wait_at_goal = true;
     // try to retrieve it from the hash table
@@ -422,7 +362,7 @@ void SIPP::generateChildToFocal(const Interval& interval, SIPPNode* curr, int ne
 int SIPP::getTravelTime(int start, int end, const ConstraintTable& constraint_table, int upper_bound)
 {
 	int length = MAX_TIMESTEP;
-	auto root = new SIPPNode(start, 0, compute_heuristic(start, end), nullptr, 0, Interval(0, 1, 0));
+	auto root = new SIPPNode(start, 0, compute_heuristic(start, end), nullptr, 0, Interval(0, 1, 0), 0);
 	root->open_handle = open_list.push(root);  // add root to heap
 	allNodes_table.insert(root);       // add root to hash_table (nodes)
 	SIPPNode* curr = nullptr;
@@ -455,7 +395,8 @@ int SIPP::getTravelTime(int start, int end, const ConstraintTable& constraint_ta
 				int next_h_val = compute_heuristic(next_location, end);
 				if (next_g_val + next_h_val >= upper_bound) // the cost of the path is larger than the upper bound
 					continue;
-				auto next = new SIPPNode(next_location, next_g_val, next_h_val, nullptr, next_timestep, Interval(next_timestep, next_timestep + 1, 0));
+				auto next = new SIPPNode(next_location, next_g_val, next_h_val, nullptr, next_timestep,
+				        Interval(next_timestep, next_timestep + 1, 0), 0);
 				auto it = allNodes_table.find(next);
 				if (it == allNodes_table.end())
 				{  // add the newly generated node to heap and hash table

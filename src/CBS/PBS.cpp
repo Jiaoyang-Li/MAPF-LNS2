@@ -212,10 +212,9 @@ bool PBS::planPath(int agent, PBSNode& node, const set<int> & higher_agents, con
     if (screen > 1)
         cout << "\t\tReplan path for agent " << agent << " by avoiding collisions with agents ";
     // build constraint table
-    PathTable dummy_table;
     auto t = clock();
-    ConstraintTable constraint_table(dummy_table, search_engines[agent]->instance.num_of_cols,
-                                     search_engines[agent]->instance.map_size, search_engines[agent]->goal_location);
+    ConstraintTable constraint_table(search_engines[agent]->instance.num_of_cols,
+                                     search_engines[agent]->instance.map_size,nullptr, &path_table);
     for ( auto a : higher_agents)
     {
         if (a < 0) // external agent
@@ -255,7 +254,7 @@ bool PBS::planPath(int agent, PBSNode& node, const set<int> & higher_agents, con
 
     // find a path
     t = clock();
-    Path new_path = search_engines[agent]->findOptimalPath(constraint_table, path_table);
+    Path new_path = search_engines[agent]->findPath(constraint_table);
     for (auto a : lower_agents)
     {
         if (a < 0)

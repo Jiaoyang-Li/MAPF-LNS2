@@ -7,9 +7,8 @@ class ECBS : public CBS
 {
 public:
 	ECBS(const Instance& instance, bool sipp, int screen) : CBS(instance, sipp, screen) {}
-    ECBS(vector<SingleAgentSolver*>& search_engines,
-         const PathTable& path_table,
-         int screen) : CBS(search_engines, path_table, screen) {}
+    ECBS(vector<SingleAgentSolver*>& search_engines, int screen,
+         const PathTable* path_table = nullptr) : CBS(search_engines, screen, path_table) {}
     ~ECBS();
 	////////////////////////////////////////////////////////////////////////////////////////////
 	// Runs the algorithm until the problem is solved or time is exhausted 
