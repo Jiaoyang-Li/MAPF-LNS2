@@ -41,10 +41,8 @@ bool PBS::solve(double _time_limit, int _node_limit, int _collsion_threshold)
             cout << "conflict between " << get<0>(curr->chosen_conflict) << " and " <<
                     get<1>(curr->chosen_conflict) << endl;
         }
-        for (auto c : {true, false})
-        {
-            generateChild(*curr, c);
-        }
+        generateChild(*curr, false);
+        generateChild(*curr, true);
     }
     update(*best_node);
     return true;
@@ -69,14 +67,33 @@ bool PBS::generateRoot()
     root_node->priority = make_pair(-1, -1);
     update(*root_node);
     set<int> higher_agents, lower_agents;
-    for (auto i = 0; i < num_of_agents; i++)
+
+    // Plan paths
+    if (initial_paths.empty())
     {
-        if(!planPath(i, *root_node, higher_agents, lower_agents))
+        for (auto i = 0; i < num_of_agents; i++)
         {
-            delete root_node;
-            return false;
+            if(!planPath(i, *root_node, higher_agents, lower_agents))
+            {
+                delete root_node;
+                return false;
+            }
         }
     }
+    else
+    {
+        for (auto i = 0; i < num_of_agents; i++)
+        {
+            assert(initial_paths[i] != nullptr and
+                    initial_paths[i]->front().location == search_engines[i]->start_location and
+                    initial_paths[i]->back().location == search_engines[i]->goal_location);
+            root_node->new_paths.emplace_back(i, *initial_paths[i]);
+            paths[i] = &root_node->new_paths.back().second;
+            root_node->sum_of_costs += (int)initial_paths[i]->size() - 1;
+        }
+    }
+
+    // Find conflicts
     for (auto i = 0; i < num_of_agents; i++)
     {
         for (auto j = i + 1; j < num_of_agents; j++)
@@ -412,9 +429,15 @@ bool PBS::findExternalConflicts(PBSNode& node, int a, const set<int> & lower_age
             }
         }
         auto a2 = path_table.getAgentWithTarget(to, timestep);
-        if (a2 >= 0) // this agent traverses the target of another agent
+        if (a2 >= 0) // target conflict - this agent traverses the target of another agent
             collisions.insert(a2);
     }
+    auto goal = paths[a]->back().location; // target conflicts - some other agent traverses the target of this agent
+    for (int t = (int)paths[a]->size(); t < path_table.table[goal].size(); t++)
+    {
+        collisions.insert(path_table.table[goal][t].begin(), path_table.table[goal][t].end());
+    }
+
     for (auto c : collisions)
     {
         if (lower_agents.count(-c-1) == 0)

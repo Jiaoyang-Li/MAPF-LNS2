@@ -242,17 +242,21 @@ bool InitLNS::runPBS()
 {
     vector<SingleAgentSolver*> search_engines;
     search_engines.reserve(neighbor.agents.size());
+    vector<const Path*> initial_paths;
+    initial_paths.reserve(neighbor.agents.size());
     for (int i : neighbor.agents)
     {
         search_engines.push_back(&agents[i].path_planner);
+        initial_paths.push_back(&agents[i].path);
     }
 
     PBS pbs(search_engines, path_table, screen - 1);
+    // pbs.setInitialPath(initial_paths);
     runtime = ((fsec)(Time::now() - start_time)).count();
     double T = time_limit - runtime;
     if (!iteration_stats.empty()) // replan
         T = min(T, replan_time_limit);
-    bool succ = pbs.solve(T, (int)neighbor.agents.size() * 2, neighbor.old_colliding_pairs.size());
+    bool succ = pbs.solve(T, (int)neighbor.agents.size(), neighbor.old_colliding_pairs.size());
     if (succ and pbs.best_node->getCollidingPairs() < (int) neighbor.old_colliding_pairs.size()) // accept new paths
     {
         auto id = neighbor.agents.begin();

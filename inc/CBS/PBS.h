@@ -48,8 +48,8 @@ class PBS
 public:
     // stats
     double runtime = 0;
-    double runtime_generate_child = 0; // runtimr of generating child nodes
-    double runtime_build_CT = 0; // runtimr of building constraint table
+    double runtime_generate_child = 0; // runtime of generating child nodes
+    double runtime_build_CT = 0; // runtime of building constraint table
     double runtime_build_CAT = 0; // runtime of building conflict avoidance table
     double runtime_path_finding = 0; // runtime of finding paths for single agents
     double runtime_detect_conflicts = 0;
@@ -64,8 +64,9 @@ public:
     explicit PBS(vector<SingleAgentSolver*>& search_engines,
                  PathTableWC & path_table, int screen);
     ~PBS();
+    void setInitialPath(const vector<const Path*>& _paths) { initial_paths = _paths; }
     bool solve(double time_limit, int node_limit, int collsion_threshold); // the algorithm stops if it finds a solution with number of
-    // collding pairs smaller than the collision_threshold
+    // colliding pairs smaller than the collision_threshold
     string getSolverName() const {return "PBS with" + search_engines[0]->getName();}
 private:
     vector<SingleAgentSolver*> search_engines;  // used to find (single) agents' paths
@@ -83,7 +84,7 @@ private:
     vector<vector<bool>> priorities; // pairwise priorities among agents
     vector<list<int>> higher_external_agents; // external agents that have higher priorities
     vector<list<int>> lower_external_agents; // external agents that have lower priorities
-
+    vector<const Path*> initial_paths;
     inline void pushNode(PBSNode* node);
     inline bool terminate();
     void topologicalSort(list<int>& ordered_agents);
