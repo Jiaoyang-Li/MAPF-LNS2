@@ -296,7 +296,7 @@ bool InitLNS::getInitialSolution()
     neighbor.sum_of_costs = 0;
     bool succ = false;
     if (init_algo_name == "PP")
-        succ = runPP(false);
+        succ = runPP();
     else
     {
         cerr <<  "Initial MAPF solver " << init_algo_name << " does not exist!" << endl;
@@ -316,7 +316,7 @@ bool InitLNS::getInitialSolution()
     return succ;
 }
 
-bool InitLNS::runPP(bool no_wait)
+bool InitLNS::runPP()
 {
     auto shuffled_agents = neighbor.agents;
     std::random_shuffle(shuffled_agents.begin(), shuffled_agents.end());
@@ -340,18 +340,8 @@ bool InitLNS::runPP(bool no_wait)
     while (p != shuffled_agents.end() && ((fsec)(Time::now() - time)).count() < T)
     {
         int id = *p;
-
-        if (no_wait) {
-            vector<int> goal_table;
-            goal_table.resize(instance.map_size, -1);
-            set<int> A_target;
-            agents[id].path = agents[id].path_planner.findNoWaitPath(goal_table,A_target);
-        }
-        else
-        {
-            dummy_constraint_table.goal_location = agents[id].path_planner.goal_location;
-            agents[id].path = agents[id].path_planner.findOptimalPath(dummy_constraint_table, path_table);
-        }
+        dummy_constraint_table.goal_location = agents[id].path_planner.goal_location;
+        agents[id].path = agents[id].path_planner.findOptimalPath(dummy_constraint_table, path_table);
         assert(!agents[id].path.empty() && agents[id].path.back().location == agents[id].path_planner.goal_location);
         updateCollidingPairs(neighbor.colliding_pairs, agents[id].id, agents[id].path);
         neighbor.sum_of_costs += (int)agents[id].path.size() - 1;
@@ -600,12 +590,10 @@ bool InitLNS::generateNeighborByTarget()
 
 
 
-    Path path = agents[a].path_planner.findNoWaitPath(goal_table,A_target);// generate non-wait path and collect A_target
-    assert(!path.empty());
+    agents[a].path_planner.findMinimumSetofColldingTargets(goal_table,A_target);// generate non-wait path and collect A_target
 
 
     if (screen >= 3){
-        cout<<"     Find path with length: "<<path.size()<<endl;
         cout<<"     Selected a : "<< a<<endl;
         cout<<"     Select A_start: ";
         for(auto e: A_start)

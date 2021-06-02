@@ -65,7 +65,7 @@ private:
     vector<double> destroy_weights;
     int selected_neighbor;
 
-    bool runPP(bool no_wait = false);
+    bool runPP();
     bool runGCBS();
     bool runPBS();
 
