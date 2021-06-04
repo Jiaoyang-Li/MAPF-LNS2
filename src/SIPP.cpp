@@ -28,6 +28,9 @@ void SIPP::updatePath(const LLNode* goal, vector<PathEntry> &path)
 // Returns a path that minimizes the collisions with the paths in the path table, breaking ties by the length
 Path SIPP::findPath(const ConstraintTable& constraint_table)
 {
+    //Path path = findNoCollisionPath(constraint_table);
+    //if (!path.empty())
+    //    return path;
     ReservationTable reservation_table(constraint_table, goal_location);
 
     Path path;
@@ -37,13 +40,15 @@ Path SIPP::findPath(const ConstraintTable& constraint_table)
     if (get<0>(interval) > 0)
         return path;
     auto holding_time = constraint_table.getHoldingTime(goal_location, constraint_table.length_min);
+    auto last_target_collision_time = constraint_table.getLastCollisionTimestep(goal_location);
     // generate start and add it to the OPEN & FOCAL list
-    
-    auto start = new SIPPNode(start_location, 0, max(my_heuristic[start_location], holding_time), nullptr, 0, interval, 0);
+    auto h = max(max(my_heuristic[start_location], holding_time), last_target_collision_time + 1);
+    auto start = new SIPPNode(start_location, 0, h, nullptr, 0, interval, 0);
     num_generated++;
     start->in_openlist = true;
     start->focal_handle = focal_list.push(start); // we only use focal list; no open list is used
-    allNodes_table.insert(start);
+    allNodes_table.resize(instance.map_size, nullptr);
+    allNodes_table[start->location] = insert(allNodes_table[start->location], start);
     while (!focal_list.empty())
     {
         auto* curr = focal_list.top();
@@ -71,28 +76,19 @@ Path SIPP::findPath(const ConstraintTable& constraint_table)
             auto goal = new SIPPNode(*curr);
             goal->is_goal = true;
             goal->parent = curr;
+            goal->h_val = 0;
             goal->num_of_conflicts += future_collisions;
             // try to retrieve it from the hash table
-            auto it = allNodes_table.find(goal);
-            if (it == allNodes_table.end())
+            if (dominanceCheck(allNodes_table[goal->location], goal))
             {
                 goal->focal_handle = focal_list.push(goal);
                 goal->in_openlist = true;
                 num_generated++;
-                allNodes_table.insert(goal);
+                allNodes_table[goal->location] = insert(allNodes_table[goal->location], goal);
             }
-            else // update existing node's if needed (only in the open_list)
+            else
             {
-                auto existing_next = *it;
-                if (existing_next->timestep > goal->timestep || // prefer the one with smaller timestep
-                    (existing_next->timestep == goal->timestep &&
-                     existing_next->num_of_conflicts > goal->num_of_conflicts)) // or it remains the same but there's fewer conflicts
-                {
-                    assert(existing_next->in_openlist);
-                    existing_next->copy(*goal);	// update existing node
-                    focal_list.update(existing_next->focal_handle);
-                }
-                delete (goal);
+                delete goal;
             }
         }
         for (int next_location : instance.getNeighbors(curr->location)) // move to neighboring locations
@@ -101,17 +97,20 @@ Path SIPP::findPath(const ConstraintTable& constraint_table)
             for (auto& interval : reservation_table.get_safe_intervals(
                     curr->location, next_location, curr->timestep + 1, get<1>(curr->interval) + 1))
             {
-                int next_timestep = max(curr->timestep + 1, (int)get<0>(interval));
-                if (next_timestep + next_h_val > constraint_table.length_max)
+                if (interval.second + next_h_val > constraint_table.length_max)
                     break;
-                generateChildToFocal(interval, curr, next_location, next_h_val);
+                if (!get<2>(interval.first))
+                    next_h_val = max(next_h_val, curr->getFVal() - interval.second);  // path max
+                else
+                    next_h_val = max(next_h_val, holding_time - interval.second); // path max
+                generateChildToFocal(interval.first, curr, next_location, interval.second, next_h_val);
             }
         }  // end for loop that generates successors
         // wait at the current location
         bool found = reservation_table.find_safe_interval(interval, curr->location, get<1>(curr->interval));
         if (found)
         {
-            generateChildToFocal(interval, curr, curr->location, curr->h_val);
+            generateChildToFocal(interval, curr, curr->location, get<0>(interval), curr->h_val);
         }
     }  // end while loop
 
@@ -163,9 +162,9 @@ pair<Path, int> SIPP::findSuboptimalPath(const HLNode& node, const ConstraintTab
 	start->open_handle = open_list.push(start);
 	start->focal_handle = focal_list.push(start);
 	start->in_openlist = true;
-	allNodes_table.insert(start);
+    allNodes_table.resize(instance.map_size, nullptr);
+    allNodes_table[start->location] = insert(allNodes_table[start->location], start);
 	min_f_val = max(holding_time, max((int)start->getFVal(), lowerbound));
-
 
 	while (!open_list.empty()) 
 	{
@@ -186,10 +185,10 @@ pair<Path, int> SIPP::findSuboptimalPath(const HLNode& node, const ConstraintTab
 
         for (int next_location : instance.getNeighbors(curr->location)) // move to neighboring locations
 		{
-			for (auto interval : reservation_table.get_safe_intervals(
+			for (auto & interval : reservation_table.get_safe_intervals(
 				curr->location, next_location, curr->timestep + 1, get<1>(curr->interval) + 1))
 			{
-				generateChild(interval, curr, next_location, reservation_table);
+				generateChild(interval.first, curr, next_location, interval.second, reservation_table);
 			}
 		}  // end for loop that generates successors
 		   
@@ -197,7 +196,7 @@ pair<Path, int> SIPP::findSuboptimalPath(const HLNode& node, const ConstraintTab
 		bool found = reservation_table.find_safe_interval(interval, curr->location, get<1>(curr->interval));
 		if (found)
 		{
-			generateChild(interval, curr, curr->location, reservation_table);
+			generateChild(interval, curr, curr->location, get<0>(interval), reservation_table);
 		}
 	}  // end while loop
 	  
@@ -246,16 +245,15 @@ void SIPP::releaseNodes()
 {
 	open_list.clear();
 	focal_list.clear();
-	for (auto node: allNodes_table)
-		delete node;
+	for (auto n: allNodes_table)
+        deleteNodes(n);
 	allNodes_table.clear();
 }
 
-void SIPP::generateChild(const Interval& interval, SIPPNode* curr, int next_location,
+void SIPP::generateChild(const Interval& interval, SIPPNode* curr, int next_location, int next_timestep,
                          const ReservationTable& reservation_table)
 {
     // compute cost to next_id via curr node
-    int next_timestep = max(curr->timestep + 1, (int)get<0>(interval));
     int next_g_val = next_timestep;
     int next_h_val = max(my_heuristic[next_location], curr->getFVal() - next_g_val);  // path max
     if (next_g_val + next_h_val > reservation_table.constraint_table.length_max)
@@ -266,105 +264,49 @@ void SIPP::generateChild(const Interval& interval, SIPPNode* curr, int next_loca
     auto next = new SIPPNode(next_location, next_g_val, next_h_val, curr, next_timestep, interval, next_conflicts);
     if (next_location == goal_location && curr->location == goal_location)
         next->wait_at_goal = true;
-    // try to retrieve it from the hash table
-    auto it = allNodes_table.find(next);
-    if (it == allNodes_table.end())
+
+    if (dominanceCheck(allNodes_table[next->location], next))
     {
         pushNode(next);
-        allNodes_table.insert(next);
+        allNodes_table[next->location] = insert(allNodes_table[next->location], next);
         return;
     }
-    // update existing node's if needed (only in the open_list)
-
-    auto existing_next = *it;
-    if (existing_next->timestep > next->timestep || // prefer the one with smaller timestep
-        (existing_next->timestep == next->timestep &&
-         existing_next->num_of_conflicts > next->num_of_conflicts)) // or it remains the same but there's fewer conflicts
+    else
     {
-        if (!existing_next->in_openlist) // if its in the closed list (reopen)
-        {
-            existing_next->copy(*next);
-            pushNode(existing_next);
-        }
-        else
-        {
-            bool add_to_focal = false;  // check if it was above the focal bound before and now below (thus need to be inserted)
-            bool update_in_focal = false;  // check if it was inside the focal and needs to be updated (because f-val changed)
-            bool update_open = false;
-            if ((next_g_val + next_h_val) <= w * min_f_val)
-            {  // if the new f-val qualify to be in FOCAL
-                if (existing_next->getFVal() > w * min_f_val)
-                    add_to_focal = true;  // and the previous f-val did not qualify to be in FOCAL then add
-                else
-                    update_in_focal = true;  // and the previous f-val did qualify to be in FOCAL then update
-            }
-            if (existing_next->getFVal() > next_g_val + next_h_val)
-                update_open = true;
-
-            existing_next->copy(*next);	// update existing node
-
-            if (update_open)
-                open_list.increase(existing_next->open_handle);  // increase because f-val improved
-            if (add_to_focal)
-                existing_next->focal_handle = focal_list.push(existing_next);
-            if (update_in_focal)
-                focal_list.update(existing_next->focal_handle);  // should we do update? yes, because number of conflicts may go up or down
-        }
+        delete next;
     }
-
-    delete(next);  // not needed anymore -- we already generated it before
 }
-void SIPP::generateChildToFocal(const Interval& interval, SIPPNode* curr, int next_location, int next_h_val)
+void SIPP::generateChildToFocal(const Interval& interval, SIPPNode* curr, int next_location,
+        int next_timestep, int next_h_val)
 {
-    int next_timestep = max(curr->timestep + 1, (int)get<0>(interval));
-    next_h_val = max(next_h_val, curr->getFVal() - next_timestep); // path max
+    int next_collisions = curr->num_of_conflicts + (int)get<2>(interval);
     // generate (maybe temporary) node
-    auto next = new SIPPNode(next_location, next_timestep, next_h_val, curr, next_timestep, interval,
-            curr->num_of_conflicts + (int)get<2>(interval));
+    auto next = new SIPPNode(next_location, next_timestep, next_h_val, curr, next_timestep, interval, next_collisions);
     if (next_location == goal_location && curr->location == goal_location)
         next->wait_at_goal = true;
     // try to retrieve it from the hash table
-    auto it = allNodes_table.find(next);
-    if (it == allNodes_table.end())
+    if (dominanceCheck(allNodes_table[next->location], next))
     {
         next->focal_handle = focal_list.push(next);
         next->in_openlist = true;
         num_generated++;
-        allNodes_table.insert(next);
-        return;
+        allNodes_table[next->location] = insert(allNodes_table[next->location], next);
     }
-    // update existing node's if needed (only in the open_list)
-
-    auto existing_next = *it;
-    //if (existing_next->num_of_conflicts > next->num_of_conflicts ||
-    //    (existing_next->num_of_conflicts == next->num_of_conflicts &&
-    //     existing_next->getFVal() > next->getFVal()))
-    if (existing_next->timestep > next->timestep || // prefer the one with smaller timestep
-        (existing_next->timestep == next->timestep &&
-         existing_next->num_of_conflicts > next->num_of_conflicts)) // or it remains the same but there's fewer conflicts
+    else
     {
-        existing_next->copy(*next);
-        if (!existing_next->in_openlist) // if its in the closed list (reopen)
-        {
-            existing_next->focal_handle = focal_list.push(existing_next);
-            existing_next->in_openlist = true;
-        }
-        else
-        {
-            focal_list.update(existing_next->focal_handle);  // should we do update? yes, because number of conflicts may go up or down
-        }
+        delete next;
     }
 
-    delete(next);  // not needed anymore -- we already generated it before
 }
 
-// TODO:: currently this is implemented in A*, not SIPP
+// TODO:: currently this is implemented in SIPP inefficiently
 int SIPP::getTravelTime(int start, int end, const ConstraintTable& constraint_table, int upper_bound)
 {
 	int length = MAX_TIMESTEP;
 	auto root = new SIPPNode(start, 0, compute_heuristic(start, end), nullptr, 0, Interval(0, 1, 0), 0);
 	root->open_handle = open_list.push(root);  // add root to heap
-	allNodes_table.insert(root);       // add root to hash_table (nodes)
+    allNodes_table.resize(instance.map_size, nullptr);
+	allNodes_table[root->location] = insert(allNodes_table[root->location], root);
 	SIPPNode* curr = nullptr;
 	auto static_timestep = constraint_table.getMaxTimestep(); // everything is static after this timestep
 	while (!open_list.empty())
@@ -397,22 +339,13 @@ int SIPP::getTravelTime(int start, int end, const ConstraintTable& constraint_ta
 					continue;
 				auto next = new SIPPNode(next_location, next_g_val, next_h_val, nullptr, next_timestep,
 				        Interval(next_timestep, next_timestep + 1, 0), 0);
-				auto it = allNodes_table.find(next);
-				if (it == allNodes_table.end())
+
+                if (dominanceCheck(allNodes_table[next->location], next))
 				{  // add the newly generated node to heap and hash table
 					next->open_handle = open_list.push(next);
-					allNodes_table.insert(next);
+					allNodes_table[next->location] = insert(allNodes_table[next->location], next);
 				}
-				else {  // update existing node's g_val if needed (only in the heap)
-					delete(next);  // not needed anymore -- we already generated it before
-					auto existing_next = *it;
-					if (existing_next->g_val > next_g_val)
-					{
-						existing_next->g_val = next_g_val;
-						existing_next->timestep = next_timestep;
-						open_list.increase(existing_next->open_handle);
-					}
-				}
+				else delete next;
 			}
 		}
 	}
@@ -486,12 +419,15 @@ int SIPP::getTravelTime(int start, int end, const ConstraintTable& constraint_ta
 
 void SIPP::printSearchTree() const
 {
-    vector<list<SIPPNode*>> nodes;
-    for (const auto& n : allNodes_table)
+    /*vector<list<SIPPNode*>> nodes;
+    for (const auto & node_list : allNodes_table)
     {
-        if (nodes.size() <= n->timestep)
-            nodes.resize(n->timestep + 1);
-        nodes[n->timestep].emplace_back(n);
+        for (const auto & n : node_list->second)
+        {
+            if (nodes.size() <= n->timestep)
+                nodes.resize(n->timestep + 1);
+            nodes[n->timestep].emplace_back(n);
+        }
     }
     cout << "Search Tree" << endl;
     for(int t = 0; t < nodes.size(); t++)
@@ -501,4 +437,270 @@ void SIPP::printSearchTree() const
             cout << *n << "[" << get<0>(n->interval) << "," << get<1>(n->interval) << "],\t";
         cout << endl;
     }
+*/
+}
+
+Path SIPP::findNoCollisionPath(const ConstraintTable& constraint_table)
+{
+    ReservationTable reservation_table(constraint_table, goal_location);
+
+    Path path;
+    num_expanded = 0;
+    num_generated = 0;
+    Interval interval = reservation_table.get_first_safe_interval(start_location);
+    if (get<0>(interval) > 0 or get<2>(interval))
+        return path;
+    auto holding_time = max(constraint_table.getHoldingTime(goal_location, constraint_table.length_min),
+                            constraint_table.getLastCollisionTimestep(goal_location) + 1);
+    // generate start and add it to the OPEN & FOCAL list
+
+    auto start = new SIPPNode(start_location, 0, max(my_heuristic[start_location], holding_time),
+            nullptr, 0, interval, 0);
+    num_generated++;
+    start->in_openlist = true;
+    start->focal_handle = focal_list.push(start); // we only use focal list; no open list is used
+    allNodes_table.resize(instance.map_size, nullptr);
+    allNodes_table[start->location] = insert(allNodes_table[start->location], start);
+    while (!focal_list.empty())
+    {
+        auto* curr = focal_list.top();
+        focal_list.pop();
+        curr->in_openlist = false;
+        num_expanded++;
+        assert(curr->location >= 0);
+        // check if the popped node is a goal
+        if (curr->location == goal_location && // arrive at the goal location
+                 !curr->wait_at_goal && // not wait at the goal location
+                 curr->timestep >= holding_time && // the agent can hold the goal location afterward
+                 constraint_table.getFutureNumOfCollisions(curr->location, curr->timestep) == 0) // no future collisions
+        {
+            updatePath(curr, path);
+            break;
+        }
+        for (int next_location : instance.getNeighbors(curr->location)) // move to neighboring locations
+        {
+            int next_h_val = my_heuristic[next_location];
+            for (auto& interval : reservation_table.get_safe_intervals(
+                    curr->location, next_location, curr->timestep + 1, get<1>(curr->interval) + 1))
+            {
+                if (get<2>(interval.first))
+                    continue;
+                if (interval.second + next_h_val > constraint_table.length_max)
+                    break;
+                generateChildToFocal(interval.first, curr, next_location, interval.second, next_h_val);
+            }
+        }  // end for loop that generates successors
+        // wait at the current location
+        bool found = reservation_table.find_safe_interval(interval, curr->location, get<1>(curr->interval));
+        if (found and !get<2>(interval))
+        {
+            generateChildToFocal(interval, curr, curr->location, get<0>(interval), curr->h_val);
+        }
+    }  // end while loop
+
+    //if (path.empty())
+    //    printSearchTree();
+    releaseNodes();
+    return path;
+}
+
+void SIPP::mergeNodes(SIPPNode* old_node, SIPPNode* new_node)
+{
+    /*auto n1 = old_node->timestep <= new_node->timestep? old_node : new_node; // the one with a smaller lower bound
+    auto n2 = old_node->timestep <= new_node->timestep? new_node : old_node; // the one with a larger lower bound
+    if (get<1>(n1->interval) >= get<1>(n2->interval)) // lb1 <= lb2 < ub2 <= ub1
+    { // interval of n2 is a subset of interval of n1
+        if (n1->num_of_conflicts <= n2->num_of_conflicts) // n1 has fewer collisions
+        { // keep n1 and delete n2
+            if (n1 == new_node)
+                updateNodeToFocal(old_node, new_node);
+            delete new_node;
+            return;
+        }
+        else // n2 has fewer collisions
+        {
+            if (n1->timestep == n2->timestep) // lb1 = lb2 < ub2 <= ub1
+            { // change interval of n1 to [ub2, ub1) if ub1 > ub2 and delete n1 otherwise
+                if (get<1>(n1->interval) == get<1>(n2->interval)) // n1.interval = n2.interval
+                { // delete n1 and keep n2
+                    if (n2 == new_node)
+                        updateNodeToFocal(old_node, new_node);
+                    delete new_node;
+                    return;
+                }
+                else // lb1 = lb2 < ub2 < ub1
+                { // change interval of n1 to [ub2, ub1)
+                    n1->interval = make_tuple(get<1>(n2->interval), get<1>(n1->interval), get<2>(n1->interval));
+                    if (n1 == old_node)
+                        focal_list.update(old_node->focal_handle);
+                    new_node->focal_handle = focal_list.push(new_node);
+                    new_node->in_openlist = true;
+                    num_generated++;
+                    allNodes_table.insert(new_node);
+                    return;
+                }
+            }
+            else // lb1 < lb2 < ub2 <= ub1
+            { // keep both
+                new_node->focal_handle = focal_list.push(new_node);
+                new_node->in_openlist = true;
+                num_generated++;
+                allNodes_table.insert(new_node);
+                return;
+
+            }
+        }
+    }
+    else // lb1 <= lb2 < ub1 < ub2
+    {
+        if (n1->num_of_conflicts <= n2->num_of_conflicts) // n1 has fewer collisions
+        {// change the interval of n2 to [ub1, ub2)
+            n2->interval = make_tuple(get<1>(n1->interval), get<1>(n2->interval), get<2>(n2->interval));
+            if (n2 == old_node)
+                focal_list.update(old_node->focal_handle);
+            new_node->focal_handle = focal_list.push(new_node);
+            new_node->in_openlist = true;
+            num_generated++;
+            allNodes_table.insert(new_node);
+            return;
+        }
+        else // n2 has fewer collisions
+        {// change the interval of n1 to [lb1, lb2) if lb2 > lb1 and delete n1 otherwise
+            if (n1->timestep == n2->timestep) // lb1 = lb2 < ub1 < ub2 and n2 has fewer collisions
+            {// delete n1 and keep n2
+                if (n2 == new_node)
+                    updateNodeToFocal(old_node, new_node);
+                delete new_node;
+                return;
+            }
+            else // lb1 < lb2 < ub1 < ub2
+            { // keep both
+                new_node->focal_handle = focal_list.push(new_node);
+                new_node->in_openlist = true;
+                num_generated++;
+                allNodes_table.insert(new_node);
+                return;
+            }
+        }
+    }*/
+
+    if (old_node->timestep > new_node->timestep || // prefer the one with smaller timestep
+        (old_node->timestep == new_node->timestep && old_node->num_of_conflicts > new_node->num_of_conflicts))
+        // or it remains the same but there's fewer conflicts
+    {
+        updateNodeToFocal(old_node, new_node);
+    }
+    delete new_node;
+}
+
+// return true iff we the new node is not dominated by any old node
+bool SIPP::dominanceCheck(ITNode* root, SIPPNode* new_node)
+{
+    list<SIPPNode*> old_nodes;
+    overlapSearch(root, new_node, old_nodes);
+    for (auto & old_node : old_nodes)
+    {
+        if (old_node->wait_at_goal == new_node->wait_at_goal and
+            old_node->timestep <= new_node->timestep and
+            old_node->num_of_conflicts <= new_node->num_of_conflicts and
+            get<1>(old_node->interval) >= get<1>(new_node->interval))
+        { // the new node is dominated by the old node
+            return false;
+        }
+        /*else if (old_node->timestep >= new_node->timestep and old_node->num_of_conflicts >= new_node->num_of_conflicts and
+                 get<1>(old_node->interval) <= get<1>(new_node->interval)) // the old node is dominated by the new node
+        { // delete the old node
+            if (old_node->in_openlist) // if its in open
+            return true;
+        }*/
+    }
+    return true;
+}
+void SIPP::updateNodeToFocal(SIPPNode* old_node, const SIPPNode* new_node)
+{
+    old_node->copy(*new_node);
+    if (!old_node->in_openlist) // if its in the closed list (reopen)
+    {
+        old_node->focal_handle = focal_list.push(old_node);
+        old_node->in_openlist = true;
+        num_generated++; // reopen is considered as a new node
+    }
+    else
+    {
+        focal_list.update(old_node->focal_handle);
+    }
+}
+
+
+// A utility function to create a new Interval Search Tree Node
+ITNode* SIPP::newNode(SIPPNode* n)
+{
+    auto temp = new ITNode;
+    temp->n = n;
+    temp->max = get<1>(n->interval);
+    temp->left = temp->right = nullptr;
+    return temp;
+};
+
+// A utility function to insert a new Interval Search Tree Node
+// This is similar to BST Insert.  Here the low value of interval
+// is used tomaintain BST property
+ITNode* SIPP::insert(ITNode *root, SIPPNode* n)
+{
+    // Base case: Tree is empty, new node becomes root
+    if (root == nullptr)
+        return newNode(n);
+
+    // Get low value of interval at root
+    int l = get<0>(root->n->interval);
+
+    // If root's low value is smaller, then new interval goes to left subtree
+    if (get<0>(n->interval) < l)
+        root->left = insert(root->left, n);
+    else  // Else, new node goes to right subtree.
+        root->right = insert(root->right, n);
+
+    // Update the max value of this ancestor if needed
+    if (root->max < get<1>(n->interval))
+        root->max = get<1>(n->interval);
+
+    return root;
+}
+
+// A utility function to check if given two intervals overlap
+bool SIPP::doOVerlap(SIPPNode* n1, SIPPNode* n2)
+{
+    return get<0>(n1->interval) <= get<1>(n2->interval) and
+           get<0>(n2->interval) <= get<1>(n1->interval);
+}
+
+// The main function that searches a given interval i in a given
+// Interval Tree.
+void SIPP::overlapSearch(ITNode *root, SIPPNode* n, list<SIPPNode*>& overlaps)
+{
+    // Base Case, tree is empty
+    if (root == nullptr)
+        return;
+
+    // If given interval overlaps with root
+    if (doOVerlap(root->n, n))
+        overlaps.push_back(root->n);
+
+    // If left child of root is present and max of left child is
+    // greater than or equal to given interval, then n may
+    // overlap with an interval is left subtree
+    if (root->left != nullptr && root->left->max >= get<0>(n->interval))
+        overlapSearch(root->left, n, overlaps);
+    // Same for the right subtree
+    if (root->right != nullptr && root->right->max >= get<0>(n->interval))
+        overlapSearch(root->right, n, overlaps);
+}
+
+void SIPP::deleteNodes(ITNode *root)
+{
+    if (root == nullptr) return;
+    deleteNodes(root->left);
+    deleteNodes(root->right);
+    delete root->n;
+    delete root;
 }

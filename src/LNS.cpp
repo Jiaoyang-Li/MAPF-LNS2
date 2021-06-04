@@ -162,7 +162,8 @@ bool LNS::run()
          << "initial solution cost = " << initial_sum_of_costs << ", "
          << "runtime = " << runtime << ", "
          << "group size = " << average_group_size << ", "
-         << "failed iterations = " << num_of_failures << endl;
+         << "failed iterations = " << num_of_failures << ", "
+         << "LL nodes = " << num_LL_generated << endl;
     return true;
 }
 
@@ -252,6 +253,7 @@ bool LNS::runEECBS()
     if (!iteration_stats.empty()) // replan
         T = min(T, replan_time_limit);
     bool succ = ecbs.solve(T, 0);
+    num_LL_generated += ecbs.num_LL_generated;
     if (succ && ecbs.solution_cost < neighbor.old_sum_of_costs) // accept new paths
     {
         auto id = neighbor.agents.begin();
@@ -310,6 +312,7 @@ bool LNS::runCBS()
     if (!iteration_stats.empty()) // replan
         T = min(T, replan_time_limit);
     bool succ = cbs.solve(T, 0);
+    num_LL_generated += cbs.num_LL_generated;
     if (succ && cbs.solution_cost < neighbor.old_sum_of_costs) // accept new paths
     {
         auto id = neighbor.agents.begin();
@@ -367,6 +370,7 @@ bool LNS::runPP()
                  ", remaining time = " << time_limit - runtime << " seconds. " << endl
                  << "Agent " << agents[id].id << endl;
         agents[id].path = agents[id].path_planner.findPath(constraint_table);
+        num_LL_generated += agents[id].path_planner.num_generated;
         if (agents[id].path.empty())
         {
             break;

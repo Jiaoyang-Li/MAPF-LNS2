@@ -13,7 +13,22 @@ int ConstraintTable::getMaxTimestep() const // everything is static after the ma
         rst = max(rst, landmarks.rbegin()->first);
     return rst;
 }
+int ConstraintTable::getLastCollisionTimestep(int location) const
+{
+    int rst = -1;
+    if (path_table_for_CAT != nullptr)
+        rst = path_table_for_CAT->getLastCollisionTimestep(location);
 
+    const auto& p = cat.find(location);
+    if (p != cat.end())
+    {
+        for (const auto& action: p->second)
+        {
+            rst = max(rst, action.second - 1);
+        }
+    }
+    return rst;
+}
 void ConstraintTable::insert2CT(size_t from, size_t to, int t_min, int t_max)
 {
 	insert2CT(getEdgeIndex(from, to), t_min, t_max);
@@ -316,6 +331,25 @@ bool ConstraintTable::hasConflictForStep(size_t curr_id, size_t next_id, int nex
                 else if (action.first > next_timestep)
                     break;
             }
+        }
+    }
+    return false;
+}
+bool ConstraintTable::hasEdgeConflict(size_t curr_id, size_t next_id, int next_timestep) const
+{
+    assert(curr_id != next_id);
+    if (path_table_for_CAT != nullptr and path_table_for_CAT->hasEdgeCollisions(curr_id, next_id, next_timestep))
+        return true;
+    auto id = getEdgeIndex(curr_id, next_id); // edge
+    const auto& v1 = cat.find(id);
+    if (v1 != cat.end())
+    {
+        for (const auto& action: v1->second)
+        {
+            if (action.first <= next_timestep && next_timestep < action.second)
+                return true;
+            else if (action.first > next_timestep)
+                break;
         }
     }
     return false;

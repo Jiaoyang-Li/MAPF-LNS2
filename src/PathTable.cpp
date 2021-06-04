@@ -205,7 +205,6 @@ int PathTableWC::getNumOfCollisions(int from, int to, int to_time) const
 }
 bool PathTableWC::hasCollisions(int from, int to, int to_time) const
 {
-    int rst = 0;
     if (!table.empty())
     {
         if ((int)table[to].size() > to_time and !table[to][to_time].empty())
@@ -229,6 +228,21 @@ bool PathTableWC::hasCollisions(int from, int to, int to_time) const
     }
     return false;
 }
+bool PathTableWC::hasEdgeCollisions(int from, int to, int to_time) const
+{
+    if (!table.empty() && from != to && table[to].size() >= to_time && table[from].size() > to_time)
+    {
+        for (auto a1 : table[to][to_time - 1])
+        {
+            for (auto a2: table[from][to_time])
+            {
+                if (a1 == a2)
+                    return true; // edge conflict
+            }
+        }
+    }
+    return false;
+}
 
 int PathTableWC::getAgentWithTarget(int target_location, int latest_timestep) const
 {
@@ -245,3 +259,14 @@ int PathTableWC::getAgentWithTarget(int target_location, int latest_timestep) co
     return -1;
 }
 
+int PathTableWC::getLastCollisionTimestep(int location) const
+{
+    if (table.empty())
+        return -1;
+    for (int t = (int)table[location].size() - 1; t >= 0; t--)
+    {
+        if (!table[location][t].empty())
+            return t;
+    }
+    return -1;
+}

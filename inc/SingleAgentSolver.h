@@ -100,7 +100,7 @@ public:
 		const vector<Path*>& paths, int agent, int lower_bound) = 0;
 	virtual pair<Path, int> findSuboptimalPath(const HLNode& node, const ConstraintTable& initial_constraints,
 		const vector<Path*>& paths, int agent, int lowerbound, double w) = 0;  // return the path and the lowerbound
-    virtual Path findPath(const ConstraintTable& initial_constraints) = 0;  // return the path
+    virtual Path findPath(const ConstraintTable& constraint_table) = 0;  // return the path
     void findMinimumSetofColldingTargets(vector<int>& goal_table,set<int>& A_target);
     virtual int getTravelTime(int start, int end, const ConstraintTable& constraint_table, int upper_bound) = 0;
 	virtual string getName() const = 0;

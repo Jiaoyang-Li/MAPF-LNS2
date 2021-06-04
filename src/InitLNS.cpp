@@ -58,9 +58,22 @@ bool InitLNS::run()
              << "colliding pairs = " << num_of_colliding_pairs << ", "
              << "solution cost = " << sum_of_costs << ", "
              << "remaining time = " << time_limit - runtime << endl;
+    if (runtime >= time_limit and !succ)
+    {
+        cout << getSolverName() << ": Fail to find initial solutions, "
+             << "colliding pairs = " << num_of_colliding_pairs << ", "
+             << "solution cost = " << sum_of_costs << ", "
+             << "initial solution cost = " << initial_sum_of_costs << ", "
+             << "runtime = " << runtime << ", "
+             << "group size = " << average_group_size << ", "
+             << "failed iterations = " << num_of_failures << ", "
+             << "LL nodes = " << num_LL_generated << endl;
+        return false;
+    }
+
     while (runtime < time_limit and num_of_colliding_pairs > 0)
     {
-        runtime =((fsec)(Time::now() - start_time)).count();
+        //runtime =((fsec)(Time::now() - start_time)).count();
 
 
         if (ALNS)
@@ -176,7 +189,7 @@ bool InitLNS::run()
          << "initial solution cost = " << initial_sum_of_costs << ", "
          << "runtime = " << runtime << ", "
          << "group size = " << average_group_size << ", "
-         << "failed iterations = " << num_of_failures << ","
+         << "failed iterations = " << num_of_failures << ", "
          << "LL nodes = " << num_LL_generated << endl;
     return (num_of_colliding_pairs == 0);
 }
@@ -289,36 +302,6 @@ bool InitLNS::runPBS()
         return false;
     }
 }
-
-bool InitLNS::getInitialSolution()
-{
-    neighbor.agents.resize(agents.size());
-    for (int i = 0; i < (int)agents.size(); i++)
-        neighbor.agents[i] = i;
-    neighbor.old_sum_of_costs = MAX_COST;
-    neighbor.sum_of_costs = 0;
-    bool succ = false;
-    if (init_algo_name == "PP")
-        succ = runPP();
-    else
-    {
-        cerr <<  "Initial MAPF solver " << init_algo_name << " does not exist!" << endl;
-        exit(-1);
-    }
-
-    initial_sum_of_costs = neighbor.sum_of_costs;
-    sum_of_costs = neighbor.sum_of_costs;
-    num_of_colliding_pairs = (int) neighbor.colliding_pairs.size();
-    for(const auto& agent_pair : neighbor.colliding_pairs)
-    {
-        collision_graph[agent_pair.first].emplace(agent_pair.second);
-        collision_graph[agent_pair.second].emplace(agent_pair.first);
-    }
-    if (screen >= 2)
-        printCollisionGraph();
-    return succ;
-}
-
 bool InitLNS::runPP()
 {
     auto shuffled_agents = neighbor.agents;
@@ -353,10 +336,11 @@ bool InitLNS::runPP()
             runtime = ((fsec)(Time::now() - start_time)).count();
             cout << "After agent " << id << ": Remaining agents = " << remaining_agents <<
                  ", colliding pairs = " << neighbor.colliding_pairs.size() <<
+                 ", LL nodes = " << num_LL_generated <<
                  ", remaining time = " << time_limit - runtime << " seconds. " << endl;
         }
         if (!neighbor.old_colliding_pairs.empty() && // otherwise it is for the first run
-            neighbor.colliding_pairs.size() > neighbor.old_colliding_pairs.size())
+            neighbor.colliding_pairs.size() >= neighbor.old_colliding_pairs.size())
             break;
         path_table.insertPath(agents[id].id, agents[id].path);
         ++p;
@@ -395,6 +379,36 @@ bool InitLNS::runPP()
         return false;
     }
 }
+
+bool InitLNS::getInitialSolution()
+{
+    neighbor.agents.resize(agents.size());
+    for (int i = 0; i < (int)agents.size(); i++)
+        neighbor.agents[i] = i;
+    neighbor.old_sum_of_costs = MAX_COST;
+    neighbor.sum_of_costs = 0;
+    bool succ = false;
+    if (init_algo_name == "PP")
+        succ = runPP();
+    else
+    {
+        cerr <<  "Initial MAPF solver " << init_algo_name << " does not exist!" << endl;
+        exit(-1);
+    }
+
+    initial_sum_of_costs = neighbor.sum_of_costs;
+    sum_of_costs = neighbor.sum_of_costs;
+    num_of_colliding_pairs = (int) neighbor.colliding_pairs.size();
+    for(const auto& agent_pair : neighbor.colliding_pairs)
+    {
+        collision_graph[agent_pair.first].emplace(agent_pair.second);
+        collision_graph[agent_pair.second].emplace(agent_pair.first);
+    }
+    if (screen >= 2)
+        printCollisionGraph();
+    return succ;
+}
+
 
 void InitLNS::updateCollidingPairs(set<pair<int, int>>& colliding_pairs, int agent_id, const Path& path) const
 {
