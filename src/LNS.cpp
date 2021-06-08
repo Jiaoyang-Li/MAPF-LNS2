@@ -163,7 +163,9 @@ bool LNS::run()
          << "runtime = " << runtime << ", "
          << "group size = " << average_group_size << ", "
          << "failed iterations = " << num_of_failures << ", "
-         << "LL nodes = " << num_LL_generated << endl;
+         << "LL expanded nodes = " << num_LL_expanded << ", "
+         << "LL generated nodes = " << num_LL_generated << ", "
+         << "LL re-opened nodes = " << num_LL_reopened << endl;
     return true;
 }
 
@@ -371,6 +373,8 @@ bool LNS::runPP()
                  << "Agent " << agents[id].id << endl;
         agents[id].path = agents[id].path_planner.findPath(constraint_table);
         num_LL_generated += agents[id].path_planner.num_generated;
+        num_LL_expanded += agents[id].path_planner.num_expanded;
+        num_LL_reopened += agents[id].path_planner.num_reopened;
         if (agents[id].path.empty())
         {
             break;

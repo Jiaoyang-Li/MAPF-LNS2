@@ -17,6 +17,8 @@ public:
     int num_of_colliding_pairs = -1;
     double average_group_size = -1;
     size_t num_LL_generated = 0;
+    size_t num_LL_expanded = 0;
+    size_t num_LL_reopened = 0;
     int num_of_failures = 0; // #replanning that fails to find any solutions
     InitLNS(const Instance& instance, vector<Agent>& agents, double time_limit, string init_algo_name,
             string replan_algo_name,string init_destory_name, int neighbor_size, int screen);

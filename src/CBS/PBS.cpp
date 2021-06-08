@@ -262,6 +262,7 @@ bool PBS::planPath(int agent, PBSNode& node, const set<int> & higher_agents, con
     }
     num_LL_expanded += search_engines[agent]->num_expanded;
     num_LL_generated += search_engines[agent]->num_generated;
+    num_LL_reopened += search_engines[agent]->num_reopened;
     runtime_path_finding += (double)(clock() - t) / CLOCKS_PER_SEC;
     if (screen > 1)
         cout << "\t\t\tRuntime of single-agent search = " << (double)(clock() - t) / CLOCKS_PER_SEC <<

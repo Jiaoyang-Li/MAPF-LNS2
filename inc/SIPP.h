@@ -1,4 +1,5 @@
 ﻿#pragma once
+#include <boost/functional/hash.hpp>
 #include "SingleAgentSolver.h"
 #include "ReservationTable.h"
 
@@ -10,28 +11,30 @@ public:
 	typedef boost::heap::pairing_heap< SIPPNode*, compare<SIPPNode::secondary_compare_node> >::handle_type focal_handle_t;
 	open_handle_t open_handle;
 	focal_handle_t focal_handle;
-	Interval interval;
-
+	int high_v; // the upper bound with respect to the vertex interval
+    int high_e; // the upper bound with respect to the edge interval
 	SIPPNode() : LLNode() {}
-	SIPPNode(int loc, int g_val, int h_val, SIPPNode* parent, int timestep, const Interval& interval,
+	SIPPNode(int loc, int g_val, int h_val, SIPPNode* parent, int timestep, int high_v, int high_e,
 	        int num_of_conflicts) :
-		LLNode(loc, g_val, h_val, parent, timestep, num_of_conflicts), interval(interval) {}
+		LLNode(loc, g_val, h_val, parent, timestep, num_of_conflicts), high_v(high_v), high_e(high_e) {}
 	SIPPNode(const SIPPNode& other): LLNode(other), open_handle(other.open_handle) {} // copy everything except for handles
 	~SIPPNode() {}
 
 	void copy(const SIPPNode& other)
     {
 	    LLNode::copy(other);
-	    interval = other.interval;
+        high_v = other.high_v;
+        high_e = other.high_e;
     }
 	// The following is used by for generating the hash value of a nodes
 	struct NodeHasher
 	{
 		std::size_t operator()(const SIPPNode* n) const
 		{
-			size_t loc_hash = std::hash<int>()(n->location);
-			//size_t timestep_hash = std::hash<size_t>()(get<1>(n->interval));
-			return loc_hash; //(loc_hash ^ (timestep_hash << 1));
+            size_t seed = 0;
+            boost::hash_combine(seed, n->location);
+            boost::hash_combine(seed, n->high_v);
+            return seed;
 		}
 	};
 
@@ -44,20 +47,12 @@ public:
 		{
 			return (n1 == n2) ||
 			            (n1 && n2 && n1->location == n2->location &&
-				        n1->wait_at_goal == n2->wait_at_goal); //&&
-                        //get<1>(n1->interval) == get<1>(n2->interval));
+				        n1->wait_at_goal == n2->wait_at_goal &&
+                        n1->high_v == n2->high_v);
                         //max(n1->timestep, n2->timestep) <
                         //min(get<1>(n1->interval), get<1>(n2->interval))); //overlapping time intervals
 		}
 	};
-};
-
-// Structure to represent a node in Interval Search Tree
-struct ITNode
-{
-    SIPPNode* n;
-    int max; // the max upper bound for the subtree
-    ITNode *left, *right;
 };
 
 class SIPP: public SingleAgentSolver
@@ -90,31 +85,24 @@ private:
 	heap_focal_t focal_list;
 
 	// define typedef for hash_map
-	//typedef boost::unordered_map<SIPPNode*, ITNode*, SIPPNode::NodeHasher, SIPPNode::eqnode> hashtable_t;
-	vector<ITNode*> allNodes_table;
+	typedef boost::unordered_map<SIPPNode*, list<SIPPNode*>, SIPPNode::NodeHasher, SIPPNode::eqnode> hashtable_t;
+    hashtable_t allNodes_table;
+    list<SIPPNode*> useless_nodes;
+    // Path findNoCollisionPath(const ConstraintTable& constraint_table);
 
-    Path findNoCollisionPath(const ConstraintTable& constraint_table);
-	void generateChild(const Interval& interval, SIPPNode* curr, int next_location, int next_timestep,
-		const ReservationTable& reservation_table);
-    void generateChildToFocal(const Interval& interval, SIPPNode* curr, int next_location,
-            int next_timestep, int next_h_val);
-	
-	// Updates the path datamember
 	static void updatePath(const LLNode* goal, std::vector<PathEntry> &path);
-	inline SIPPNode* popNode();
-	inline void pushNode(SIPPNode* node);
+
+	inline void pushNodeToOpenAndFocal(SIPPNode* node);
+    inline void pushNodeToFocal(SIPPNode* node);
+    inline void eraseNodeFromLists(SIPPNode* node);
 	void updateFocalList();
 	void releaseNodes();
-    void mergeNodes(SIPPNode* old_node, SIPPNode* new_node);
-    static bool dominanceCheck(ITNode* root, SIPPNode* new_node);
-    void updateNodeToFocal(SIPPNode* old_node, const SIPPNode* new_node);
+	void reset()
+    {
+        num_expanded = 0;
+        num_generated = 0;
+    }
+    bool dominanceCheck(SIPPNode* new_node);
 	void printSearchTree() const;
-
-	// Interval tree search - used by the allNodes_table
-    static ITNode* newNode(SIPPNode* n);
-    static ITNode *insert(ITNode *root, SIPPNode* n);
-    static bool doOVerlap(SIPPNode* n1, SIPPNode* n2);
-    static void overlapSearch(ITNode *root, SIPPNode* n, list<SIPPNode*>& overlaps);
-    static void deleteNodes(ITNode *root);
 };
 

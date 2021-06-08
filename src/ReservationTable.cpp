@@ -28,7 +28,7 @@
 }*/
 
 
-void ReservationTable::insert2SIT(size_t location, size_t t_min, size_t t_max)
+void ReservationTable::insert2SIT(size_t location, int t_min, int t_max)
 {
 	assert(t_min >= 0 && t_min < t_max);
     if (sit[location].empty())
@@ -74,7 +74,7 @@ void ReservationTable::insert2SIT(size_t location, size_t t_min, size_t t_max)
     }
 }
 
-void ReservationTable::insertSoftConstraint2SIT(size_t location, size_t t_min, size_t t_max)
+void ReservationTable::insertSoftConstraint2SIT(size_t location, int t_min, int t_max)
 {
     assert(t_min >= 0 && t_min < t_max);
     if (sit[location].empty())
@@ -330,10 +330,10 @@ void ReservationTable::updateSIT(size_t location)
     }
 }
 
-// [lower_bound, upper_bound)
-list<pair<Interval, int>> ReservationTable::get_safe_intervals(size_t from, size_t to, size_t lower_bound, size_t upper_bound)
+// return <upper_bound, low, high,  vertex collision, edge collision>
+list<tuple<int, int, int, bool, bool>> ReservationTable::get_safe_intervals(int from, int to, int lower_bound, int upper_bound)
 {
-    list<pair<Interval, int>> rst;
+    list<tuple<int, int, int, bool, bool>> rst;
     if (lower_bound >= upper_bound)
         return rst;
 
@@ -350,19 +350,19 @@ list<pair<Interval, int>> ReservationTable::get_safe_intervals(size_t from, size
             continue;
         else if (get<2>(interval)) // the interval has collisions
         {
-            rst.emplace_back(interval, t1);
+            rst.emplace_back(get<1>(interval), t1, get<1>(interval), true, false);
         }
         else // the interval does not have collisions
         { // so we need to check the move action has collisions or not
             auto t2 = get_earliest_no_collision_arrival_time(from, to, interval, t1, upper_bound);
             if (t1 == t2)
-                rst.emplace_back(interval, t1);
+                rst.emplace_back(get<1>(interval), t1, get<1>(interval), false, false);
             else if (t2 < 0)
-                rst.emplace_back(make_tuple(get<0>(interval), get<1>(interval), true), t1);
+                rst.emplace_back(get<1>(interval), t1, get<1>(interval), false, true);
             else
             {
-                rst.emplace_back(make_tuple(get<0>(interval), t2, true), t1);
-                rst.emplace_back(make_tuple(t2, get<1>(interval), true), t2);
+                rst.emplace_back(get<1>(interval), t1, t2, false, true);
+                rst.emplace_back(get<1>(interval), t2, get<1>(interval), false, false);
             }
         }
     }
@@ -376,7 +376,7 @@ Interval ReservationTable::get_first_safe_interval(size_t location)
 }
 
 // find a safe interval with t_min as given
-bool ReservationTable::find_safe_interval(Interval& interval, size_t location, size_t t_min)
+bool ReservationTable::find_safe_interval(Interval& interval, size_t location, int t_min)
 {
 	if (t_min >= min(constraint_table.length_max, MAX_TIMESTEP - 1) + 1)
 		return false;
@@ -395,7 +395,7 @@ bool ReservationTable::find_safe_interval(Interval& interval, size_t location, s
 }
 
 int ReservationTable::get_earliest_arrival_time(int from, int to, const Interval& interval,
-        size_t lower_bound, size_t upper_bound) const
+        int lower_bound, int upper_bound) const
 {
     for (auto t = max(lower_bound, get<0>(interval)); t < min(upper_bound, get<1>(interval)); t++)
     {
@@ -405,7 +405,7 @@ int ReservationTable::get_earliest_arrival_time(int from, int to, const Interval
     return -1;
 }
 int ReservationTable::get_earliest_no_collision_arrival_time(int from, int to, const Interval& interval,
-                                           size_t lower_bound, size_t upper_bound) const
+                                                             int lower_bound, int upper_bound) const
 {
     for (auto t = max(lower_bound, get<0>(interval)); t < min(upper_bound, get<1>(interval)); t++)
     {

@@ -190,7 +190,9 @@ bool InitLNS::run()
          << "runtime = " << runtime << ", "
          << "group size = " << average_group_size << ", "
          << "failed iterations = " << num_of_failures << ", "
-         << "LL nodes = " << num_LL_generated << endl;
+         << "LL expanded nodes = " << num_LL_expanded << ", "
+         << "LL generated nodes = " << num_LL_generated << ", "
+         << "LL re-opened nodes = " << num_LL_reopened << endl;
     return (num_of_colliding_pairs == 0);
 }
 bool InitLNS::runGCBS()
@@ -225,6 +227,8 @@ bool InitLNS::runGCBS()
         T = min(T, replan_time_limit);
     gcbs.solve(T);
     num_LL_generated += gcbs.num_LL_generated;
+    num_LL_expanded += gcbs.num_LL_expanded;
+    num_LL_reopened += gcbs.num_LL_reopened;
     if (gcbs.best_node->colliding_pairs < (int) neighbor.old_colliding_pairs.size()) // accept new paths
     {
         auto id = neighbor.agents.begin();
@@ -273,6 +277,8 @@ bool InitLNS::runPBS()
         T = min(T, replan_time_limit);
     bool succ = pbs.solve(T, (int)neighbor.agents.size(), neighbor.old_colliding_pairs.size());
     num_LL_generated += pbs.num_LL_generated;
+    num_LL_expanded += pbs.num_LL_expanded;
+    num_LL_reopened += pbs.num_LL_reopened;
     if (succ and pbs.best_node->getCollidingPairs() < (int) neighbor.old_colliding_pairs.size()) // accept new paths
     {
         auto id = neighbor.agents.begin();
@@ -327,6 +333,8 @@ bool InitLNS::runPP()
         int id = *p;
         agents[id].path = agents[id].path_planner.findPath(constraint_table);
         num_LL_generated += agents[id].path_planner.num_generated;
+        num_LL_expanded += agents[id].path_planner.num_expanded;
+        num_LL_reopened += agents[id].path_planner.num_reopened;
         assert(!agents[id].path.empty() && agents[id].path.back().location == agents[id].path_planner.goal_location);
         updateCollidingPairs(neighbor.colliding_pairs, agents[id].id, agents[id].path);
         neighbor.sum_of_costs += (int)agents[id].path.size() - 1;

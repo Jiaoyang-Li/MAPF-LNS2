@@ -26,6 +26,7 @@ public:
     uint64_t num_HL_generated = 0;
     uint64_t num_LL_expanded = 0;
     uint64_t num_LL_generated = 0;
+    uint64_t num_LL_reopened = 0;
 
     GCBSNode* best_node = nullptr;
     vector<Path*> paths;

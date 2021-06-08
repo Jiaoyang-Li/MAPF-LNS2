@@ -20,7 +20,7 @@ enum destroy_heuristic { RANDOMAGENTS, RANDOMWALK, INTERSECTION, DESTORY_COUNT }
 struct Agent
 {
     int id;
-    SpaceTimeAStar path_planner; // start, goal, and heuristics are stored in the path planner
+    SIPP path_planner; // start, goal, and heuristics are stored in the path planner
     Path path;
 
     Agent(const Instance& instance, int id) : id(id), path_planner(instance, id) {}
@@ -59,6 +59,8 @@ public:
     double average_group_size = -1;
     int num_of_failures = 0; // #replanning that fails to find any solutions
     size_t num_LL_generated = 0;
+    size_t num_LL_expanded = 0;
+    size_t num_LL_reopened = 0;
     LNS(const Instance& instance, double time_limit,
         string init_algo_name, string replan_algo_name, string destory_name,
         int neighbor_size, int num_of_iterations, bool init_lns,string init_destory_name, int screen, PIBTPPS_option pipp_option);
