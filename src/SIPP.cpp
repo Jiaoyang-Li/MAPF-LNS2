@@ -123,7 +123,9 @@ Path SIPP::findPath(const ConstraintTable& constraint_table)
     }  // end while loop
 
     //if (path.empty())
+    //{
     //    printSearchTree();
+    //}
     releaseNodes();
     return path;
 }
@@ -465,10 +467,10 @@ void SIPP::releaseNodes()
 
 void SIPP::printSearchTree() const
 {
-    /*vector<list<SIPPNode*>> nodes;
+    vector<list<SIPPNode*>> nodes;
     for (const auto & node_list : allNodes_table)
     {
-        for (const auto & n : node_list->second)
+        for (const auto & n : node_list.second)
         {
             if (nodes.size() <= n->timestep)
                 nodes.resize(n->timestep + 1);
@@ -480,10 +482,9 @@ void SIPP::printSearchTree() const
     {
         cout << "t=" << t << ":\t";
         for (const auto & n : nodes[t])
-            cout << *n << "[" << get<0>(n->interval) << "," << get<1>(n->interval) << "],\t";
+            cout << *n << "[" << n->timestep << "," << n->high_e << "),c=" << n->num_of_conflicts << "\t";
         cout << endl;
     }
-*/
 }
 
 // return true iff we the new node is not dominated by any old node
@@ -517,8 +518,8 @@ bool SIPP::dominanceCheck(SIPPNode* new_node)
         }
         /*else // we need to split the node
         {
-         //assert(!(old_node->timestep < new_node->timestep and new_node->high_e < old_node->high_e) and
-        //       !(new_node->timestep < old_node->timestep and old_node->high_e < new_node->high_e));
+            assert(!(old_node->timestep < new_node->timestep and new_node->high_e < old_node->high_e) and
+               !(new_node->timestep < old_node->timestep and old_node->high_e < new_node->high_e));
             SIPPNode *n1, *n2;
             if (old_node->timestep < new_node->timestep or
                     (old_node->timestep == new_node->timestep and old_node->high_e < new_node->high_e))
@@ -531,7 +532,7 @@ bool SIPP::dominanceCheck(SIPPNode* new_node)
                 n1 = new_node;
                 n2 = old_node;
             }
-            if (n1->num_of_conflicts <= n2->num_of_conflicts)
+            if (n1->num_of_conflicts < n2->num_of_conflicts)
             {// keep n1 and change n2
                 if (n2 == new_node)
                 {
@@ -540,13 +541,36 @@ bool SIPP::dominanceCheck(SIPPNode* new_node)
                 }
                 else if (old_node->in_openlist)
                 {
-                    old_node->timestep = new_node->high_e; // this is not true, the new timestep may not be reachable from its parent
-
+                    old_node->timestep = new_node->high_e;
+                    assert(old_node->timestep < old_node->high_e);
+                    if (open_list.empty())
+                    {
+                        focal_list.update(old_node->focal_handle);
+                    }
+                    else if (focal_list.empty())
+                    {
+                        open_list.update(old_node->open_handle);
+                    }
+                    else
+                    {
+                        open_list.update(old_node->open_handle);
+                        if (old_node->getFVal() <= w * min_f_val)
+                            focal_list.update(old_node->focal_handle);
+                    }
                 }
             }
             else
             {// change n1 and keep n2
-
+                if (n1 == new_node)
+                {
+                    new_node->high_e = old_node->timestep;
+                    assert(new_node->timestep < new_node->high_e);
+                }
+                else if (old_node->in_openlist)
+                {
+                    old_node->high_e = new_node->timestep;
+                    assert(old_node->timestep < old_node->high_e);
+                }
             }
         }*/
     }

@@ -17,10 +17,10 @@ public:
 	SIPPNode(int loc, int g_val, int h_val, SIPPNode* parent, int timestep, int high_v, int high_e,
 	        int num_of_conflicts) :
 		LLNode(loc, g_val, h_val, parent, timestep, num_of_conflicts), high_v(high_v), high_e(high_e) {}
-	SIPPNode(const SIPPNode& other): LLNode(other), open_handle(other.open_handle) {} // copy everything except for handles
+	SIPPNode(const SIPPNode& other): LLNode(other), high_v(other.high_v), high_e(other.high_e) {}
 	~SIPPNode() {}
 
-	void copy(const SIPPNode& other)
+	void copy(const SIPPNode& other) // copy everything except for handles
     {
 	    LLNode::copy(other);
         high_v = other.high_v;
@@ -48,6 +48,7 @@ public:
 			return (n1 == n2) ||
 			            (n1 && n2 && n1->location == n2->location &&
 				        n1->wait_at_goal == n2->wait_at_goal &&
+				        n1->is_goal == n2->is_goal &&
                         n1->high_v == n2->high_v);
                         //max(n1->timestep, n2->timestep) <
                         //min(get<1>(n1->interval), get<1>(n2->interval))); //overlapping time intervals
