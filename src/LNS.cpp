@@ -861,37 +861,77 @@ void LNS::writeResultToFile(string file_name) const
     std::ifstream infile(file_name);
     bool exist = infile.good();
     infile.close();
-    if (!exist)
+    if (use_init_lns)
     {
-        ofstream addHeads(file_name);
-        addHeads << "runtime,solution cost,initial solution cost,min f value,root g value," <<
-                 "iterations," <<
-                 "group size," <<
-                 "runtime of initial solution,area under curve," <<
-                 "preprocessing runtime,solver name,instance name" << endl;
-        addHeads.close();
-    }
-    ofstream stats(file_name, std::ios::app);
-    double auc = 0;
-    if (!iteration_stats.empty())
-    {
-        auto prev = iteration_stats.begin();
-        auto curr = prev;
-        ++curr;
-        while (curr != iteration_stats.end() && curr->runtime < time_limit)
+        if (!exist)
         {
-            auc += (prev->sum_of_costs - sum_of_distances) * (curr->runtime - prev->runtime);
-            prev = curr;
-            ++curr;
+            ofstream addHeads(file_name);
+            addHeads << "runtime,num of collisions,solution cost,initial collisions,initial solution cost," <<
+                     "sum of distances,iterations,group size," <<
+                     "runtime of initial solution,area under curve," <<
+                     "LL expanded nodes," <<
+                     "preprocessing runtime,solver name,instance name" << endl;
+            addHeads.close();
         }
-        auc += (prev->sum_of_costs - sum_of_distances) * (time_limit - prev->runtime);
+        ofstream stats(file_name, std::ios::app);
+        double auc = 0;
+        if (!init_lns->iteration_stats.empty())
+        {
+            auto prev = init_lns->iteration_stats.begin();
+            auto curr = prev;
+            ++curr;
+            while (curr != init_lns->iteration_stats.end() && curr->runtime < time_limit)
+            {
+                auc += prev->num_of_colliding_pairs * (curr->runtime - prev->runtime);
+                prev = curr;
+                ++curr;
+            }
+            auc += prev->num_of_colliding_pairs * (time_limit - prev->runtime);
+        }
+        stats << init_lns->runtime << "," << init_lns->iteration_stats.back().num_of_colliding_pairs << "," <<
+              init_lns->sum_of_costs << "," << init_lns->iteration_stats.front().num_of_colliding_pairs << "," <<
+              init_lns->initial_sum_of_costs << "," << sum_of_distances << "," <<
+              init_lns->iteration_stats.size() << "," << init_lns->average_group_size << "," <<
+              init_lns->initial_solution_runtime << "," << auc << "," <<
+              init_lns->num_LL_expanded << "," <<
+              preprocessing_time << "," << init_lns->getSolverName() << "," << instance.getInstanceName() << endl;
+        stats.close();
     }
-    stats << runtime << "," << sum_of_costs << "," << initial_sum_of_costs << "," <<
-            max(sum_of_distances, sum_of_costs_lowerbound) << "," << sum_of_distances << "," <<
-            iteration_stats.size() << "," << average_group_size << "," <<
-            initial_solution_runtime << "," << auc << "," <<
-            preprocessing_time << "," << getSolverName() << "," << instance.getInstanceName() << endl;
-    stats.close();
+    else
+    {
+        if (!exist)
+        {
+            ofstream addHeads(file_name);
+            addHeads << "runtime,solution cost,initial solution cost,min f value,root g value," <<
+                     "iterations," <<
+                     "group size," <<
+                     "runtime of initial solution,area under curve," <<
+                     "preprocessing runtime,solver name,instance name" << endl;
+            addHeads.close();
+        }
+        ofstream stats(file_name, std::ios::app);
+        double auc = 0;
+        if (!iteration_stats.empty())
+        {
+            auto prev = iteration_stats.begin();
+            auto curr = prev;
+            ++curr;
+            while (curr != iteration_stats.end() && curr->runtime < time_limit)
+            {
+                auc += (prev->sum_of_costs - sum_of_distances) * (curr->runtime - prev->runtime);
+                prev = curr;
+                ++curr;
+            }
+            auc += (prev->sum_of_costs - sum_of_distances) * (time_limit - prev->runtime);
+        }
+        stats << runtime << "," << sum_of_costs << "," << initial_sum_of_costs << "," <<
+              max(sum_of_distances, sum_of_costs_lowerbound) << "," << sum_of_distances << "," <<
+              iteration_stats.size() << "," << average_group_size << "," <<
+              initial_solution_runtime << "," << auc << "," <<
+              preprocessing_time << "," << getSolverName() << "," << instance.getInstanceName() << endl;
+        stats.close();
+    }
+
 }
 
 void LNS::writePathsToFile(string file_name) const
