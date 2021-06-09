@@ -3,6 +3,7 @@
 
 void SpaceTimeAStar::updatePath(const LLNode* goal, vector<PathEntry> &path)
 {
+    num_collisions = goal->num_of_conflicts;
     const LLNode* curr = goal;
     if (curr->is_goal)
         curr = curr->parent;

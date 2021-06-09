@@ -1,8 +1,6 @@
 #pragma once
-#include "SpaceTimeAStar.h"
-#include "SIPP.h"
-#include <chrono>
-#include <utility>
+#include "BasicLNS.h"
+#include "InitLNS.h"
 
 //pibt related
 #include "simplegrid.h"
@@ -12,33 +10,8 @@
 #include "pibt.h"
 #include "pps.h"
 #include "winpibt.h"
-using namespace std::chrono;
-typedef std::chrono::high_resolution_clock Time;
-typedef std::chrono::duration<float> fsec;
+
 enum destroy_heuristic { RANDOMAGENTS, RANDOMWALK, INTERSECTION, DESTORY_COUNT };
-
-struct Agent
-{
-    int id;
-    SIPP path_planner; // start, goal, and heuristics are stored in the path planner
-    Path path;
-
-    Agent(const Instance& instance, int id) : id(id), path_planner(instance, id) {}
-
-    int getNumOfDelays() const { return (int) path.size() - 1 - path_planner.my_heuristic[path_planner.start_location]; }
-
-};
-
-
-struct Neighbor
-{
-    vector<int> agents;
-    int sum_of_costs;
-    int old_sum_of_costs;
-    set<pair<int, int>> colliding_pairs;  // id1 < id2
-    set<pair<int, int>> old_colliding_pairs;  // id1 < id2
-    vector<Path> old_paths;
-};
 
 // TODO: adaptively change the neighbor size, that is,
 // increase it if no progress is made for a while
@@ -63,8 +36,13 @@ public:
     size_t num_LL_reopened = 0;
     LNS(const Instance& instance, double time_limit,
         string init_algo_name, string replan_algo_name, string destory_name,
-        int neighbor_size, int num_of_iterations, bool init_lns,string init_destory_name, int screen, PIBTPPS_option pipp_option);
-
+        int neighbor_size, int num_of_iterations, bool init_lns, string init_destory_name, int screen,
+        PIBTPPS_option pipp_option);
+    ~LNS()
+    {
+        if(init_lns != nullptr)
+            delete init_lns;
+    }
     bool getInitialSolution();
     bool run();
     void validateSolution() const;
@@ -74,14 +52,14 @@ public:
     string getSolverName() const { return "LNS(" + init_algo_name + ";" + replan_algo_name + ")"; }
 private:
     int num_neighbor_sizes = 1; //4; // so the neighbor size could be 2, 4, 8, 16
-
+    InitLNS* init_lns = nullptr;
     // input params
     const Instance& instance; // avoid making copies of this variable as much as possible
     double time_limit;
     double replan_time_limit; // time limit for replanning
     string init_algo_name;
     string replan_algo_name;
-    bool init_lns; // use LNS to find initial solutions
+    bool use_init_lns; // use LNS to find initial solutions
     int screen;
     destroy_heuristic destroy_strategy = RANDOMWALK;
     int neighbor_size;

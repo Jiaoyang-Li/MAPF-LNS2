@@ -1,5 +1,5 @@
 #pragma once
-#include "LNS.h"
+#include "BasicLNS.h"
 
 enum init_destroy_heuristic { TARGET_BASED, COLLISION_BASED, INIT_COUNT };
 
@@ -72,7 +72,7 @@ private:
     bool runGCBS();
     bool runPBS();
 
-    void updateCollidingPairs(set<pair<int, int>>& colliding_pairs, int agent_id, const Path& path) const;
+    bool updateCollidingPairs(set<pair<int, int>>& colliding_pairs, int agent_id, const Path& path) const;
 
     void chooseDestroyHeuristicbyALNS();
     //bool generateNeighborByStart();

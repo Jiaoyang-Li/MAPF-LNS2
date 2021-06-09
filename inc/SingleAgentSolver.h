@@ -82,7 +82,7 @@ public:
 	uint64_t num_expanded = 0;
 	uint64_t num_generated = 0;
     uint64_t num_reopened = 0;
-
+    int num_collisions = -1;
 	double runtime_build_CT = 0; // runtimr of building constraint table
 	double runtime_build_CAT = 0; // runtime of building conflict avoidance table
 

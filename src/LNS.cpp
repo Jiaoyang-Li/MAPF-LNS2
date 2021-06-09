@@ -1,13 +1,13 @@
 #include "LNS.h"
-#include "InitLNS.h"
 #include "ECBS.h"
 #include <queue>
 
 LNS::LNS(const Instance& instance, double time_limit, string init_algo_name, string replan_algo_name, string destory_name,
-         int neighbor_size, int num_of_iterations, bool init_lns,string init_destory_name, int screen, PIBTPPS_option pipp_option) :
+         int neighbor_size, int num_of_iterations, bool use_init_lns,string init_destory_name, int screen,
+         PIBTPPS_option pipp_option) :
          instance(instance), time_limit(time_limit), init_algo_name(init_algo_name),
          replan_algo_name(replan_algo_name), neighbor_size(neighbor_size), num_of_iterations(num_of_iterations),
-         init_lns(init_lns),init_destory_name(init_destory_name),
+         use_init_lns(use_init_lns),init_destory_name(init_destory_name),
          screen(screen), path_table(instance.map_size),pipp_option(pipp_option), replan_time_limit(time_limit / 100)
 {
     start_time = Time::now();
@@ -178,12 +178,12 @@ bool LNS::getInitialSolution()
     neighbor.old_sum_of_costs = MAX_COST;
     neighbor.sum_of_costs = 0;
     bool succ = false;
-    if (init_lns)
+    if (use_init_lns)
     {
-        InitLNS initLNS(instance, agents, time_limit, init_algo_name, replan_algo_name,init_destory_name, neighbor_size, screen);
-        succ = initLNS.run();
-        neighbor.sum_of_costs = initLNS.sum_of_costs;
-        auto name = instance.getInstanceName();
+        init_lns = new InitLNS(instance, agents, time_limit, init_algo_name, replan_algo_name,init_destory_name, neighbor_size, screen);
+        succ = init_lns->run();
+        neighbor.sum_of_costs = init_lns->sum_of_costs;
+        /*auto name = instance.getInstanceName();
         auto pos = name.rfind('/');
         if (pos == std::string::npos)
             pos = 0;
@@ -191,7 +191,7 @@ bool LNS::getInitialSolution()
             pos++;
         auto out_name = name.substr( pos) + "-agents=" + std::to_string(agents.size()) +
                 "-neighbor=" + std::to_string(neighbor_size) + "-initLNS.csv";
-        initLNS.writeIterStatsToFile(out_name);
+        initLNS.writeIterStatsToFile(out_name);*/
     }
     else if (init_algo_name == "EECBS")
         succ = runEECBS();

@@ -30,21 +30,7 @@
 
 void ReservationTable::insert2SIT(size_t location, int t_min, int t_max)
 {
-	assert(t_min >= 0 && t_min < t_max);
-    if (sit[location].empty())
-    {
-		assert(constraint_table.length_min <= constraint_table.length_max);
-		int latest_timestep = min(constraint_table.length_max, MAX_TIMESTEP - 1) + 1;
-		if (t_min > 0)
-		{
-			sit[location].emplace_back(0, t_min, false);
-		}
-		if ((int)t_max < latest_timestep)
-		{
-			sit[location].emplace_back(t_max, latest_timestep, false);
-		}
-        return;
-    }
+	assert(t_min >= 0 and t_min < t_max and !sit[location].empty());
     for (auto it = sit[location].begin(); it != sit[location].end();)
     {
         if (t_min >= get<1>(*it))
@@ -76,17 +62,7 @@ void ReservationTable::insert2SIT(size_t location, int t_min, int t_max)
 
 void ReservationTable::insertSoftConstraint2SIT(size_t location, int t_min, int t_max)
 {
-    assert(t_min >= 0 && t_min < t_max);
-    if (sit[location].empty())
-    {
-        if (t_min > 0)
-        {
-			sit[location].emplace_back(0, t_min, false);
-        }
-		sit[location].emplace_back(t_min, t_max, true);
-		sit[location].emplace_back(t_max, min(constraint_table.length_max + 1, MAX_TIMESTEP), false);
-        return;
-    }
+    assert(t_min >= 0 && t_min < t_max and !sit[location].empty());
     for (auto it = sit[location].begin(); it != sit[location].end(); ++it)
     {
         if (t_min >= get<1>(*it) || get<2>(*it))
@@ -198,6 +174,7 @@ void ReservationTable::insertSoftConstraint2SIT(size_t location, int t_min, int 
 // update SIT at the given location
 void ReservationTable::updateSIT(size_t location)
 {
+    assert(sit[location].empty());
     // length constraints for the goal location
     if (location == goal_location) // we need to divide the same intervals into 2 parts [0, length_min) and [length_min, length_max + 1)
     {
@@ -213,7 +190,10 @@ void ReservationTable::updateSIT(size_t location)
         assert(constraint_table.length_min >= 0);
         sit[location].emplace_back(constraint_table.length_min, min(constraint_table.length_max + 1, MAX_TIMESTEP), false);
     }
-
+    else
+    {
+        sit[location].emplace_back(0, min(constraint_table.length_max, MAX_TIMESTEP - 1) + 1, false);
+    }
     // path table
     if (constraint_table.path_table_for_CT != nullptr and !constraint_table.path_table_for_CT->table.empty())
     {
@@ -323,11 +303,6 @@ void ReservationTable::updateSIT(size_t location)
         for (auto time_range : it2->second)
             insertSoftConstraint2SIT(location, time_range.first, time_range.second);
     }
-
-    if(sit[location].empty())
-    {
-        sit[location].emplace_back(0, min(constraint_table.length_max, MAX_TIMESTEP - 1) + 1, 0);
-    }
 }
 
 // return <upper_bound, low, high,  vertex collision, edge collision>
@@ -337,7 +312,8 @@ list<tuple<int, int, int, bool, bool>> ReservationTable::get_safe_intervals(int 
     if (lower_bound >= upper_bound)
         return rst;
 
-    updateSIT(to);
+    if (sit[to].empty())
+        updateSIT(to);
 
     for(auto interval : sit[to])
     {
@@ -371,7 +347,8 @@ list<tuple<int, int, int, bool, bool>> ReservationTable::get_safe_intervals(int 
 
 Interval ReservationTable::get_first_safe_interval(size_t location)
 {
-	updateSIT(location);
+    if (sit[location].empty())
+	    updateSIT(location);
     return sit[location].front();
 }
 
@@ -380,7 +357,8 @@ bool ReservationTable::find_safe_interval(Interval& interval, size_t location, i
 {
 	if (t_min >= min(constraint_table.length_max, MAX_TIMESTEP - 1) + 1)
 		return false;
-	updateSIT(location);
+    if (sit[location].empty())
+	    updateSIT(location);
     for( auto & i : sit[location])
     {
         if ((int)get<0>(i) <= t_min && t_min < (int)get<1>(i))

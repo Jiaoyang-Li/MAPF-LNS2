@@ -336,7 +336,8 @@ bool InitLNS::runPP()
         num_LL_expanded += agents[id].path_planner.num_expanded;
         num_LL_reopened += agents[id].path_planner.num_reopened;
         assert(!agents[id].path.empty() && agents[id].path.back().location == agents[id].path_planner.goal_location);
-        updateCollidingPairs(neighbor.colliding_pairs, agents[id].id, agents[id].path);
+        auto succ = updateCollidingPairs(neighbor.colliding_pairs, agents[id].id, agents[id].path);
+        assert(succ == 0 or agents[id].path_planner.num_collisions > 0);
         neighbor.sum_of_costs += (int)agents[id].path.size() - 1;
         remaining_agents--;
         if (screen >= 3)
@@ -417,11 +418,12 @@ bool InitLNS::getInitialSolution()
     return succ;
 }
 
-
-void InitLNS::updateCollidingPairs(set<pair<int, int>>& colliding_pairs, int agent_id, const Path& path) const
+// return true if the new p[ath has collisions;
+bool InitLNS::updateCollidingPairs(set<pair<int, int>>& colliding_pairs, int agent_id, const Path& path) const
 {
+    bool succ = false;
     if (path.size() < 2)
-        return;
+        return succ;
     for (int t = 1; t < (int)path.size(); t++)
     {
         int from = path[t - 1].location;
@@ -430,6 +432,7 @@ void InitLNS::updateCollidingPairs(set<pair<int, int>>& colliding_pairs, int age
         {
             for (auto id : path_table.table[to][t])
             {
+                succ = true;
                 colliding_pairs.emplace(min(agent_id, id), max(agent_id, id));
             }
         }
@@ -440,7 +443,11 @@ void InitLNS::updateCollidingPairs(set<pair<int, int>>& colliding_pairs, int age
                 for (auto a2: path_table.table[from][t])
                 {
                     if (a1 == a2)
+                    {
+                        succ = true;
                         colliding_pairs.emplace(min(agent_id, a1), max(agent_id, a1));
+                        break;
+                    }
                 }
             }
         }
@@ -453,6 +460,7 @@ void InitLNS::updateCollidingPairs(set<pair<int, int>>& colliding_pairs, int age
             {
                 if (agents[id].path.back().location == to) // if agent id's goal is to, then this is the agent we want
                 {
+                    succ = true;
                     colliding_pairs.emplace(min(agent_id, id), max(agent_id, id));
                     break;
                 }
@@ -463,8 +471,12 @@ void InitLNS::updateCollidingPairs(set<pair<int, int>>& colliding_pairs, int age
     for (int t = (int)path.size(); t < path_table.table[goal].size(); t++)
     {
         for (auto id : path_table.table[goal][t])
+        {
+            succ = true;
             colliding_pairs.emplace(min(agent_id, id), max(agent_id, id));
+        }
     }
+    return succ;
 }
 
 void InitLNS::chooseDestroyHeuristicbyALNS()

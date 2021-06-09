@@ -91,7 +91,7 @@ private:
     list<SIPPNode*> useless_nodes;
     // Path findNoCollisionPath(const ConstraintTable& constraint_table);
 
-	static void updatePath(const LLNode* goal, std::vector<PathEntry> &path);
+    void updatePath(const LLNode* goal, std::vector<PathEntry> &path);
 
 	inline void pushNodeToOpenAndFocal(SIPPNode* node);
     inline void pushNodeToFocal(SIPPNode* node);

@@ -3,6 +3,7 @@
 
 void SIPP::updatePath(const LLNode* goal, vector<PathEntry> &path)
 {
+    num_collisions = goal->num_of_conflicts;
 	path.resize(goal->timestep + 1);
 	// num_of_conflicts = goal->num_of_conflicts;
 
