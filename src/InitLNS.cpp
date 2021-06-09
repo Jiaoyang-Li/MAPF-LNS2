@@ -336,8 +336,10 @@ bool InitLNS::runPP()
         num_LL_expanded += agents[id].path_planner.num_expanded;
         num_LL_reopened += agents[id].path_planner.num_reopened;
         assert(!agents[id].path.empty() && agents[id].path.back().location == agents[id].path_planner.goal_location);
-        auto succ = updateCollidingPairs(neighbor.colliding_pairs, agents[id].id, agents[id].path);
-        assert(succ == 0 or agents[id].path_planner.num_collisions > 0);
+        if (agents[id].path_planner.num_collisions > 0)
+            updateCollidingPairs(neighbor.colliding_pairs, agents[id].id, agents[id].path);
+        assert(agents[id].path_planner.num_collisions > 0 or
+            !updateCollidingPairs(neighbor.colliding_pairs, agents[id].id, agents[id].path));
         neighbor.sum_of_costs += (int)agents[id].path.size() - 1;
         remaining_agents--;
         if (screen >= 3)

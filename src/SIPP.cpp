@@ -55,7 +55,7 @@ Path SIPP::findPath(const ConstraintTable& constraint_table)
         // check if the popped node is a goal
         if (curr->is_goal)
         {
-            updatePath(curr->parent, path);
+            updatePath(curr, path);
             break;
         }
         else if (curr->location == goal_location && // arrive at the goal location
@@ -71,7 +71,6 @@ Path SIPP::findPath(const ConstraintTable& constraint_table)
             // generate a goal node
             auto goal = new SIPPNode(*curr);
             goal->is_goal = true;
-            goal->parent = curr;
             goal->h_val = 0;
             goal->num_of_conflicts += future_collisions;
             // try to retrieve it from the hash table
