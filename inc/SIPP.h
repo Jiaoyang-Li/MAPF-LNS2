@@ -13,11 +13,14 @@ public:
 	focal_handle_t focal_handle;
 	int high_v; // the upper bound with respect to the vertex interval
     int high_e; // the upper bound with respect to the edge interval
-	SIPPNode() : LLNode() {}
-	SIPPNode(int loc, int g_val, int h_val, SIPPNode* parent, int timestep, int high_v, int high_e,
+	bool collision_v;
+    SIPPNode() : LLNode() {}
+	SIPPNode(int loc, int g_val, int h_val, SIPPNode* parent, int timestep, int high_v, int high_e, bool collision_v,
 	        int num_of_conflicts) :
-		LLNode(loc, g_val, h_val, parent, timestep, num_of_conflicts), high_v(high_v), high_e(high_e) {}
-	SIPPNode(const SIPPNode& other): LLNode(other), high_v(other.high_v), high_e(other.high_e) {}
+		LLNode(loc, g_val, h_val, parent, timestep, num_of_conflicts), high_v(high_v), high_e(high_e),
+        collision_v(collision_v) {}
+	SIPPNode(const SIPPNode& other): LLNode(other), high_v(other.high_v), high_e(other.high_e),
+	    collision_v(collision_v) {}
 	~SIPPNode() {}
 
 	void copy(const SIPPNode& other) // copy everything except for handles
@@ -25,6 +28,7 @@ public:
 	    LLNode::copy(other);
         high_v = other.high_v;
         high_e = other.high_e;
+        collision_v = other.collision_v;
     }
 	// The following is used by for generating the hash value of a nodes
 	struct NodeHasher
