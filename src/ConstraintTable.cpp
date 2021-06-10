@@ -18,11 +18,13 @@ int ConstraintTable::getLastCollisionTimestep(int location) const
     int rst = -1;
     if (path_table_for_CAT != nullptr)
         rst = path_table_for_CAT->getLastCollisionTimestep(location);
-
-    for (auto t = cat[location].size() - 1; t > rst; t--)
+    if (!cat.empty())
     {
-        if (cat[location][t])
-            return t;
+        for (auto t = cat[location].size() - 1; t > rst; t--)
+        {
+            if (cat[location][t])
+                return t;
+        }
     }
     return rst;
 }

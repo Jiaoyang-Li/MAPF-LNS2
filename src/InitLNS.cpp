@@ -36,20 +36,11 @@ InitLNS::InitLNS(const Instance& instance, vector<Agent>& agents, double time_li
 
 bool InitLNS::run()
 {
-    // only for statistic analysis, and thus is not included in runtime
-    sum_of_distances = 0;
-    for (const auto & agent : agents)
-    {
-        sum_of_distances += agent.path_planner.my_heuristic[agent.path_planner.start_location];
-    }
-
-    initial_solution_runtime = 0;
     start_time = Time::now();
     bool succ = getInitialSolution();
-    initial_solution_runtime = ((fsec)(Time::now() - start_time)).count();
-    iteration_stats.emplace_back(neighbor.agents.size(),
-            initial_sum_of_costs, initial_solution_runtime, init_algo_name, 0, num_of_colliding_pairs);
-    runtime = initial_solution_runtime;
+    runtime = ((fsec)(Time::now() - start_time)).count();
+    iteration_stats.emplace_back(neighbor.agents.size(), sum_of_costs, runtime, init_algo_name, 0,
+            num_of_colliding_pairs);
     if (screen >= 3)
         printPath();
     if (screen >= 1)
@@ -60,14 +51,7 @@ bool InitLNS::run()
              << "remaining time = " << time_limit - runtime << endl;
     if (runtime >= time_limit and !succ)
     {
-        cout << getSolverName() << ": Fail to find initial solutions, "
-             << "colliding pairs = " << num_of_colliding_pairs << ", "
-             << "solution cost = " << sum_of_costs << ", "
-             << "initial solution cost = " << initial_sum_of_costs << ", "
-             << "runtime = " << runtime << ", "
-             << "group size = " << average_group_size << ", "
-             << "failed iterations = " << num_of_failures << ", "
-             << "LL nodes = " << num_LL_generated << endl;
+        printResult();
         return false;
     }
 
@@ -177,23 +161,7 @@ bool InitLNS::run()
                                      0, num_of_colliding_pairs);
     }
 
-
-    average_group_size = - iteration_stats.front().num_of_agents;
-    for (const auto& data : iteration_stats)
-        average_group_size += data.num_of_agents;
-    if (average_group_size > 0)
-        average_group_size /= (double)(iteration_stats.size() - 1);
-    cout << getSolverName() << ": Iterations = " << iteration_stats.size() << ", "
-         << "colliding pairs = " << num_of_colliding_pairs << ", "
-         << "solution cost = " << sum_of_costs << ", "
-         << "initial colliding pairs = " << iteration_stats.front().num_of_colliding_pairs << ", "
-         << "initial solution cost = " << initial_sum_of_costs << ", "
-         << "runtime = " << runtime << ", "
-         << "group size = " << average_group_size << ", "
-         << "failed iterations = " << num_of_failures << ", "
-         << "LL expanded nodes = " << num_LL_expanded << ", "
-         << "LL generated nodes = " << num_LL_generated << ", "
-         << "LL re-opened nodes = " << num_LL_reopened << endl;
+    printResult();
     return (num_of_colliding_pairs == 0);
 }
 bool InitLNS::runGCBS()
@@ -407,10 +375,8 @@ bool InitLNS::getInitialSolution()
         cerr <<  "Initial MAPF solver " << init_algo_name << " does not exist!" << endl;
         exit(-1);
     }
-
-    initial_sum_of_costs = neighbor.sum_of_costs;
+    num_of_colliding_pairs = neighbor.colliding_pairs.size();
     sum_of_costs = neighbor.sum_of_costs;
-    num_of_colliding_pairs = (int) neighbor.colliding_pairs.size();
     for(const auto& agent_pair : neighbor.colliding_pairs)
     {
         collision_graph[agent_pair.first].emplace(agent_pair.second);
@@ -814,7 +780,7 @@ void InitLNS::validateSolution() const
     }
 }
 
-void InitLNS::writeIterStatsToFile(string file_name) const
+void InitLNS::writeIterStatsToFile(const string & file_name) const
 {
     std::ofstream output;
     output.open(file_name);
@@ -822,25 +788,23 @@ void InitLNS::writeIterStatsToFile(string file_name) const
     output << "num of agents," <<
            "sum of costs," <<
            "num of colliding pairs," <<
-           "runtime," <<
-           "cost lowerbound," <<
-           "sum of distances," <<
-           "MAPF algorithm" << endl;
+           "runtime" << //"," <<
+           //"MAPF algorithm" <<
+           endl;
 
     for (const auto &data : iteration_stats)
     {
         output << data.num_of_agents << "," <<
                data.sum_of_costs << "," <<
                data.num_of_colliding_pairs << "," <<
-               data.runtime << "," <<
-               max(sum_of_costs_lowerbound, sum_of_distances) << "," <<
-               sum_of_distances << "," <<
-               data.algorithm << endl;
+               data.runtime << //"," <<
+               // data.algorithm <<
+               endl;
     }
     output.close();
 }
 
-void InitLNS::writeResultToFile(string file_name) const
+void InitLNS::writeResultToFile(const string & file_name, int sum_of_distances, double preprocessing_time) const
 {
     std::ifstream infile(file_name);
     bool exist = infile.good();
@@ -848,11 +812,11 @@ void InitLNS::writeResultToFile(string file_name) const
     if (!exist)
     {
         ofstream addHeads(file_name);
-        addHeads << "runtime,solution cost,initial solution cost,min f value,root g value," <<
-                 "iterations," <<
-                 "group size," <<
+        addHeads << "runtime,num of collisions,solution cost,initial collisions,initial solution cost," <<
+                 "sum of distances,iterations,group size," <<
                  "runtime of initial solution,area under curve," <<
-                 "solver name,instance name" << endl;
+                 "LL expanded nodes," <<
+                 "preprocessing runtime,solver name,instance name" << endl;
         addHeads.close();
     }
     ofstream stats(file_name, std::ios::app);
@@ -864,21 +828,23 @@ void InitLNS::writeResultToFile(string file_name) const
         ++curr;
         while (curr != iteration_stats.end() && curr->runtime < time_limit)
         {
-            auc += (prev->sum_of_costs - sum_of_distances) * (curr->runtime - prev->runtime);
+            auc += prev->num_of_colliding_pairs * (curr->runtime - prev->runtime);
             prev = curr;
             ++curr;
         }
-        auc += (prev->sum_of_costs - sum_of_distances) * (time_limit - prev->runtime);
+        auc += prev->num_of_colliding_pairs * (time_limit - prev->runtime);
     }
-    stats << runtime << "," << sum_of_costs << "," << initial_sum_of_costs << "," <<
-            max(sum_of_distances, sum_of_costs_lowerbound) << "," << sum_of_distances << "," <<
-            iteration_stats.size() << "," << average_group_size << "," <<
-            initial_solution_runtime << "," << auc << "," <<
-            getSolverName() << "," << instance.getInstanceName() << endl;
+    stats << runtime << "," << iteration_stats.back().num_of_colliding_pairs << "," <<
+          sum_of_costs << "," << iteration_stats.front().num_of_colliding_pairs << "," <<
+          iteration_stats.front().sum_of_costs << "," << sum_of_distances << "," <<
+          iteration_stats.size() << "," << average_group_size << "," <<
+          iteration_stats.front().runtime << "," << auc << "," <<
+          num_LL_expanded << "," <<
+          preprocessing_time << "," << getSolverName() << "," << instance.getInstanceName() << endl;
     stats.close();
 }
 
-void InitLNS::writePathsToFile(string file_name) const
+void InitLNS::writePathsToFile(const string & file_name) const
 {
     std::ofstream output;
     output.open(file_name);
@@ -938,4 +904,25 @@ void InitLNS::printPath() const
 {
     for (const auto& agent : agents)
         cout << "Agent " << agent.id << ": " << agent.path << endl;
+}
+
+void InitLNS::printResult()
+{
+    average_group_size = - iteration_stats.front().num_of_agents;
+    for (const auto& data : iteration_stats)
+        average_group_size += data.num_of_agents;
+    if (average_group_size > 0)
+        average_group_size /= (double)(iteration_stats.size() - 1);
+    assert(!iteration_stats.empty());
+    cout << getSolverName() << ": Iterations = " << iteration_stats.size() << ", "
+         << "colliding pairs = " << num_of_colliding_pairs << ", "
+         << "solution cost = " << sum_of_costs << ", "
+         << "initial colliding pairs = " << iteration_stats.front().num_of_colliding_pairs << ", "
+         << "initial solution cost = " << iteration_stats.front().sum_of_costs << ", "
+         << "runtime = " << runtime << ", "
+         << "group size = " << average_group_size << ", "
+         << "failed iterations = " << num_of_failures << ", "
+         << "LL expanded nodes = " << num_LL_expanded << ", "
+         << "LL generated nodes = " << num_LL_generated << ", "
+         << "LL re-opened nodes = " << num_LL_reopened << endl;
 }

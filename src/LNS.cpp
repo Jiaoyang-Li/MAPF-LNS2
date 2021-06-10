@@ -860,58 +860,27 @@ void LNS::writeIterStatsToFile(string file_name) const
 
 void LNS::writeResultToFile(string file_name) const
 {
-    std::ifstream infile(file_name);
-    bool exist = infile.good();
-    infile.close();
     if (use_init_lns)
     {
-        if (!exist)
-        {
-            ofstream addHeads(file_name);
-            addHeads << "runtime,num of collisions,solution cost,initial collisions,initial solution cost," <<
-                     "sum of distances,iterations,group size," <<
-                     "runtime of initial solution,area under curve," <<
-                     "LL expanded nodes," <<
-                     "preprocessing runtime,solver name,instance name" << endl;
-            addHeads.close();
-        }
-        ofstream stats(file_name, std::ios::app);
-        double auc = 0;
-        if (!init_lns->iteration_stats.empty())
-        {
-            auto prev = init_lns->iteration_stats.begin();
-            auto curr = prev;
-            ++curr;
-            while (curr != init_lns->iteration_stats.end() && curr->runtime < time_limit)
-            {
-                auc += prev->num_of_colliding_pairs * (curr->runtime - prev->runtime);
-                prev = curr;
-                ++curr;
-            }
-            auc += prev->num_of_colliding_pairs * (time_limit - prev->runtime);
-        }
-        stats << init_lns->runtime << "," << init_lns->iteration_stats.back().num_of_colliding_pairs << "," <<
-              init_lns->sum_of_costs << "," << init_lns->iteration_stats.front().num_of_colliding_pairs << "," <<
-              init_lns->initial_sum_of_costs << "," << sum_of_distances << "," <<
-              init_lns->iteration_stats.size() << "," << init_lns->average_group_size << "," <<
-              init_lns->initial_solution_runtime << "," << auc << "," <<
-              init_lns->num_LL_expanded << "," <<
-              preprocessing_time << "," << init_lns->getSolverName() << "," << instance.getInstanceName() << endl;
-        stats.close();
+        std::ifstream infile();
+        init_lns->writeResultToFile(file_name + "-initLNS.csv", sum_of_distances, preprocessing_time);
     }
-    else
+    if (!use_init_lns or num_of_iterations > 0)
     {
+        std::ifstream infile(file_name + "-LNS.csv");
+        bool exist = infile.good();
+        infile.close();
         if (!exist)
         {
-            ofstream addHeads(file_name);
-            addHeads << "runtime,solution cost,initial solution cost,min f value,root g value," <<
+            ofstream addHeads(file_name + "-LNS.csv");
+            addHeads << "runtime,solution cost,initial solution cost,lower bound,sum of distance," <<
                      "iterations," <<
                      "group size," <<
                      "runtime of initial solution,area under curve," <<
                      "preprocessing runtime,solver name,instance name" << endl;
             addHeads.close();
         }
-        ofstream stats(file_name, std::ios::app);
+        ofstream stats(file_name + "-LNS.csv", std::ios::app);
         double auc = 0;
         if (!iteration_stats.empty())
         {

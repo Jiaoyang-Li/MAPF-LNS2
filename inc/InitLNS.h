@@ -8,14 +8,10 @@ class InitLNS
 public:
     vector<Agent>& agents;
     list<IterationStats> iteration_stats; //stats about each iteration
-    double initial_solution_runtime = 0;
     double runtime = 0;
-    int initial_sum_of_costs = -1;
-    int sum_of_costs = -1;
-    int sum_of_costs_lowerbound = -1;
-    int sum_of_distances = -1;
-    int num_of_colliding_pairs = -1;
     double average_group_size = -1;
+    int num_of_colliding_pairs = 0;
+    int sum_of_costs = 0;
     size_t num_LL_generated = 0;
     size_t num_LL_expanded = 0;
     size_t num_LL_reopened = 0;
@@ -26,12 +22,13 @@ public:
     bool getInitialSolution();
     bool run();
     void validateSolution() const;
-    void writeIterStatsToFile(string file_name) const;
-    void writeResultToFile(string file_name) const;
-    void writePathsToFile(string file_name) const;
+    void writeIterStatsToFile(const string & file_name) const;
+    void writeResultToFile(const string & file_name, int sum_of_distances, double preprocessing_time) const;
+    void writePathsToFile(const string & file_name) const;
     string getSolverName() const { return "InitLNS(" + init_algo_name + ";" + replan_algo_name + ")"; }
 
     void printPath() const;
+    void printResult();
 private:
     int num_neighbor_sizes = 1; //4; // so the neighbor size could be 2, 4, 8, 16
 
