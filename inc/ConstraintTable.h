@@ -54,9 +54,11 @@ protected:
     typedef unordered_map<size_t, list< pair<int, int> > > CT; // constraint table
 	CT ct; // location -> time range, or edge -> time range
 	int ct_max_timestep = 0;
-    typedef unordered_map<size_t, set< pair<int, int> > > CAT; // conflict avoidance table
-    CAT cat; // location -> time range, or edge -> time range
+    // typedef unordered_map<size_t, set< pair<int, int> > > CAT; // conflict avoidance table // location -> time range, or edge -> time range
+    typedef vector< vector<bool> > CAT;
+    CAT cat;
 	int cat_max_timestep = 0;
+	vector<int> cat_goals;
     map<int, size_t> landmarks; // <timestep, location>: the agent must be at the given location at the given timestep
 
     void insertLandmark(size_t loc, int t); // insert a landmark, i.e., the agent has to be at the given location at the given timestep

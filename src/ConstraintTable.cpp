@@ -19,13 +19,10 @@ int ConstraintTable::getLastCollisionTimestep(int location) const
     if (path_table_for_CAT != nullptr)
         rst = path_table_for_CAT->getLastCollisionTimestep(location);
 
-    const auto& p = cat.find(location);
-    if (p != cat.end())
+    for (auto t = cat[location].size() - 1; t > rst; t--)
     {
-        for (const auto& action: p->second)
-        {
-            rst = max(rst, action.second - 1);
-        }
+        if (cat[location][t])
+            return t;
     }
     return rst;
 }
@@ -183,20 +180,20 @@ void ConstraintTable::insert2CAT(int agent, const vector<Path*>& paths)
 }
 void ConstraintTable::insert2CAT(const Path& path)
 {
-    int prev_location = path.front().location;
-    int prev_timestep = 0;
-    for (int timestep = 0; timestep < (int) path.size(); timestep++)
+    if (cat.empty())
     {
-        int curr_location = path[timestep].location;
-        if (prev_location != curr_location)
-        {
-            cat[prev_location].emplace(prev_timestep, timestep); // add vertex conflict
-            cat[getEdgeIndex(curr_location, prev_location)].emplace(timestep, timestep + 1); // add edge conflict
-            prev_location = curr_location;
-            prev_timestep = timestep;
-        }
+        cat.resize(map_size);
+        cat_goals.resize(map_size, MAX_TIMESTEP);
     }
-    cat[path.back().location].emplace(path.size() - 1, MAX_TIMESTEP);
+    assert(cat_goals[path.back().location] == MAX_TIMESTEP);
+    cat_goals[path.back().location] = path.size() - 1;
+    for (auto timestep = (int)path.size() - 1; timestep >= 0; timestep--)
+    {
+        int loc = path[timestep].location;
+        if (cat[loc].size() <= timestep)
+            cat[loc].resize(timestep + 1, false);
+        cat[loc][timestep] = true;
+    }
     cat_max_timestep = max(cat_max_timestep, (int)path.size() - 1);
 }
 
@@ -275,6 +272,7 @@ void ConstraintTable::copy(const ConstraintTable& other)
 	ct = other.ct;
 	ct_max_timestep = other.ct_max_timestep;
 	cat = other.cat;
+	cat_goals = other.cat_goals;
 	cat_max_timestep = other.cat_max_timestep;
 	landmarks = other.landmarks;
     path_table_for_CT = other.path_table_for_CT;
@@ -287,25 +285,16 @@ int ConstraintTable::getNumOfConflictsForStep(size_t curr_id, size_t next_id, in
     int rst = 0;
     if (path_table_for_CAT != nullptr)
         rst = path_table_for_CAT->getNumOfCollisions(curr_id, next_id, next_timestep);
-    list<size_t> ids;
-    ids.push_back(next_id); // vertex
-    if (curr_id != next_id)
+
+    if (!cat.empty())
     {
-        ids.push_back(getEdgeIndex(curr_id, next_id)); // edge
-    }
-    for (auto id : ids)
-    {
-        const auto& v1 = cat.find(id);
-        if (v1 != cat.end())
-        {
-            for (const auto& action: v1->second)
-            {
-                if (action.first <= next_timestep && next_timestep < action.second)
-                    rst++;
-                else if (action.first > next_timestep)
-                    break;
-            }
-        }
+        if (cat[next_id].size() > next_timestep and cat[next_id][next_timestep])
+            rst++;
+        if (curr_id != next_id and cat[next_id].size() >= next_timestep and cat[curr_id].size() > next_timestep and
+                cat[next_id][next_timestep - 1]and cat[curr_id][next_timestep])
+            rst++;
+        if (cat_goals[next_id] < next_timestep)
+            rst++;
     }
     return rst;
 }
@@ -313,25 +302,15 @@ bool ConstraintTable::hasConflictForStep(size_t curr_id, size_t next_id, int nex
 {
     if (path_table_for_CAT != nullptr and path_table_for_CAT->hasCollisions(curr_id, next_id, next_timestep))
         return true;
-    list<size_t> ids;
-    ids.push_back(next_id); // vertex
-    if (curr_id != next_id)
+    if (!cat.empty())
     {
-        ids.push_back(getEdgeIndex(curr_id, next_id)); // edge
-    }
-    for (auto id : ids)
-    {
-        const auto& v1 = cat.find(id);
-        if (v1 != cat.end())
-        {
-            for (const auto& action: v1->second)
-            {
-                if (action.first <= next_timestep && next_timestep < action.second)
-                    return true;
-                else if (action.first > next_timestep)
-                    break;
-            }
-        }
+        if (cat[next_id].size() > next_timestep and cat[next_id][next_timestep])
+            return true;
+        if (curr_id != next_id and cat[next_id].size() >= next_timestep and cat[curr_id].size() > next_timestep and
+            cat[next_id][next_timestep - 1]and cat[curr_id][next_timestep])
+            return true;
+        if (cat_goals[next_id] < next_timestep)
+            return true;
     }
     return false;
 }
@@ -340,35 +319,21 @@ bool ConstraintTable::hasEdgeConflict(size_t curr_id, size_t next_id, int next_t
     assert(curr_id != next_id);
     if (path_table_for_CAT != nullptr and path_table_for_CAT->hasEdgeCollisions(curr_id, next_id, next_timestep))
         return true;
-    auto id = getEdgeIndex(curr_id, next_id); // edge
-    const auto& v1 = cat.find(id);
-    if (v1 != cat.end())
-    {
-        for (const auto& action: v1->second)
-        {
-            if (action.first <= next_timestep && next_timestep < action.second)
-                return true;
-            else if (action.first > next_timestep)
-                break;
-        }
-    }
-    return false;
+    return !cat.empty() and curr_id != next_id and cat[next_id].size() >= next_timestep and
+            cat[curr_id].size() > next_timestep and
+            cat[next_id][next_timestep - 1] and cat[curr_id][next_timestep];
 }
 int ConstraintTable::getFutureNumOfCollisions(int loc, int t) const
 {
     int rst = 0;
     if (path_table_for_CAT != nullptr)
         rst = path_table_for_CAT->getFutureNumOfCollisions(loc, t);
-    const auto& p = cat.find(loc);
-    if (p != cat.end())
+    if (!cat.empty())
     {
-        set<int> colliding_timesteps;
-        for (const auto& action: p->second)
+        for (auto timestep = t + 1; timestep < cat[loc].size(); timestep++)
         {
-            for (int i = max(t, action.first); i < action.second; i++)
-                colliding_timesteps.insert(i);
+            rst += (int)cat[loc][timestep];
         }
-        rst += (int)colliding_timesteps.size();
     }
     return rst;
 }

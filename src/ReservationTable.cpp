@@ -297,11 +297,15 @@ void ReservationTable::updateSIT(size_t location)
     }
 
     // soft constraints
-    const auto& it2 = constraint_table.cat.find(location);
-    if (it2 != constraint_table.cat.end())
+    if (!constraint_table.cat.empty())
     {
-        for (auto time_range : it2->second)
-            insertSoftConstraint2SIT(location, time_range.first, time_range.second);
+        for (auto t = 0; t < constraint_table.cat[location].size(); t++)
+        {
+            if (constraint_table.cat[location][t])
+                insertSoftConstraint2SIT(location, t, t + 1);
+        }
+        if (constraint_table.cat_goals[location] < MAX_TIMESTEP)
+            insertSoftConstraint2SIT(location, constraint_table.cat_goals[location], MAX_TIMESTEP + 1);
     }
 }
 
