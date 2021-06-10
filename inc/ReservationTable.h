@@ -21,10 +21,10 @@ private:
 	// Safe Interval Table (SIT)
 	typedef vector< list<Interval> > SIT;
     SIT sit; // location -> [t_min, t_max), num_of_collisions
-    void insert2SIT(size_t location, int t_min, int t_max);
-    void insertSoftConstraint2SIT(size_t location, int t_min, int t_max);
+    void insert2SIT(int location, int t_min, int t_max);
+    void insertSoftConstraint2SIT(int location, int t_min, int t_max);
 	// void mergeIntervals(list<Interval >& intervals) const;
-	void updateSIT(size_t location); // update SIT at the given location
+	void updateSIT(int location); // update SIT at the given location
     int get_earliest_arrival_time(int from, int to, const Interval& interval,
                                   int lower_bound, int upper_bound) const;
     int get_earliest_no_collision_arrival_time(int from, int to, const Interval& interval,

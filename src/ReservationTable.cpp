@@ -28,7 +28,7 @@
 }*/
 
 
-void ReservationTable::insert2SIT(size_t location, int t_min, int t_max)
+void ReservationTable::insert2SIT(int location, int t_min, int t_max)
 {
 	assert(t_min >= 0 and t_min < t_max and !sit[location].empty());
     for (auto it = sit[location].begin(); it != sit[location].end();)
@@ -60,7 +60,7 @@ void ReservationTable::insert2SIT(size_t location, int t_min, int t_max)
     }
 }
 
-void ReservationTable::insertSoftConstraint2SIT(size_t location, int t_min, int t_max)
+void ReservationTable::insertSoftConstraint2SIT(int location, int t_min, int t_max)
 {
     assert(t_min >= 0 && t_min < t_max and !sit[location].empty());
     for (auto it = sit[location].begin(); it != sit[location].end(); ++it)
@@ -172,7 +172,7 @@ void ReservationTable::insertSoftConstraint2SIT(size_t location, int t_min, int 
 
 
 // update SIT at the given location
-void ReservationTable::updateSIT(size_t location)
+void ReservationTable::updateSIT(int location)
 {
     assert(sit[location].empty());
     // length constraints for the goal location
