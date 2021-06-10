@@ -186,6 +186,7 @@ bool InitLNS::run()
     cout << getSolverName() << ": Iterations = " << iteration_stats.size() << ", "
          << "colliding pairs = " << num_of_colliding_pairs << ", "
          << "solution cost = " << sum_of_costs << ", "
+         << "initial colliding pairs = " << iteration_stats.front().num_of_colliding_pairs << ", "
          << "initial solution cost = " << initial_sum_of_costs << ", "
          << "runtime = " << runtime << ", "
          << "group size = " << average_group_size << ", "

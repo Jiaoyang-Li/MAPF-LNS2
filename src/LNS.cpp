@@ -256,6 +256,8 @@ bool LNS::runEECBS()
         T = min(T, replan_time_limit);
     bool succ = ecbs.solve(T, 0);
     num_LL_generated += ecbs.num_LL_generated;
+    num_LL_expanded += ecbs.num_LL_expanded;
+    num_LL_reopened += ecbs.num_LL_reopened;
     if (succ && ecbs.solution_cost < neighbor.old_sum_of_costs) // accept new paths
     {
         auto id = neighbor.agents.begin();

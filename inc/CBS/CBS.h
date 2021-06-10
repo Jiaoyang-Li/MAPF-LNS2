@@ -34,6 +34,7 @@ public:
 	uint64_t num_HL_generated = 0;
 	uint64_t num_LL_expanded = 0;
 	uint64_t num_LL_generated = 0;
+    uint64_t num_LL_reopened = 0;
 
 	uint64_t num_cleanup = 0; // number of expanded nodes chosen from cleanup list
 	uint64_t num_open = 0; // number of expanded nodes chosen from open list

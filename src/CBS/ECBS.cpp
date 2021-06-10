@@ -351,6 +351,7 @@ bool ECBS::findPathForSingleAgent(ECBSNode*  node, int ag)
 	auto new_path = search_engines[ag]->findSuboptimalPath(*node, initial_constraints[ag], paths, ag, min_f_vals[ag], suboptimality);
 	num_LL_expanded += search_engines[ag]->num_expanded;
 	num_LL_generated += search_engines[ag]->num_generated;
+    num_LL_reopened += search_engines[ag]->num_reopened;
 	runtime_build_CT += search_engines[ag]->runtime_build_CT;
 	runtime_build_CAT += search_engines[ag]->runtime_build_CAT;
 	runtime_path_finding += (double)(clock() - t) / CLOCKS_PER_SEC;
