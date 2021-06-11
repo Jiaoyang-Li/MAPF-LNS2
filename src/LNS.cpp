@@ -155,6 +155,8 @@ bool LNS::run()
         average_group_size += data.num_of_agents;
     if (average_group_size > 0)
         average_group_size /= (double)(iteration_stats.size() - 1);
+    if (use_init_lns and num_of_iterations == 0)
+        return true;
     cout << getSolverName() << ": Iterations = " << iteration_stats.size() << ", "
          << "solution cost = " << sum_of_costs << ", "
          << "initial solution cost = " << initial_sum_of_costs << ", "

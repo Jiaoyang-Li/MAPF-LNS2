@@ -502,17 +502,13 @@ bool SIPP::dominanceCheck(SIPPNode* new_node)
         return true;
     for (auto & old_node : ptr->second)
     {
-        if (old_node->timestep >= new_node->high_expansion or new_node->timestep >= old_node->high_expansion) // non-overlap
-            continue;
-        else if (old_node->timestep <= new_node->timestep and
-            old_node->num_of_conflicts <= new_node->num_of_conflicts and
-            old_node->high_expansion >= new_node->high_expansion)
+        if (old_node->timestep <= new_node->timestep and
+            old_node->num_of_conflicts <= new_node->num_of_conflicts)
         { // the new node is dominated by the old node
             return false;
         }
         else if (old_node->timestep >= new_node->timestep and
-                old_node->num_of_conflicts >= new_node->num_of_conflicts and
-                old_node->high_expansion <= new_node->high_expansion) // the old node is dominated by the new node
+                old_node->num_of_conflicts >= new_node->num_of_conflicts) // the old node is dominated by the new node
         { // delete the old node
             if (old_node->in_openlist) // the old node has not been expanded yet
                 eraseNodeFromLists(old_node); // delete it from open and/or focal lists
@@ -523,63 +519,19 @@ bool SIPP::dominanceCheck(SIPPNode* new_node)
             num_generated--; // this is because we later will increase num_generated when we insert the new node into lists.
             return true;
         }
-        /*else // we need to split the node
-        {
-            assert(!(old_node->timestep < new_node->timestep and new_node->high_expansion < old_node->high_expansion) and
-               !(new_node->timestep < old_node->timestep and old_node->high_expansion < new_node->high_expansion));
-            SIPPNode *n1, *n2;
-            if (old_node->timestep < new_node->timestep or
-                    (old_node->timestep == new_node->timestep and old_node->high_expansion < new_node->high_expansion))
+        else if(old_node->timestep < new_node->high_expansion and new_node->timestep < old_node->high_expansion)
+        { // intervals overlap --> we need to split the node to make them disjoint
+            if (old_node->timestep <= new_node->timestep)
             {
-                n1 = old_node;
-                n2 = new_node;
+                assert(old_node->num_of_conflicts > new_node->num_of_conflicts);
+                old_node->high_expansion = new_node->timestep;
             }
-            else
+            else // i.e., old_node->timestep > new_node->timestep
             {
-                n1 = new_node;
-                n2 = old_node;
+                assert(old_node->num_of_conflicts <= new_node->num_of_conflicts);
+                new_node->high_expansion = old_node->timestep;
             }
-            if (n1->num_of_conflicts < n2->num_of_conflicts)
-            {// keep n1 and change n2
-                if (n2 == new_node)
-                {
-                    new_node->timestep = old_node->high_expansion;
-                    assert(new_node->timestep < new_node->high_expansion);
-                }
-                else if (old_node->in_openlist)
-                {
-                    old_node->timestep = new_node->high_expansion;
-                    assert(old_node->timestep < old_node->high_expansion);
-                    if (open_list.empty())
-                    {
-                        focal_list.update(old_node->focal_handle);
-                    }
-                    else if (focal_list.empty())
-                    {
-                        open_list.update(old_node->open_handle);
-                    }
-                    else
-                    {
-                        open_list.update(old_node->open_handle);
-                        if (old_node->getFVal() <= w * min_f_val)
-                            focal_list.update(old_node->focal_handle);
-                    }
-                }
-            }
-            else
-            {// change n1 and keep n2
-                if (n1 == new_node)
-                {
-                    new_node->high_expansion = old_node->timestep;
-                    assert(new_node->timestep < new_node->high_expansion);
-                }
-                else if (old_node->in_openlist)
-                {
-                    old_node->high_expansion = new_node->timestep;
-                    assert(old_node->timestep < old_node->high_expansion);
-                }
-            }
-        }*/
+        }
     }
     return true;
 }

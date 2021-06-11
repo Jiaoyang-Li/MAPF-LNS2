@@ -878,12 +878,13 @@ void InitLNS::printResult()
     if (average_group_size > 0)
         average_group_size /= (double)(iteration_stats.size() - 1);
     assert(!iteration_stats.empty());
-    cout << getSolverName() << ": Iterations = " << iteration_stats.size() << ", "
-         << "colliding pairs = " << num_of_colliding_pairs << ", "
-         << "solution cost = " << sum_of_costs << ", "
-         << "initial colliding pairs = " << iteration_stats.front().num_of_colliding_pairs << ", "
-         << "initial solution cost = " << iteration_stats.front().sum_of_costs << ", "
+    cout << getSolverName() << ": "
          << "runtime = " << runtime << ", "
+         << "iterations = " << iteration_stats.size() << ", "
+         << "colliding pairs = " << num_of_colliding_pairs << ", "
+         << "initial colliding pairs = " << iteration_stats.front().num_of_colliding_pairs << ", "
+         << "solution cost = " << sum_of_costs << ", "
+         << "initial solution cost = " << iteration_stats.front().sum_of_costs << ", "
          << "group size = " << average_group_size << ", "
          << "failed iterations = " << num_of_failures << ", "
          << "LL expanded nodes = " << num_LL_expanded << ", "
