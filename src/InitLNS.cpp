@@ -595,18 +595,19 @@ bool InitLNS::generateNeighborByCollisionGraph()
 }
 bool InitLNS::generateNeighborByTarget()
 {
-    int a;
+    int a = -1;
     auto r = rand() % (num_of_colliding_pairs * 2);
     int sum = 0;
     for (int i = 0 ; i < (int)collision_graph.size(); i++)
     {
+        sum += (int)collision_graph[i].size();
         if (r <= sum and !collision_graph[i].empty())
         {
             a = i;
             break;
         }
-        sum += (int)collision_graph[i].size();
     }
+    assert(a != -1 and !collision_graph[a].empty());
     set<pair<int,int>> A_start; // an ordered set of (time, id) pair.
     set<int> A_target;
 
@@ -723,13 +724,13 @@ bool InitLNS::generateNeighborRandomly()
         int sum = 0;
         for (int i = 0, j = 0; i < agents.size() and j < r.size(); i++)
         {
+            sum += (int)collision_graph[i].size() + 1;
             if (sum >= r[j])
             {
                 neighbors_set.insert(i);
                 while (j < r.size() and sum >= r[j])
                     j++;
             }
-            sum += (int)collision_graph[i].size() + 1;
         }
     }
     neighbor.agents.assign(neighbors_set.begin(), neighbors_set.end());
