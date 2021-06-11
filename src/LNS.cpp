@@ -870,12 +870,17 @@ void LNS::writeResultToFile(string file_name) const
     }
     if (!use_init_lns or num_of_iterations > 0)
     {
-        std::ifstream infile(file_name + "-LNS.csv");
+        string name = file_name;
+        if (num_of_iterations > 0)
+            name += "-LNS.csv";
+        else
+            name += "-" + init_algo_name + ".csv";
+        std::ifstream infile(name);
         bool exist = infile.good();
         infile.close();
         if (!exist)
         {
-            ofstream addHeads(file_name + "-LNS.csv");
+            ofstream addHeads(name);
             addHeads << "runtime,solution cost,initial solution cost,lower bound,sum of distance," <<
                      "iterations," <<
                      "group size," <<
@@ -883,7 +888,7 @@ void LNS::writeResultToFile(string file_name) const
                      "preprocessing runtime,solver name,instance name" << endl;
             addHeads.close();
         }
-        ofstream stats(file_name + "-LNS.csv", std::ios::app);
+        ofstream stats(name, std::ios::app);
         double auc = 0;
         if (!iteration_stats.empty())
         {
