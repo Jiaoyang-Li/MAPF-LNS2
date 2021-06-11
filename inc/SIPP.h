@@ -106,6 +106,7 @@ private:
     {
         num_expanded = 0;
         num_generated = 0;
+        num_reopened = 0;
     }
     bool dominanceCheck(SIPPNode* new_node);
 	void printSearchTree() const;
