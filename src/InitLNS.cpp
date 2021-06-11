@@ -20,6 +20,8 @@ InitLNS::InitLNS(const Instance& instance, vector<Agent>& agents, double time_li
                  init_destroy_strategy = TARGET_BASED;
              else if (init_destory_name == "Collision")
                  init_destroy_strategy = COLLISION_BASED;
+             else if (init_destory_name == "Random")
+                 init_destroy_strategy = RANDOM_BASED;
              else
              {
                  cerr << "Init Destroy heuristic " << init_destory_name << " does not exists. " << endl;
@@ -70,6 +72,9 @@ bool InitLNS::run()
                 break;
             case COLLISION_BASED:
                 succ = generateNeighborByCollisionGraph();
+                break;
+            case RANDOM_BASED:
+                succ = generateNeighborRandomly();
                 break;
             default:
                 cerr << "Wrong neighbor generation strategy" << endl;
@@ -125,7 +130,8 @@ bool InitLNS::run()
         {
             if (neighbor.colliding_pairs.size() < neighbor.old_colliding_pairs.size())
                 destroy_weights[selected_neighbor] =
-                        reaction_factor * (neighbor.old_colliding_pairs.size() - neighbor.colliding_pairs.size()) / neighbor.agents.size()
+                        reaction_factor * (double)(neighbor.old_colliding_pairs.size() -
+                        neighbor.colliding_pairs.size()) / neighbor.agents.size()
                         + (1 - reaction_factor) * destroy_weights[selected_neighbor];
             else
                 destroy_weights[selected_neighbor] =
@@ -471,6 +477,7 @@ void InitLNS::chooseDestroyHeuristicbyALNS()
     {
         case 0 : init_destroy_strategy = TARGET_BASED; break;
         case 1 : init_destroy_strategy = COLLISION_BASED; break;
+        case 2 : init_destroy_strategy = RANDOM_BASED; break;
         default : cerr << "ERROR" << endl; exit(-1);
     }
     // neighbor_size = (int) pow(2, selected_neighbor % num_neighbor_sizes + 1);
@@ -571,7 +578,6 @@ bool InitLNS::generateNeighborByCollisionGraph()
     return true;
 
 }
-
 bool InitLNS::generateNeighborByTarget()
 {
     int a = 0;
@@ -676,6 +682,40 @@ bool InitLNS::generateNeighborByTarget()
     neighbor.agents.assign(neighbors_set.begin(), neighbors_set.end());
     if (screen >= 2)
         cout << "Generate " << neighbor.agents.size() << " neighbors by target" << endl;
+    return true;
+}
+bool InitLNS::generateNeighborRandomly()
+{
+    if (neighbor_size >= agents.size())
+    {
+        neighbor.agents.resize(agents.size());
+        for (int i = 0; i < (int)agents.size(); i++)
+            neighbor.agents[i] = i;
+        return true;
+    }
+    set<int> neighbors_set;
+    auto total = num_of_colliding_pairs * 2 + agents.size();
+    while(neighbors_set.size() < neighbor_size)
+    {
+        vector<double> r(neighbor_size - neighbors_set.size());
+        for (auto i = 0; i < neighbor_size - neighbors_set.size(); i++)
+            r[i] = rand() % total;
+        std::sort(r.begin(), r.end());
+        int sum = 0;
+        for (int i = 0, j = 0; i < agents.size() and j < r.size(); i++)
+        {
+            if (sum >= r[j])
+            {
+                neighbors_set.insert(i);
+                while (j < r.size() and sum >= r[j])
+                    j++;
+            }
+            sum += (int)collision_graph[i].size() + 1;
+        }
+    }
+    neighbor.agents.assign(neighbors_set.begin(), neighbors_set.end());
+    if (screen >= 2)
+        cout << "Generate " << neighbor.agents.size() << " neighbors randomly" << endl;
     return true;
 }
 

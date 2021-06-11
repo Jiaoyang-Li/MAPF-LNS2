@@ -292,7 +292,6 @@ bool LNS::runEECBS()
     }
     return succ;
 }
-
 bool LNS::runCBS()
 {
     if (screen >= 2)
@@ -352,7 +351,6 @@ bool LNS::runCBS()
     }
     return succ;
 }
-
 bool LNS::runPP()
 {
     auto shuffled_agents = neighbor.agents;
@@ -424,7 +422,6 @@ bool LNS::runPP()
         return false;
     }
 }
-
 bool LNS::runPPS(){
     auto shuffled_agents = neighbor.agents;
     std::random_shuffle(shuffled_agents.begin(), shuffled_agents.end());
@@ -457,7 +454,6 @@ bool LNS::runPIBT(){
         updatePIBTResult(P.getA(),shuffled_agents);
     return result;
 }
-
 bool LNS::runWinPIBT(){
     auto shuffled_agents = neighbor.agents;
     std::random_shuffle(shuffled_agents.begin(), shuffled_agents.end());
@@ -644,7 +640,6 @@ bool LNS::generateNeighborByIntersection(bool temporal)
         cout << "Generate " << neighbor.agents.size() << " neighbors by intersection " << location << endl;
     return true;
 }
-
 bool LNS::generateNeighborByRandomWalk()
 {
     if (neighbor_size >= (int)agents.size())

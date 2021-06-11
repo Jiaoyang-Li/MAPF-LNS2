@@ -1,7 +1,7 @@
 #pragma once
 #include "BasicLNS.h"
 
-enum init_destroy_heuristic { TARGET_BASED, COLLISION_BASED, INIT_COUNT };
+enum init_destroy_heuristic { TARGET_BASED, COLLISION_BASED, RANDOM_BASED, INIT_COUNT };
 
 class InitLNS
 {
@@ -58,8 +58,8 @@ private:
 
     // adaptive LNS
     bool ALNS = false;
-    double decay_factor = 0.01;
-    double reaction_factor = 0.01;
+    double decay_factor = 0.1;
+    double reaction_factor = 0.1;
     vector<double> destroy_weights;
     int selected_neighbor;
 
@@ -70,12 +70,10 @@ private:
     bool updateCollidingPairs(set<pair<int, int>>& colliding_pairs, int agent_id, const Path& path) const;
 
     void chooseDestroyHeuristicbyALNS();
-    //bool generateNeighborByStart();
 
     bool generateNeighborByCollisionGraph();
-
     bool generateNeighborByTarget();
-
+    bool generateNeighborRandomly();
 
     // int findRandomAgent() const;
     int randomWalk(int agent_id);

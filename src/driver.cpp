@@ -46,7 +46,7 @@ int main(int argc, char** argv)
 
          // params for initLNS
          ("initDestoryStrategy", po::value<string>()->default_value("Adaptive"),
-          "Heuristics for finding subgroups (Target, Collision, Adaptive)")
+          "Heuristics for finding subgroups (Target, Collision, Random, Adaptive)")
 		;
 	po::variables_map vm;
 	po::store(po::parse_command_line(argc, argv, desc), vm);
