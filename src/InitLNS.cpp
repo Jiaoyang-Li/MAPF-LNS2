@@ -57,11 +57,12 @@ bool InitLNS::run()
         return false;
     }
 
+    vector<Path*> paths(agents.size());
+    for (auto i = 0; i < agents.size(); i++)
+        paths[i] = &agents[i].path;
     while (runtime < time_limit and num_of_colliding_pairs > 0)
     {
-        //runtime =((fsec)(Time::now() - start_time)).count();
-
-
+        assert(instance.validateSolution(paths, sum_of_costs, num_of_colliding_pairs));
         if (ALNS)
             chooseDestroyHeuristicbyALNS();
 
@@ -83,10 +84,28 @@ bool InitLNS::run()
         if(!succ || neighbor.agents.empty())
             continue;
 
+        // get colliding pairs
+        neighbor.old_colliding_pairs.clear();
+        for (int a : neighbor.agents)
+        {
+            for (auto j: collision_graph[a])
+            {
+                neighbor.old_colliding_pairs.emplace(min(a, j), max(a, j));
+            }
+        }
+        if (neighbor.old_colliding_pairs.empty()) // no need to replan
+        {
+            assert(init_destroy_strategy == RANDOM_BASED);
+            if (ALNS) // update destroy heuristics
+            {
+                destroy_weights[selected_neighbor] = (1 - decay_factor) * destroy_weights[selected_neighbor];
+            }
+            continue;
+        }
+
         // store the neighbor information
         neighbor.old_paths.resize(neighbor.agents.size());
         neighbor.old_sum_of_costs = 0;
-        neighbor.old_colliding_pairs.clear();
         for (int i = 0; i < (int)neighbor.agents.size(); i++)
         {
             int a = neighbor.agents[i];
@@ -94,10 +113,6 @@ bool InitLNS::run()
                 neighbor.old_paths[i] = agents[a].path;
             path_table.deletePath(neighbor.agents[i]);
             neighbor.old_sum_of_costs += (int) agents[a].path.size() - 1;
-            for (auto j: collision_graph[a])
-            {
-                neighbor.old_colliding_pairs.emplace(min(a, j), max(a, j));
-            }
         }
         if (screen >= 2)
         {
@@ -131,7 +146,7 @@ bool InitLNS::run()
             if (neighbor.colliding_pairs.size() < neighbor.old_colliding_pairs.size())
                 destroy_weights[selected_neighbor] =
                         reaction_factor * (double)(neighbor.old_colliding_pairs.size() -
-                        neighbor.colliding_pairs.size()) / neighbor.agents.size()
+                        neighbor.colliding_pairs.size()) // / neighbor.agents.size()
                         + (1 - reaction_factor) * destroy_weights[selected_neighbor];
             else
                 destroy_weights[selected_neighbor] =
@@ -331,7 +346,7 @@ bool InitLNS::runPP()
         path_table.insertPath(agents[id].id, agents[id].path);
         ++p;
     }
-    if (neighbor.old_colliding_pairs.empty()) // first run
+    if (neighbor.old_sum_of_costs == MAX_COST) // first run
     {
         return (p == shuffled_agents.end() && neighbor.colliding_pairs.empty());
     }
@@ -357,7 +372,7 @@ bool InitLNS::runPP()
             {
                 int a = *p2;
                 agents[a].path = neighbor.old_paths[i];
-                path_table.insertPath(agents[a].id, agents[a].path);
+                path_table.insertPath(agents[a].id);
                 ++p2;
             }
             neighbor.sum_of_costs = neighbor.old_sum_of_costs;
@@ -580,13 +595,17 @@ bool InitLNS::generateNeighborByCollisionGraph()
 }
 bool InitLNS::generateNeighborByTarget()
 {
-    int a = 0;
-    int a_num_collisions= 0;
-    for (int i = 0 ; i<collision_graph.size();i++){
-        if (collision_graph[i].size()> a_num_collisions){
+    int a;
+    auto r = rand() % (num_of_colliding_pairs * 2);
+    int sum = 0;
+    for (int i = 0 ; i < (int)collision_graph.size(); i++)
+    {
+        if (r <= sum and !collision_graph[i].empty())
+        {
             a = i;
-            a_num_collisions = collision_graph[i].size();
+            break;
         }
+        sum += (int)collision_graph[i].size();
     }
     set<pair<int,int>> A_start; // an ordered set of (time, id) pair.
     set<int> A_target;
@@ -697,7 +716,7 @@ bool InitLNS::generateNeighborRandomly()
     auto total = num_of_colliding_pairs * 2 + agents.size();
     while(neighbors_set.size() < neighbor_size)
     {
-        vector<double> r(neighbor_size - neighbors_set.size());
+        vector<int> r(neighbor_size - neighbors_set.size());
         for (auto i = 0; i < neighbor_size - neighbors_set.size(); i++)
             r[i] = rand() % total;
         std::sort(r.begin(), r.end());
@@ -876,4 +895,12 @@ void InitLNS::clear()
     path_table.clear();
     collision_graph.clear();
     goal_table.clear();
+}
+
+
+bool InitLNS::validatePathTable() const
+{
+    for (auto i = 0; i < agents.size(); i++)
+        assert(path_table.getPath(i) == &agents[i].path);
+    return true;
 }

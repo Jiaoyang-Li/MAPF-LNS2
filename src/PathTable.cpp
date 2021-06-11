@@ -138,6 +138,7 @@ void PathTableWC::insertPath(int agent_id, const Path& path)
 }
 void PathTableWC::insertPath(int agent_id)
 {
+    assert(paths[agent_id] != nullptr);
     insertPath(agent_id, *paths[agent_id]);
 }
 void PathTableWC::deletePath(int agent_id)

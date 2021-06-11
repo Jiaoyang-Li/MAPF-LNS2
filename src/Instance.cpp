@@ -500,7 +500,7 @@ void Instance::savePaths(const string & file_name, const vector<Path*>& paths) c
     output.close();
 }
 
-void Instance::validateSolution(const vector<Path*>& paths, int sum_of_costs, int num_of_colliding_pairs) const
+bool Instance::validateSolution(const vector<Path*>& paths, int sum_of_costs, int num_of_colliding_pairs) const
 {
     cout << "Validate solution ..." << endl;
     if (paths.size() != start_locations.size())
@@ -613,4 +613,5 @@ void Instance::validateSolution(const vector<Path*>& paths, int sum_of_costs, in
         exit(-1);
     }
     cout << "Done!" << endl;
+    return true;
 }

@@ -84,11 +84,11 @@ Path SIPP::findPath(const ConstraintTable& constraint_table)
         for (int next_location : instance.getNeighbors(curr->location)) // move to neighboring locations
         {
             for (auto & i : reservation_table.get_safe_intervals(
-                    curr->location, next_location, curr->timestep + 1, curr->high_e + 1))
+                    curr->location, next_location, curr->timestep + 1, curr->high_expansion + 1))
             {
-                int next_high_v, next_timestep, next_high_e;
+                int next_high_generation, next_timestep, next_high_expansion;
                 bool next_v_collision, next_e_collision;
-                tie(next_high_v, next_timestep, next_high_e, next_v_collision, next_e_collision) = i;
+                tie(next_high_generation, next_timestep, next_high_expansion, next_v_collision, next_e_collision) = i;
                 if (next_timestep + my_heuristic[next_location] > constraint_table.length_max)
                     break;
                 auto next_collisions = curr->num_of_conflicts +
@@ -98,7 +98,7 @@ Path SIPP::findPath(const ConstraintTable& constraint_table)
                     holding_time : curr->getFVal()) - next_timestep); // path max
                 // generate (maybe temporary) node
                 auto next = new SIPPNode(next_location, next_timestep, next_h_val, curr, next_timestep,
-                                         next_high_v, next_high_e, next_v_collision, next_collisions);
+                                         next_high_generation, next_high_expansion, next_v_collision, next_collisions);
                 // try to retrieve it from the hash table
                 if (dominanceCheck(next))
                     pushNodeToFocal(next);
@@ -107,8 +107,8 @@ Path SIPP::findPath(const ConstraintTable& constraint_table)
             }
         }  // end for loop that generates successors
         // wait at the current location
-        if (curr->high_e == curr->high_v and
-                reservation_table.find_safe_interval(interval, curr->location, curr->high_e) and
+        if (curr->high_expansion == curr->high_generation and
+            reservation_table.find_safe_interval(interval, curr->location, curr->high_expansion) and
                 get<0>(interval) + curr->h_val <= reservation_table.constraint_table.length_max)
         {
             auto next_timestep = get<0>(interval);
@@ -194,11 +194,11 @@ pair<Path, int> SIPP::findSuboptimalPath(const HLNode& node, const ConstraintTab
         for (int next_location : instance.getNeighbors(curr->location)) // move to neighboring locations
 		{
 			for (auto & i : reservation_table.get_safe_intervals(
-				curr->location, next_location, curr->timestep + 1, curr->high_e + 1))
+				curr->location, next_location, curr->timestep + 1, curr->high_expansion + 1))
 			{
-			    int next_high_v, next_timestep, next_high_e;
+			    int next_high_generation, next_timestep, next_high_expansion;
                 bool next_v_collision, next_e_collision;
-                tie(next_high_v, next_timestep, next_high_e, next_v_collision, next_e_collision) = i;
+                tie(next_high_generation, next_timestep, next_high_expansion, next_v_collision, next_e_collision) = i;
                 // compute cost to next_id via curr node
                 int next_g_val = next_timestep;
                 int next_h_val = max(my_heuristic[next_location], curr->getFVal() - next_g_val);  // path max
@@ -208,7 +208,7 @@ pair<Path, int> SIPP::findSuboptimalPath(const HLNode& node, const ConstraintTab
                         (int)curr->collision_v * max(next_timestep - curr->timestep - 1, 0) +
                         + (int)next_v_collision + (int)next_e_collision;
                 auto next = new SIPPNode(next_location, next_g_val, next_h_val, curr, next_timestep,
-                        next_high_v, next_high_e, next_v_collision, next_conflicts);
+                        next_high_generation, next_high_expansion, next_v_collision, next_conflicts);
                 if (dominanceCheck(next))
                     pushNodeToOpenAndFocal(next);
                 else
@@ -217,8 +217,8 @@ pair<Path, int> SIPP::findSuboptimalPath(const HLNode& node, const ConstraintTab
 		}  // end for loop that generates successors
 		   
 		// wait at the current location
-		if (curr->high_e == curr->high_v and
-                reservation_table.find_safe_interval(interval, curr->location, curr->high_e) and
+		if (curr->high_expansion == curr->high_generation and
+            reservation_table.find_safe_interval(interval, curr->location, curr->high_expansion) and
                 get<0>(interval) + curr->h_val <= reservation_table.constraint_table.length_max)
 		{
 		    auto next_timestep = get<0>(interval);
@@ -489,7 +489,7 @@ void SIPP::printSearchTree() const
     {
         cout << "t=" << t << ":\t";
         for (const auto & n : nodes[t])
-            cout << *n << "[" << n->timestep << "," << n->high_e << "),c=" << n->num_of_conflicts << "\t";
+            cout << *n << "[" << n->timestep << "," << n->high_expansion << "),c=" << n->num_of_conflicts << "\t";
         cout << endl;
     }
 }
@@ -502,17 +502,17 @@ bool SIPP::dominanceCheck(SIPPNode* new_node)
         return true;
     for (auto & old_node : ptr->second)
     {
-        if (old_node->timestep >= new_node->high_e or new_node->timestep >= old_node->high_e) // non-overlap
+        if (old_node->timestep >= new_node->high_expansion or new_node->timestep >= old_node->high_expansion) // non-overlap
             continue;
         else if (old_node->timestep <= new_node->timestep and
             old_node->num_of_conflicts <= new_node->num_of_conflicts and
-            old_node->high_e >= new_node->high_e)
+            old_node->high_expansion >= new_node->high_expansion)
         { // the new node is dominated by the old node
             return false;
         }
         else if (old_node->timestep >= new_node->timestep and
                 old_node->num_of_conflicts >= new_node->num_of_conflicts and
-                old_node->high_e <= new_node->high_e) // the old node is dominated by the new node
+                old_node->high_expansion <= new_node->high_expansion) // the old node is dominated by the new node
         { // delete the old node
             if (old_node->in_openlist) // the old node has not been expanded yet
                 eraseNodeFromLists(old_node); // delete it from open and/or focal lists
@@ -525,11 +525,11 @@ bool SIPP::dominanceCheck(SIPPNode* new_node)
         }
         /*else // we need to split the node
         {
-            assert(!(old_node->timestep < new_node->timestep and new_node->high_e < old_node->high_e) and
-               !(new_node->timestep < old_node->timestep and old_node->high_e < new_node->high_e));
+            assert(!(old_node->timestep < new_node->timestep and new_node->high_expansion < old_node->high_expansion) and
+               !(new_node->timestep < old_node->timestep and old_node->high_expansion < new_node->high_expansion));
             SIPPNode *n1, *n2;
             if (old_node->timestep < new_node->timestep or
-                    (old_node->timestep == new_node->timestep and old_node->high_e < new_node->high_e))
+                    (old_node->timestep == new_node->timestep and old_node->high_expansion < new_node->high_expansion))
             {
                 n1 = old_node;
                 n2 = new_node;
@@ -543,13 +543,13 @@ bool SIPP::dominanceCheck(SIPPNode* new_node)
             {// keep n1 and change n2
                 if (n2 == new_node)
                 {
-                    new_node->timestep = old_node->high_e;
-                    assert(new_node->timestep < new_node->high_e);
+                    new_node->timestep = old_node->high_expansion;
+                    assert(new_node->timestep < new_node->high_expansion);
                 }
                 else if (old_node->in_openlist)
                 {
-                    old_node->timestep = new_node->high_e;
-                    assert(old_node->timestep < old_node->high_e);
+                    old_node->timestep = new_node->high_expansion;
+                    assert(old_node->timestep < old_node->high_expansion);
                     if (open_list.empty())
                     {
                         focal_list.update(old_node->focal_handle);
@@ -570,13 +570,13 @@ bool SIPP::dominanceCheck(SIPPNode* new_node)
             {// change n1 and keep n2
                 if (n1 == new_node)
                 {
-                    new_node->high_e = old_node->timestep;
-                    assert(new_node->timestep < new_node->high_e);
+                    new_node->high_expansion = old_node->timestep;
+                    assert(new_node->timestep < new_node->high_expansion);
                 }
                 else if (old_node->in_openlist)
                 {
-                    old_node->high_e = new_node->timestep;
-                    assert(old_node->timestep < old_node->high_e);
+                    old_node->high_expansion = new_node->timestep;
+                    assert(old_node->timestep < old_node->high_expansion);
                 }
             }
         }*/

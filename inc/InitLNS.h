@@ -58,8 +58,8 @@ private:
 
     // adaptive LNS
     bool ALNS = false;
-    double decay_factor = 0.1;
-    double reaction_factor = 0.1;
+    double decay_factor = 0.05;
+    double reaction_factor = 0.05;
     vector<double> destroy_weights;
     int selected_neighbor;
 
@@ -82,4 +82,6 @@ private:
 
     static unordered_map<int, set<int>>& findConnectedComponent(const vector<set<int>>& graph, int vertex,
             unordered_map<int, set<int>>& sub_graph);
+
+    bool validatePathTable() const;
 };

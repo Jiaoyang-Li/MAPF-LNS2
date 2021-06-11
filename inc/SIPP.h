@@ -11,23 +11,23 @@ public:
 	typedef boost::heap::pairing_heap< SIPPNode*, compare<SIPPNode::secondary_compare_node> >::handle_type focal_handle_t;
 	open_handle_t open_handle;
 	focal_handle_t focal_handle;
-	int high_v; // the upper bound with respect to the vertex interval
-    int high_e; // the upper bound with respect to the edge interval
+	int high_generation; // the upper bound with respect to generation
+    int high_expansion; // the upper bound with respect to expansion
 	bool collision_v;
     SIPPNode() : LLNode() {}
-	SIPPNode(int loc, int g_val, int h_val, SIPPNode* parent, int timestep, int high_v, int high_e, bool collision_v,
-	        int num_of_conflicts) :
-		LLNode(loc, g_val, h_val, parent, timestep, num_of_conflicts), high_v(high_v), high_e(high_e),
-        collision_v(collision_v) {}
-	SIPPNode(const SIPPNode& other): LLNode(other), high_v(other.high_v), high_e(other.high_e),
-	    collision_v(collision_v) {}
+	SIPPNode(int loc, int g_val, int h_val, SIPPNode* parent, int timestep, int high_generation, int high_expansion,
+	        bool collision_v, int num_of_conflicts) :
+            LLNode(loc, g_val, h_val, parent, timestep, num_of_conflicts), high_generation(high_generation),
+            high_expansion(high_expansion), collision_v(collision_v) {}
+	SIPPNode(const SIPPNode& other): LLNode(other), high_generation(other.high_generation), high_expansion(other.high_expansion),
+                                     collision_v(collision_v) {}
 	~SIPPNode() {}
 
 	void copy(const SIPPNode& other) // copy everything except for handles
     {
 	    LLNode::copy(other);
-        high_v = other.high_v;
-        high_e = other.high_e;
+        high_generation = other.high_generation;
+        high_expansion = other.high_expansion;
         collision_v = other.collision_v;
     }
 	// The following is used by for generating the hash value of a nodes
@@ -37,7 +37,7 @@ public:
 		{
             size_t seed = 0;
             boost::hash_combine(seed, n->location);
-            boost::hash_combine(seed, n->high_v);
+            boost::hash_combine(seed, n->high_generation);
             return seed;
 		}
 	};
@@ -53,7 +53,7 @@ public:
 			            (n1 && n2 && n1->location == n2->location &&
 				        n1->wait_at_goal == n2->wait_at_goal &&
 				        n1->is_goal == n2->is_goal &&
-                        n1->high_v == n2->high_v);
+                         n1->high_generation == n2->high_generation);
                         //max(n1->timestep, n2->timestep) <
                         //min(get<1>(n1->interval), get<1>(n2->interval))); //overlapping time intervals
 		}
