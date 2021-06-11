@@ -21,14 +21,13 @@ public:
 
     bool getInitialSolution();
     bool run();
-    void validateSolution() const;
     void writeIterStatsToFile(const string & file_name) const;
     void writeResultToFile(const string & file_name, int sum_of_distances, double preprocessing_time) const;
-    void writePathsToFile(const string & file_name) const;
     string getSolverName() const { return "InitLNS(" + init_algo_name + ";" + replan_algo_name + ")"; }
 
     void printPath() const;
     void printResult();
+    void clear(); // delete useless data to save memory
 private:
     int num_neighbor_sizes = 1; //4; // so the neighbor size could be 2, 4, 8, 16
 
@@ -38,7 +37,6 @@ private:
     double replan_time_limit; // time limit for replanning
     string init_algo_name;
     string replan_algo_name;
-    bool init_lns; // use LNS to find initial solutions
     int screen;
     init_destroy_heuristic init_destroy_strategy = COLLISION_BASED;
     int neighbor_size;
@@ -55,8 +53,8 @@ private:
     vector<int> goal_table;
 
 
-    unordered_set<int> tabu_list; // used by randomwalk strategy
-    list<int> intersections;
+    //unordered_set<int> tabu_list; // used by randomwalk strategy
+    //list<int> intersections;
 
     // adaptive LNS
     bool ALNS = false;
@@ -79,7 +77,7 @@ private:
     bool generateNeighborByTarget();
 
 
-    int findRandomAgent() const;
+    // int findRandomAgent() const;
     int randomWalk(int agent_id);
 
     void printCollisionGraph() const;

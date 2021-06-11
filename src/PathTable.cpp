@@ -270,3 +270,10 @@ int PathTableWC::getLastCollisionTimestep(int location) const
     }
     return -1;
 }
+
+void PathTableWC::clear()
+{
+    table.clear();
+    goals.clear();
+    paths.clear();
+}

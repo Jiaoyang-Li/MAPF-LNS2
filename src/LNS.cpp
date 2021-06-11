@@ -56,8 +56,6 @@ bool LNS::run()
         initial_solution_runtime = ((fsec)(Time::now() - start_time)).count();
         count++;
     }
-    if (init_lns)
-        return succ;
     iteration_stats.emplace_back(neighbor.agents.size(),
                                  initial_sum_of_costs, initial_solution_runtime, init_algo_name);
     runtime = initial_solution_runtime;
@@ -182,7 +180,15 @@ bool LNS::getInitialSolution()
     {
         init_lns = new InitLNS(instance, agents, time_limit, init_algo_name, replan_algo_name,init_destory_name, neighbor_size, screen);
         succ = init_lns->run();
-        neighbor.sum_of_costs = init_lns->sum_of_costs;
+        if (succ) // accept new paths
+        {
+            for (const auto & agent : agents)
+            {
+                path_table.insertPath(agent.id, agent.path);
+            }
+            init_lns->clear();
+            neighbor.sum_of_costs = init_lns->sum_of_costs;
+        }
         /*auto name = instance.getInstanceName();
         auto pos = name.rfind('/');
         if (pos == std::string::npos)

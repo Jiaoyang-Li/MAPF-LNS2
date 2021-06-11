@@ -257,6 +257,7 @@ bool Instance::loadMap()
 	getline(myfile, line);
 	if (line[0] == 't') // Nathan's benchmark
 	{
+        nathan_benchmark = true;
 		char_separator<char> sep(" ");
 		getline(myfile, line);
 		tokenizer< char_separator<char> > tok(line, sep);
@@ -272,6 +273,7 @@ bool Instance::loadMap()
 	}
 	else // my benchmark
 	{
+        nathan_benchmark = false;
 		char_separator<char> sep(",");
 		tokenizer< char_separator<char> > tok(line, sep);
 		beg = tok.begin();
@@ -352,7 +354,7 @@ bool Instance::loadAgents()
 	return false;
 
 	getline(myfile, line);
-	if (line[0] == 'v') // Nathan's benchmark
+	if (nathan_benchmark) // Nathan's benchmark
 	{
 		if (num_of_agents == 0)
 		{
@@ -365,6 +367,11 @@ bool Instance::loadAgents()
 		for (int i = 0; i < num_of_agents; i++)
 		{
 			getline(myfile, line);
+			if (line.empty())
+            {
+			    cerr << "Error! The instance has only " << i << " agents" << endl;
+			    exit(-1);
+            }
 			tokenizer< char_separator<char> > tok(line, sep);
 			tokenizer< char_separator<char> >::iterator beg = tok.begin();
 			beg++; // skip the first number
@@ -471,4 +478,139 @@ list<int> Instance::getNeighbors(int curr) const
 			neighbors.emplace_back(next);
 	}
 	return neighbors;
+}
+
+void Instance::savePaths(const string & file_name, const vector<Path*>& paths) const
+{
+    std::ofstream output;
+    output.open(file_name);
+
+    for (auto i = 0; i < paths.size(); i++)
+    {
+        output << "Agent " << i << ":";
+        for (const auto &state : (*paths[i]))
+        {
+            if (nathan_benchmark)
+                output << "(" << getColCoordinate(state.location) << "," << getRowCoordinate(state.location) << ")->";
+            else
+                output << "(" << getRowCoordinate(state.location) << "," << getColCoordinate(state.location) << ")->";
+        }
+        output << endl;
+    }
+    output.close();
+}
+
+void Instance::validateSolution(const vector<Path*>& paths, int sum_of_costs, int num_of_colliding_pairs) const
+{
+    cout << "Validate solution ..." << endl;
+    if (paths.size() != start_locations.size())
+    {
+        cerr << "We have " << paths.size() << " for " << start_locations.size() << " agents." << endl;
+        exit(-1);
+    }
+    int sum = 0;
+    for (auto i = 0; i < start_locations.size(); i++)
+    {
+        if (paths[i] == nullptr or paths[i]->empty())
+        {
+            cerr << "No path for agent " << i << endl;
+            exit(-1);
+        }
+        else if (start_locations[i] != paths[i]->front().location)
+        {
+            cerr << "The path of agent " << i << " starts from location " << paths[i]->front().location
+                 << ", which is different from its start location " << start_locations[i] << endl;
+            exit(-1);
+        }
+        else if (goal_locations[i] != paths[i]->back().location)
+        {
+            cerr << "The path of agent " << i << " ends at location " << paths[i]->back().location
+                 << ", which is different from its goal location " << goal_locations[i] << endl;
+            exit(-1);
+        }
+        for (int t = 1; t < (int) paths[i]->size(); t++ )
+        {
+            if (!validMove(paths[i]->at(t - 1).location, paths[i]->at(t).location))
+            {
+                cerr << "The path of agent " << i << " jumps from "
+                     << paths[i]->at(t - 1).location << " to " << paths[i]->at(t).location
+                     << " between timesteps " << t - 1 << " and " << t << endl;
+                exit(-1);
+            }
+        }
+        sum += (int) paths[i]->size() - 1;
+    }
+    if (sum_of_costs != sum)
+    {
+        cerr << "The computed sum of costs " << sum_of_costs <<
+             " is different from that of the solution " << sum << endl;
+        exit(-1);
+    }
+    // check for colliions
+    int collisions = 0;
+    for (auto i = 0; i < start_locations.size(); i++)
+    {
+        for (auto j = i + 1; j < start_locations.size(); j++)
+        {
+            bool found_collision = false;
+            const auto a1 = paths[i]->size() <= paths[j]->size()? i : j;
+            const auto a2 = paths[i]->size() <= paths[j]->size()? j : i;
+            int t = 1;
+            for (; t < (int) paths[a1]->size(); t++)
+            {
+                if (paths[a1]->at(t).location == paths[a2]->at(t).location) // vertex conflict
+                {
+                    if (num_of_colliding_pairs == 0)
+                    {
+                        cerr << "Find a vertex conflict between agents " << a1 << " and " << a2 <<
+                             " at location " << paths[a1]->at(t).location << " at timestep " << t << endl;
+                        exit(-1);
+                    }
+                    collisions++;
+                    found_collision = true;
+                    break;
+                }
+                else if (paths[a1]->at(t).location == paths[a2]->at(t-1).location &&
+                        paths[a1]->at(t-1).location == paths[a2]->at(t).location) // edge conflict
+                {
+                    if (num_of_colliding_pairs == 0)
+                    {
+                        cerr << "Find an edge conflict between agents " << a1 << " and " << a2 <<
+                             " at edge (" << paths[a1]->at(t-1).location << "," << paths[a1]->at(t).location <<
+                             ") at timestep " << t << endl;
+                        exit(-1);
+                    }
+                    collisions++;
+                    found_collision = true;
+                    break;
+                }
+            }
+            if (!found_collision)
+            {
+                auto target = paths[a1]->back().location;
+                for (; t < (int) paths[a2]->size(); t++)
+                {
+                    if (paths[a2]->at(t).location == target)  // target conflict
+                    {
+                        if (num_of_colliding_pairs == 0)
+                        {
+                            cerr << "Find a target conflict where agent " << a2 << " (of length " << paths[a2]->size() - 1 <<
+                                 ") traverses agent " << a1 << " (of length " << paths[a1]->size() - 1<<
+                                 ")'s target location " << target << " at timestep " << t << endl;
+                            exit(-1);
+                        }
+                        collisions++;
+                        break;
+                    }
+                }
+            }
+        }
+    }
+    if (collisions != num_of_colliding_pairs)
+    {
+        cerr << "The computed number of colliding pairs " << num_of_colliding_pairs <<
+             " is different from that of the solution " << collisions << endl;
+        exit(-1);
+    }
+    cout << "Done!" << endl;
 }

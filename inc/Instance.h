@@ -72,6 +72,8 @@ public:
 
 	int getDefaultNumberOfAgents() const { return num_of_agents; }
 	string getInstanceName() const { return agent_fname; }
+    void savePaths(const string & file_name, const vector<Path*>& paths) const;
+    void validateSolution(const vector<Path*>& paths, int sum_of_costs, int num_of_colliding_pairs) const;
 private:
 	  // int moves_offset[MOVE_COUNT];
 	  vector<bool> my_map;
@@ -82,6 +84,7 @@ private:
 	  vector<int> start_locations;
 	  vector<int> goal_locations;
 
+	  bool nathan_benchmark = true;
 	  bool loadMap();
 	  void printMap() const;
 	  void saveMap() const;
