@@ -47,15 +47,41 @@ bool LNS::run()
     }
 
     initial_solution_runtime = 0;
-    bool succ = false;
-    int count = 0;
     start_time = Time::now();
-    while (!succ && initial_solution_runtime < time_limit)
+    bool succ = getInitialSolution();
+    initial_solution_runtime = ((fsec)(Time::now() - start_time)).count();
+    int count = 1;
+    if (!succ && initial_solution_runtime < time_limit)
     {
-        succ = getInitialSolution();
-        initial_solution_runtime = ((fsec)(Time::now() - start_time)).count();
-        count++;
+        if (use_init_lns)
+        {
+            init_lns = new InitLNS(instance, agents, time_limit - initial_solution_runtime,
+                    replan_algo_name,init_destory_name, neighbor_size, screen);
+            succ = init_lns->run();
+            if (succ) // accept new paths
+            {
+                path_table.reset();
+                for (const auto & agent : agents)
+                {
+                    path_table.insertPath(agent.id, agent.path);
+                }
+                init_lns->clear();
+                initial_sum_of_costs = init_lns->sum_of_costs;
+                sum_of_costs = initial_sum_of_costs;
+            }
+            initial_solution_runtime = ((fsec)(Time::now() - start_time)).count();
+        }
+        else // use random restart
+        {
+            while (!succ && initial_solution_runtime < time_limit)
+            {
+                succ = getInitialSolution();
+                initial_solution_runtime = ((fsec)(Time::now() - start_time)).count();
+                count++;
+            }
+        }
     }
+
     iteration_stats.emplace_back(neighbor.agents.size(),
                                  initial_sum_of_costs, initial_solution_runtime, init_algo_name);
     runtime = initial_solution_runtime;
@@ -155,12 +181,12 @@ bool LNS::run()
         average_group_size += data.num_of_agents;
     if (average_group_size > 0)
         average_group_size /= (double)(iteration_stats.size() - 1);
-    if (use_init_lns and num_of_iterations == 0)
-        return true;
-    cout << getSolverName() << ": Iterations = " << iteration_stats.size() << ", "
+
+    cout << getSolverName() << ": "
+         << "runtime = " << runtime << ", "
+         << "iterations = " << iteration_stats.size() << ", "
          << "solution cost = " << sum_of_costs << ", "
          << "initial solution cost = " << initial_sum_of_costs << ", "
-         << "runtime = " << runtime << ", "
          << "group size = " << average_group_size << ", "
          << "failed iterations = " << num_of_failures << ", "
          << "LL expanded nodes = " << num_LL_expanded << ", "
@@ -178,30 +204,7 @@ bool LNS::getInitialSolution()
     neighbor.old_sum_of_costs = MAX_COST;
     neighbor.sum_of_costs = 0;
     bool succ = false;
-    if (use_init_lns)
-    {
-        init_lns = new InitLNS(instance, agents, time_limit, init_algo_name, replan_algo_name,init_destory_name, neighbor_size, screen);
-        succ = init_lns->run();
-        if (succ) // accept new paths
-        {
-            for (const auto & agent : agents)
-            {
-                path_table.insertPath(agent.id, agent.path);
-            }
-            init_lns->clear();
-            neighbor.sum_of_costs = init_lns->sum_of_costs;
-        }
-        /*auto name = instance.getInstanceName();
-        auto pos = name.rfind('/');
-        if (pos == std::string::npos)
-            pos = 0;
-        else
-            pos++;
-        auto out_name = name.substr( pos) + "-agents=" + std::to_string(agents.size()) +
-                "-neighbor=" + std::to_string(neighbor_size) + "-initLNS.csv";
-        initLNS.writeIterStatsToFile(out_name);*/
-    }
-    else if (init_algo_name == "EECBS")
+    if (init_algo_name == "EECBS")
         succ = runEECBS();
     else if (init_algo_name == "PP")
         succ = runPP();
@@ -254,7 +257,7 @@ bool LNS::runEECBS()
     ecbs.setSavingStats(false);
     double w;
     if (iteration_stats.empty())
-        w = 2; // initial run
+        w = 5; // initial run
     else
         w = 1.1; // replan
     ecbs.setHighLevelSolver(high_level_solver_type::EES, w);
@@ -324,7 +327,7 @@ bool LNS::runCBS()
         T = min(T, replan_time_limit);
     bool succ = cbs.solve(T, 0);
     num_LL_generated += cbs.num_LL_generated;
-    if (succ && cbs.solution_cost < neighbor.old_sum_of_costs) // accept new paths
+    if (succ && cbs.solution_cost <= neighbor.old_sum_of_costs) // accept new paths
     {
         auto id = neighbor.agents.begin();
         for (size_t i = 0; i < neighbor.agents.size(); i++)
@@ -377,24 +380,37 @@ bool LNS::runPP()
         int id = *p;
         if (screen >= 3)
             cout << "Remaining agents = " << remaining_agents <<
-                 ", remaining time = " << time_limit - runtime << " seconds. " << endl
+                 ", remaining time = " << T - ((fsec)(Time::now() - time)).count() << " seconds. " << endl
                  << "Agent " << agents[id].id << endl;
         agents[id].path = agents[id].path_planner.findPath(constraint_table);
         num_LL_generated += agents[id].path_planner.num_generated;
         num_LL_expanded += agents[id].path_planner.num_expanded;
         num_LL_reopened += agents[id].path_planner.num_reopened;
-        if (agents[id].path.empty())
+        /*if (use_init_lns and neighbor.old_sum_of_costs == MAX_COST) // we use initLNS to find initial solutions
         {
-            break;
+            if (!agents[id].path.empty())
+            {
+                neighbor.sum_of_costs += (int)agents[id].path.size() - 1;
+                remaining_agents--;
+            }
         }
+        else
+        {
+            if (agents[id].path.empty()) break;
+            neighbor.sum_of_costs += (int)agents[id].path.size() - 1;
+            if (neighbor.sum_of_costs >= neighbor.old_sum_of_costs)
+                break;
+            remaining_agents--;
+        }*/
+        if (agents[id].path.empty()) break;
         neighbor.sum_of_costs += (int)agents[id].path.size() - 1;
         if (neighbor.sum_of_costs >= neighbor.old_sum_of_costs)
             break;
-        path_table.insertPath(agents[id].id, agents[id].path);
         remaining_agents--;
+        path_table.insertPath(agents[id].id, agents[id].path);
         ++p;
     }
-    if (p == shuffled_agents.end() && neighbor.sum_of_costs < neighbor.old_sum_of_costs) // accept new paths
+    if (remaining_agents == 0 && neighbor.sum_of_costs <= neighbor.old_sum_of_costs) // accept new paths
     {
         return true;
     }
@@ -794,7 +810,7 @@ void LNS::validateSolution() const
         sum += (int) a1_.path.size() - 1;
         for (const auto& a2_: agents)
         {
-            if (a1_.id >= a2_.id || a1_.path.empty())
+            if (a1_.id >= a2_.id || a2_.path.empty())
                 continue;
             const auto a1 = a1_.path.size() <= a2_.path.size()? a1_ : a2_;
             const auto a2 = a1_.path.size() <= a2_.path.size()? a2_ : a1_;
@@ -863,54 +879,49 @@ void LNS::writeIterStatsToFile(string file_name) const
 
 void LNS::writeResultToFile(string file_name) const
 {
-    if (use_init_lns)
+    if (init_lns != nullptr)
     {
-        std::ifstream infile();
         init_lns->writeResultToFile(file_name + "-initLNS.csv", sum_of_distances, preprocessing_time);
     }
-    if (!use_init_lns or num_of_iterations > 0)
+    string name = file_name;
+    if (use_init_lns or num_of_iterations > 0)
+        name += "-LNS.csv";
+    else
+        name += "-" + init_algo_name + ".csv";
+    std::ifstream infile(name);
+    bool exist = infile.good();
+    infile.close();
+    if (!exist)
     {
-        string name = file_name;
-        if (num_of_iterations > 0)
-            name += "-LNS.csv";
-        else
-            name += "-" + init_algo_name + ".csv";
-        std::ifstream infile(name);
-        bool exist = infile.good();
-        infile.close();
-        if (!exist)
-        {
-            ofstream addHeads(name);
-            addHeads << "runtime,solution cost,initial solution cost,lower bound,sum of distance," <<
-                     "iterations," <<
-                     "group size," <<
-                     "runtime of initial solution,area under curve," <<
-                     "preprocessing runtime,solver name,instance name" << endl;
-            addHeads.close();
-        }
-        ofstream stats(name, std::ios::app);
-        double auc = 0;
-        if (!iteration_stats.empty())
-        {
-            auto prev = iteration_stats.begin();
-            auto curr = prev;
-            ++curr;
-            while (curr != iteration_stats.end() && curr->runtime < time_limit)
-            {
-                auc += (prev->sum_of_costs - sum_of_distances) * (curr->runtime - prev->runtime);
-                prev = curr;
-                ++curr;
-            }
-            auc += (prev->sum_of_costs - sum_of_distances) * (time_limit - prev->runtime);
-        }
-        stats << runtime << "," << sum_of_costs << "," << initial_sum_of_costs << "," <<
-              max(sum_of_distances, sum_of_costs_lowerbound) << "," << sum_of_distances << "," <<
-              iteration_stats.size() << "," << average_group_size << "," <<
-              initial_solution_runtime << "," << auc << "," <<
-              preprocessing_time << "," << getSolverName() << "," << instance.getInstanceName() << endl;
-        stats.close();
+        ofstream addHeads(name);
+        addHeads << "runtime,solution cost,initial solution cost,lower bound,sum of distance," <<
+                 "iterations," <<
+                 "group size," <<
+                 "runtime of initial solution,area under curve," <<
+                 "preprocessing runtime,solver name,instance name" << endl;
+        addHeads.close();
     }
-
+    ofstream stats(name, std::ios::app);
+    double auc = 0;
+    if (!iteration_stats.empty())
+    {
+        auto prev = iteration_stats.begin();
+        auto curr = prev;
+        ++curr;
+        while (curr != iteration_stats.end() && curr->runtime < time_limit)
+        {
+            auc += (prev->sum_of_costs - sum_of_distances) * (curr->runtime - prev->runtime);
+            prev = curr;
+            ++curr;
+        }
+        auc += (prev->sum_of_costs - sum_of_distances) * (time_limit - prev->runtime);
+    }
+    stats << runtime << "," << sum_of_costs << "," << initial_sum_of_costs << "," <<
+          max(sum_of_distances, sum_of_costs_lowerbound) << "," << sum_of_distances << "," <<
+          iteration_stats.size() << "," << average_group_size << "," <<
+          initial_solution_runtime << "," << auc << "," <<
+          preprocessing_time << "," << getSolverName() << "," << instance.getInstanceName() << endl;
+    stats.close();
 }
 
 void LNS::writePathsToFile(string file_name) const

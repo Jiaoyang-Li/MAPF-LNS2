@@ -16,14 +16,14 @@ public:
     size_t num_LL_expanded = 0;
     size_t num_LL_reopened = 0;
     int num_of_failures = 0; // #replanning that fails to find any solutions
-    InitLNS(const Instance& instance, vector<Agent>& agents, double time_limit, string init_algo_name,
+    InitLNS(const Instance& instance, vector<Agent>& agents, double time_limit,
             string replan_algo_name,string init_destory_name, int neighbor_size, int screen);
 
     bool getInitialSolution();
     bool run();
     void writeIterStatsToFile(const string & file_name) const;
     void writeResultToFile(const string & file_name, int sum_of_distances, double preprocessing_time) const;
-    string getSolverName() const { return "InitLNS(" + init_algo_name + ";" + replan_algo_name + ")"; }
+    string getSolverName() const { return "InitLNS(" + replan_algo_name + ")"; }
 
     void printPath() const;
     void printResult();
@@ -35,7 +35,6 @@ private:
     const Instance& instance; // avoid making copies of this variable as much as possible
     double time_limit;
     double replan_time_limit; // time limit for replanning
-    string init_algo_name;
     string replan_algo_name;
     int screen;
     init_destroy_heuristic init_destroy_strategy = COLLISION_BASED;
