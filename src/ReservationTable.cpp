@@ -325,7 +325,9 @@ list<tuple<int, int, int, bool, bool>> ReservationTable::get_safe_intervals(int 
             continue;
         else if (upper_bound <= get<0>(interval))
             break;
-        auto t1 = get_earliest_arrival_time(from, to, interval, lower_bound, upper_bound);
+        // the interval overlaps with [lower_bound, upper_bound)
+        auto t1 = get_earliest_arrival_time(from, to,
+                max(lower_bound, get<0>(interval)), min(upper_bound, get<1>(interval)));
         if (t1 < 0) // the interval is not reachable
             continue;
         else if (get<2>(interval)) // the interval has collisions
@@ -376,10 +378,9 @@ bool ReservationTable::find_safe_interval(Interval& interval, size_t location, i
     return false;
 }
 
-int ReservationTable::get_earliest_arrival_time(int from, int to, const Interval& interval,
-        int lower_bound, int upper_bound) const
+int ReservationTable::get_earliest_arrival_time(int from, int to, int lower_bound, int upper_bound) const
 {
-    for (auto t = max(lower_bound, get<0>(interval)); t < min(upper_bound, get<1>(interval)); t++)
+    for (auto t = lower_bound; t < upper_bound; t++)
     {
         if (!constraint_table.constrained(from, to, t))
             return t;
