@@ -1,5 +1,4 @@
 #include "SIPP.h"
-#include "SpaceTimeAStar.h"
 
 void SIPP::updatePath(const LLNode* goal, vector<PathEntry> &path)
 {

@@ -786,7 +786,7 @@ void InitLNS::writeIterStatsToFile(const string & file_name) const
     std::ofstream output;
     output.open(file_name);
     // header
-    output << "num of agents," <<
+    output << //"num of agents," <<
            "sum of costs," <<
            "num of colliding pairs," <<
            "runtime" << //"," <<
@@ -795,7 +795,7 @@ void InitLNS::writeIterStatsToFile(const string & file_name) const
 
     for (const auto &data : iteration_stats)
     {
-        output << data.num_of_agents << "," <<
+        output << //data.num_of_agents << "," <<
                data.sum_of_costs << "," <<
                data.num_of_colliding_pairs << "," <<
                data.runtime << //"," <<

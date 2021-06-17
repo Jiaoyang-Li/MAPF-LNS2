@@ -50,7 +50,6 @@ bool LNS::run()
     start_time = Time::now();
     bool succ = getInitialSolution();
     initial_solution_runtime = ((fsec)(Time::now() - start_time)).count();
-    int count = 1;
     if (!succ && initial_solution_runtime < time_limit)
     {
         if (use_init_lns)
@@ -77,7 +76,7 @@ bool LNS::run()
             {
                 succ = getInitialSolution();
                 initial_solution_runtime = ((fsec)(Time::now() - start_time)).count();
-                count++;
+                restart_times++;
             }
         }
     }
@@ -94,7 +93,7 @@ bool LNS::run()
     else
     {
         cout << "Failed to find an initial solution in "
-             << runtime << " seconds and  " << count << " iterations" << endl;
+             << runtime << " seconds after  " << restart_times << " restarts" << endl;
         return false; // terminate because no initial solution is found
     }
 
@@ -855,8 +854,19 @@ void LNS::validateSolution() const
 
 void LNS::writeIterStatsToFile(string file_name) const
 {
+    if (init_lns != nullptr)
+    {
+        init_lns->writeIterStatsToFile(file_name + "-initLNS.csv");
+    }
+    if (iteration_stats.size() <= 1)
+        return;
+    string name = file_name;
+    if (use_init_lns or num_of_iterations > 0)
+        name += "-LNS.csv";
+    else
+        name += "-" + init_algo_name + ".csv";
     std::ofstream output;
-    output.open(file_name);
+    output.open(name);
     // header
     output << "num of agents," <<
            "sum of costs," <<
@@ -897,7 +907,7 @@ void LNS::writeResultToFile(string file_name) const
         addHeads << "runtime,solution cost,initial solution cost,lower bound,sum of distance," <<
                  "iterations," <<
                  "group size," <<
-                 "runtime of initial solution,area under curve," <<
+                 "runtime of initial solution,restart times,area under curve," <<
                  "preprocessing runtime,solver name,instance name" << endl;
         addHeads.close();
     }
@@ -919,7 +929,7 @@ void LNS::writeResultToFile(string file_name) const
     stats << runtime << "," << sum_of_costs << "," << initial_sum_of_costs << "," <<
           max(sum_of_distances, sum_of_costs_lowerbound) << "," << sum_of_distances << "," <<
           iteration_stats.size() << "," << average_group_size << "," <<
-          initial_solution_runtime << "," << auc << "," <<
+          initial_solution_runtime << "," << restart_times << "," << auc << "," <<
           preprocessing_time << "," << getSolverName() << "," << instance.getInstanceName() << endl;
     stats.close();
 }

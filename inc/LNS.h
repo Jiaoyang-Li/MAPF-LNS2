@@ -31,6 +31,7 @@ public:
     int sum_of_distances = -1;
     double average_group_size = -1;
     int num_of_failures = 0; // #replanning that fails to find any solutions
+    int restart_times = 0;
     size_t num_LL_generated = 0;
     size_t num_LL_expanded = 0;
     size_t num_LL_reopened = 0;
