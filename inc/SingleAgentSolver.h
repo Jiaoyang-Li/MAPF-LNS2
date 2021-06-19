@@ -79,9 +79,11 @@ std::ostream& operator<<(std::ostream& os, const LLNode& node);
 class SingleAgentSolver
 {
 public:
-	uint64_t num_expanded = 0;
-	uint64_t num_generated = 0;
-    uint64_t num_reopened = 0;
+    uint64_t accumulated_num_expanded = 0;
+    uint64_t accumulated_num_generated = 0;
+    uint64_t accumulated_num_reopened = 0;
+    uint64_t num_runs = 0;
+
     int num_collisions = -1;
 	double runtime_build_CT = 0; // runtimr of building constraint table
 	double runtime_build_CAT = 0; // runtime of building conflict avoidance table
@@ -108,7 +110,7 @@ public:
 
 	list<int> getNextLocations(int curr) const; // including itself and its neighbors
 	list<int> getNeighbors(int curr) const { return instance.getNeighbors(curr); }
-
+    uint64_t getNumExpanded() const { return num_expanded; }
 	// int getStartLocation() const {return instance.start_locations[agent]; }
 	// int getGoalLocation() const {return instance.goal_locations[agent]; }
 
@@ -119,10 +121,24 @@ public:
 	{
 		compute_heuristics();
 	}
-
-  virtual ~SingleAgentSolver(){} 
-
+	virtual ~SingleAgentSolver(){}
+    void reset()
+    {
+        if (num_generated > 0)
+        {
+            accumulated_num_expanded += num_expanded;
+            accumulated_num_generated += num_generated;
+            accumulated_num_reopened += num_reopened;
+            num_runs++;
+        }
+        num_expanded = 0;
+        num_generated = 0;
+        num_reopened = 0;
+    }
 protected:
+    uint64_t num_expanded = 0;
+    uint64_t num_generated = 0;
+    uint64_t num_reopened = 0;
 	int min_f_val; // minimal f value in OPEN
 	// int lower_bound; // Threshold for FOCAL
 	double w = 1; // suboptimal bound

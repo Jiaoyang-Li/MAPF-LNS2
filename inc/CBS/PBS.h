@@ -55,9 +55,6 @@ public:
     double runtime_detect_conflicts = 0;
     uint64_t num_HL_expanded = 0;
     uint64_t num_HL_generated = 0;
-    uint64_t num_LL_expanded = 0;
-    uint64_t num_LL_generated = 0;
-    uint64_t num_LL_reopened = 0;
     vector<Path*> paths;
     PBSNode* best_node = nullptr;
 

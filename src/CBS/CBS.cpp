@@ -429,8 +429,6 @@ bool CBS::findPathForSingleAgent(CBSNode*  node, int ag, int lowerbound)
 	// updateReservationTable(cat, ag, *node);
 	// find a path
 	Path new_path = search_engines[ag]->findOptimalPath(*node, initial_constraints[ag], paths, ag, lowerbound);
-	num_LL_expanded += search_engines[ag]->num_expanded;
-	num_LL_generated += search_engines[ag]->num_generated;
 	runtime_build_CT += search_engines[ag]->runtime_build_CT;
 	runtime_build_CAT += search_engines[ag]->runtime_build_CAT;
 	runtime_path_finding += (double)(clock() - t) / CLOCKS_PER_SEC;
@@ -904,44 +902,9 @@ void CBS::printResults() const
 		cout << "Nodesout,";
 
 	cout << solution_cost << "," << runtime << "," <<
-		num_HL_expanded << "," << num_LL_expanded << "," << // HL_num_generated << "," << LL_num_generated << "," <<
+		num_HL_expanded << "," << // num_LL_expanded << "," << HL_num_generated << "," << LL_num_generated << "," <<
 		cost_lowerbound << "," << dummy_start->g_val << "," << dummy_start->g_val + dummy_start->h_val << "," <<
 		endl;
-    /*if (solution_cost >= 0) // solved
-    {
-        cout << "fhat = [";
-        auto curr = goal_node;
-        while (curr != nullptr)
-        {
-            cout << curr->getFHatVal() << ",";
-            curr = curr->parent;
-        }
-        cout << "]" << endl;
-        cout << "hhat = [";
-        curr = goal_node;
-        while (curr != nullptr)
-        {
-            cout << curr->cost_to_go << ",";
-            curr = curr->parent;
-        }
-        cout << "]" << endl;
-        cout << "d = [";
-        curr = goal_node;
-        while (curr != nullptr)
-        {
-            cout << curr->distance_to_go << ",";
-            curr = curr->parent;
-        }
-        cout << "]" << endl;
-        cout << "soc = [";
-        curr = goal_node;
-        while (curr != nullptr)
-        {
-            cout << curr->getFHatVal() - curr->cost_to_go << ",";
-            curr = curr->parent;
-        }
-        cout << "]" << endl;
-    }*/
 }
 
 void CBS::saveResults(const string &fileName, const string &instanceName) const
@@ -952,7 +915,8 @@ void CBS::saveResults(const string &fileName, const string &instanceName) const
 	if (!exist)
 	{
 		ofstream addHeads(fileName);
-		addHeads << "runtime,#high-level expanded,#high-level generated,#low-level expanded,#low-level generated," <<
+		addHeads << "runtime,#high-level expanded,#high-level generated," <<
+		    "#low-level expanded,#low-level generated,#low-level reopened,#low-level runs" <<
 			"solution cost,min f value,root g value, root f value," <<
 			"#adopt bypasses," <<
 			"cardinal conflicts," <<
@@ -969,9 +933,18 @@ void CBS::saveResults(const string &fileName, const string &instanceName) const
 		addHeads.close();
 	}
 	ofstream stats(fileName, std::ios::app);
+	uint64_t num_LL_expanded = 0, num_LL_generated = 0, num_LL_reopened = 0, num_LL_runs = 0;
+	for (auto & planner : search_engines)
+    {
+        planner->reset();
+        num_LL_expanded += planner->accumulated_num_expanded;
+        num_LL_generated += planner->accumulated_num_generated;
+        num_LL_reopened += planner->accumulated_num_reopened;
+        num_LL_runs += planner->num_runs;
+    }
 	stats << runtime << "," << 
 		num_HL_expanded << "," << num_HL_generated << "," <<
-		num_LL_expanded << "," << num_LL_generated << "," <<
+		num_LL_expanded << "," << num_LL_generated << "," << num_LL_reopened << "," << num_LL_runs << "," <<
 
 		solution_cost << "," << cost_lowerbound << "," << dummy_start->g_val << "," <<
 		dummy_start->g_val + dummy_start->h_val << "," <<
@@ -1577,13 +1550,19 @@ bool CBS::generateRoot()
 			if (paths_found_initially[i].empty())
 			{
 				cout << "No path exists for agent " << i << endl;
+                delete root;
 				return false;
 			}
+            runtime = (double)(clock() - start) / CLOCKS_PER_SEC;
+            if (runtime > time_limit)
+            {
+                cout << "Time out when generating the root CT node" << endl;
+                delete root;
+                return false;
+            }
 			paths[i] = &paths_found_initially[i];
 			root->makespan = max(root->makespan, paths_found_initially[i].size() - 1);
 			root->g_val += (int)paths_found_initially[i].size() - 1;
-			num_LL_expanded += search_engines[i]->num_expanded;
-			num_LL_generated += search_engines[i]->num_generated;
 		}
 	}
 	else

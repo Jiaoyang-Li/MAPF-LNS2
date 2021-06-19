@@ -27,9 +27,8 @@ Path SpaceTimeAStar::findOptimalPath(const HLNode& node, const ConstraintTable& 
 // Returns a path that minimizes the collisions with the paths in the path table, breaking ties by the length
 Path SpaceTimeAStar::findPath(const ConstraintTable& constraint_table)
 {
+    reset();
     Path path;
-    num_expanded = 0;
-    num_generated = 0;
     if (constraint_table.constrained(start_location, 0))
     {
         return path;
@@ -182,10 +181,9 @@ Path SpaceTimeAStar::findPath(const ConstraintTable& constraint_table)
 pair<Path, int> SpaceTimeAStar::findSuboptimalPath(const HLNode& node, const ConstraintTable& initial_constraints,
 	const vector<Path*>& paths, int agent, int lowerbound, double w)
 {
+    reset();
 	this->w = w;
 	Path path;
-	num_expanded = 0;
-	num_generated = 0;
 
 	// build constraint table
 	auto t = clock();
@@ -323,6 +321,7 @@ pair<Path, int> SpaceTimeAStar::findSuboptimalPath(const HLNode& node, const Con
 
 int SpaceTimeAStar::getTravelTime(int start, int end, const ConstraintTable& constraint_table, int upper_bound)
 {
+    reset();
 	int length = MAX_TIMESTEP;
     auto static_timestep = constraint_table.getMaxTimestep() + 1; // everything is static after this timestep
 	auto root = new AStarNode(start, 0, compute_heuristic(start, end), nullptr, 0, 0);
@@ -378,6 +377,9 @@ int SpaceTimeAStar::getTravelTime(int start, int end, const ConstraintTable& con
 		}
 	}
 	releaseNodes();
+    num_expanded = 0;
+    num_generated = 0;
+    num_reopened = 0;
 	return length;
 }
 

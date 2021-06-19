@@ -19,14 +19,9 @@ public:
 
     uint64_t num_target_conflicts = 0;
     uint64_t num_standard_conflicts = 0;
-
     uint64_t num_adopt_bypass = 0; // number of times when adopting bypasses
-
     uint64_t num_HL_expanded = 0;
     uint64_t num_HL_generated = 0;
-    uint64_t num_LL_expanded = 0;
-    uint64_t num_LL_generated = 0;
-    uint64_t num_LL_reopened = 0;
 
     GCBSNode* best_node = nullptr;
     vector<Path*> paths;

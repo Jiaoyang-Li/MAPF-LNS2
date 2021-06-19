@@ -196,13 +196,10 @@ bool GCBS::findPathForSingleAgent(GCBSNode* node, int agent)
     // find a path
     t = clock();
     Path new_path = search_engines[agent]->findPath(constraint_table);
-    num_LL_expanded += search_engines[agent]->num_expanded;
-    num_LL_generated += search_engines[agent]->num_generated;
-    num_LL_reopened += search_engines[agent]->num_reopened;
     runtime_path_finding += (double)(clock() - t) / CLOCKS_PER_SEC;
     if (screen > 1)
         cout << "\t\t\tRuntime of single-agent search = " << (double)(clock() - t) / CLOCKS_PER_SEC <<
-            "s with " << search_engines[agent]->num_expanded << " expanded nodes" << endl;
+            "s with " << search_engines[agent]->getNumExpanded() << " expanded nodes" << endl;
     if (new_path.empty())
     {
         if (screen > 1)
@@ -355,8 +352,7 @@ void GCBS::printPaths() const
 
 void GCBS::printResults() const
 {
-    cout << best_node->colliding_pairs << "," << best_node->sum_of_costs << "," << runtime << "," <<
-         num_HL_expanded << "," << num_LL_expanded << endl;
+    cout << best_node->colliding_pairs << "," << best_node->sum_of_costs << "," << runtime << "," << endl;
 }
 
 void GCBS::saveResults(const string &fileName, const string &instanceName) const
@@ -367,7 +363,8 @@ void GCBS::saveResults(const string &fileName, const string &instanceName) const
     if (!exist)
     {
         ofstream addHeads(fileName);
-        addHeads << "runtime,#colliding-pairs,#high-level expanded,#high-level generated,#low-level expanded,#low-level generated," <<
+        addHeads << "runtime,#colliding-pairs,#high-level expanded,#high-level generated," <<
+                 "#low-level expanded,#low-level generated,#low-level reopened,#low-level runs" <<
                  "solution cost," <<
                  "#adopt bypasses," <<
                  "standard conflicts,target conflicts" <<
@@ -377,12 +374,21 @@ void GCBS::saveResults(const string &fileName, const string &instanceName) const
                  "solver name,instance name" << endl;
         addHeads.close();
     }
+    uint64_t num_LL_expanded = 0, num_LL_generated = 0, num_LL_reopened = 0, num_LL_runs = 0;
+    for (auto & planner : search_engines)
+    {
+        planner->reset();
+        num_LL_expanded += planner->accumulated_num_expanded;
+        num_LL_generated += planner->accumulated_num_generated;
+        num_LL_reopened += planner->accumulated_num_reopened;
+        num_LL_runs += planner->num_runs;
+    }
     ofstream stats(fileName, std::ios::app);
     stats << runtime << ",";
     if (!focal_list.empty())
         stats << focal_list.top()->colliding_pairs << "," <<
                   num_HL_expanded << "," << num_HL_generated << "," <<
-                  num_LL_expanded << "," << num_LL_generated << "," <<
+                  num_LL_expanded << "," << num_LL_generated << "," << num_LL_reopened << "," << num_LL_runs << "," <<
 
                   focal_list.top()->sum_of_costs << "," <<
 

@@ -17,73 +17,47 @@ enum destroy_heuristic { RANDOMAGENTS, RANDOMWALK, INTERSECTION, DESTORY_COUNT }
 // increase it if no progress is made for a while
 // decrease it if replanning fails to find any solutions for several times
 
-class LNS
+class LNS : public BasicLNS
 {
 public:
     vector<Agent> agents;
-    list<IterationStats> iteration_stats; //stats about each iteration
     double preprocessing_time = 0;
     double initial_solution_runtime = 0;
-    double runtime = 0;
     int initial_sum_of_costs = -1;
-    int sum_of_costs = -1;
     int sum_of_costs_lowerbound = -1;
     int sum_of_distances = -1;
-    double average_group_size = -1;
-    int num_of_failures = 0; // #replanning that fails to find any solutions
     int restart_times = 0;
-    size_t num_LL_generated = 0;
-    size_t num_LL_expanded = 0;
-    size_t num_LL_reopened = 0;
+
     LNS(const Instance& instance, double time_limit,
-        string init_algo_name, string replan_algo_name, string destory_name,
-        int neighbor_size, int num_of_iterations, bool init_lns, string init_destory_name, int screen,
-        PIBTPPS_option pipp_option);
+        const string & init_algo_name, const string & replan_algo_name, const string & destory_name,
+        int neighbor_size, int num_of_iterations, bool init_lns, const string & init_destory_name, bool use_sipp,
+        int screen, PIBTPPS_option pipp_option);
     ~LNS()
     {
-        if(init_lns != nullptr)
-            delete init_lns;
+        delete init_lns;
     }
     bool getInitialSolution();
     bool run();
     void validateSolution() const;
-    void writeIterStatsToFile(string file_name) const;
-    void writeResultToFile(string file_name) const;
-    void writePathsToFile(string file_name) const;
-    string getSolverName() const { return "LNS(" + init_algo_name + ";" + replan_algo_name + ")"; }
+    void writeIterStatsToFile(const string & file_name) const;
+    void writeResultToFile(const string & file_name) const;
+    void writePathsToFile(const string & file_name) const;
+    string getSolverName() const override { return "LNS(" + init_algo_name + ";" + replan_algo_name + ")"; }
 private:
-    int num_neighbor_sizes = 1; //4; // so the neighbor size could be 2, 4, 8, 16
     InitLNS* init_lns = nullptr;
-    // input params
-    const Instance& instance; // avoid making copies of this variable as much as possible
-    double time_limit;
-    double replan_time_limit; // time limit for replanning
     string init_algo_name;
     string replan_algo_name;
     bool use_init_lns; // use LNS to find initial solutions
-    int screen;
     destroy_heuristic destroy_strategy = RANDOMWALK;
-    int neighbor_size;
     int num_of_iterations;
     string init_destory_name;
-
-    high_resolution_clock::time_point start_time;
+    PIBTPPS_option pipp_option;
 
 
     PathTable path_table; // 1. stores the paths of all agents in a time-space table;
     // 2. avoid making copies of this variable as much as possible.
-
-    Neighbor neighbor;
-
     unordered_set<int> tabu_list; // used by randomwalk strategy
     list<int> intersections;
-
-    // adaptive LNS
-    bool ALNS = false;
-    double decay_factor = 0.01;
-    double reaction_factor = 0.01;
-    vector<double> destroy_weights;
-    int selected_neighbor;
 
     bool runEECBS();
     bool runCBS();
@@ -92,16 +66,14 @@ private:
     bool runPPS();
     bool runWinPIBT();
 
-    PIBTPPS_option pipp_option;
 
-    MAPF preparePIBTProblem(vector<int> shuffled_agents);
-    void updatePIBTResult(const PIBT_Agents& A,vector<int> shuffled_agents);
+    MAPF preparePIBTProblem(vector<int>& shuffled_agents);
+    void updatePIBTResult(const PIBT_Agents& A, vector<int>& shuffled_agents);
 
     void chooseDestroyHeuristicbyALNS();
 
     bool generateNeighborByRandomWalk();
-    //bool generateNeighborByStart();
-    bool generateNeighborByIntersection(bool temporal = true);
+    bool generateNeighborByIntersection();
 
     int findMostDelayedAgent();
     int findRandomAgent() const;

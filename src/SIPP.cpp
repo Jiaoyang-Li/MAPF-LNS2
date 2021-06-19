@@ -344,70 +344,10 @@ int SIPP::getTravelTime(int start, int end, const ConstraintTable& constraint_ta
         }
     }
     releaseNodes();
+    num_expanded = 0;
+    num_generated = 0;
+    num_reopened = 0;
     return length;
-    /*int length = INT_MAX;
-    // generate a heap that can save nodes (and a open_handle)
-    pairing_heap< SIPPNode*, compare<SIPPNode::compare_node> > open_list;
-    // boost::heap::pairing_heap< AStarNode*, boost::heap::compare<LLNode::compare_node> >::handle_type open_handle;
-    unordered_set<SIPPNode*, SIPPNode::NodeHasher, SIPPNode::eqnode> nodes;
-
-    Interval interval = reservation_table.get_first_safe_interval(start);
-    assert(get<0>(interval) == 0);
-    auto root = new SIPPNode(start, 0, instance.getManhattanDistance(start, end), nullptr, 0, interval);
-    root->open_handle = open_list.push(root);  // add root to heap
-    nodes.insert(root);       // add root to hash_table (nodes)
-
-    while (!open_list.empty())
-    {
-        auto curr = open_list.top(); open_list.pop();
-        if (curr->location == end)
-        {
-            length = curr->g_val;
-            break;
-        }
-        for (int next_location : instance.getNeighbors(curr->location))
-        {
-            if ((curr->location == blocked.first && next_location == blocked.second) ||
-                (curr->location == blocked.second && next_location == blocked.first)) // use the prohibited edge
-            {
-                continue;
-            }
-
-            for (auto interval : reservation_table.get_safe_intervals(
-                curr->location, next_location, curr->timestep + 1, get<1>(curr->interval) + 1))
-            {
-                int next_timestep = max(curr->timestep + 1, (int)get<0>(interval));
-                int next_g_val = next_timestep;
-                int next_h_val = instance.getManhattanDistance(next_location, end);
-                if (next_g_val + next_h_val >= upper_bound) // the cost of the path is larger than the upper bound
-                    continue;
-                auto next = new SIPPNode(next_location, next_g_val, next_h_val, nullptr, next_timestep, interval);
-                auto it = nodes.find(next);
-                if (it == nodes.end())
-                {  // add the newly generated node to heap and hash table
-                    next->open_handle = open_list.push(next);
-                    nodes.insert(next);
-                }
-                else {  // update existing node's g_val if needed (only in the heap)
-                    delete(next);  // not needed anymore -- we already generated it before
-                    auto existing_next = *it;
-                    if (existing_next->g_val > next_g_val)
-                    {
-                        existing_next->g_val = next_g_val;
-                        existing_next->timestep = next_timestep;
-                        open_list.update(existing_next->open_handle);
-                    }
-                }
-            }
-        }
-    }
-    open_list.clear();
-    for (auto node : nodes)
-    {
-        delete node;
-    }
-    nodes.clear();
-    return length;*/
 }
 
 void SIPP::updateFocalList()

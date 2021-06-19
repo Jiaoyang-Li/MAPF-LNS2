@@ -5,36 +5,35 @@
 #include "PBS.h"
 
 InitLNS::InitLNS(const Instance& instance, vector<Agent>& agents, double time_limit,
-         string replan_algo_name,string init_destory_name, int neighbor_size, int screen) :
-         instance(instance), agents(agents), time_limit(time_limit),
-         replan_algo_name(replan_algo_name), neighbor_size(neighbor_size),
-         screen(screen), path_table(instance.map_size, agents.size()), collision_graph(agents.size()),
-         replan_time_limit(time_limit)
-         {
-             if (init_destory_name == "Adaptive")
-             {
-                 ALNS = true;
-                 destroy_weights.assign(INIT_COUNT * num_neighbor_sizes, 1);
-             }
-             else if (init_destory_name == "Target")
-                 init_destroy_strategy = TARGET_BASED;
-             else if (init_destory_name == "Collision")
-                 init_destroy_strategy = COLLISION_BASED;
-             else if (init_destory_name == "Random")
-                 init_destroy_strategy = RANDOM_BASED;
-             else
-             {
-                 cerr << "Init Destroy heuristic " << init_destory_name << " does not exists. " << endl;
-                 exit(-1);
-             }
+         const string & replan_algo_name, const string & init_destory_name, int neighbor_size, int screen) :
+         BasicLNS(instance, time_limit, neighbor_size, screen), agents(agents), replan_algo_name(replan_algo_name),
+         path_table(instance.map_size, agents.size()), collision_graph(agents.size()), goal_table(instance.map_size, -1)
+ {
+     replan_time_limit = time_limit;
+     if (init_destory_name == "Adaptive")
+     {
+         ALNS = true;
+         destroy_weights.assign(INIT_COUNT, 1);
+         decay_factor = 0.05;
+         reaction_factor = 0.05;
+     }
+     else if (init_destory_name == "Target")
+         init_destroy_strategy = TARGET_BASED;
+     else if (init_destory_name == "Collision")
+         init_destroy_strategy = COLLISION_BASED;
+     else if (init_destory_name == "Random")
+         init_destroy_strategy = RANDOM_BASED;
+     else
+     {
+         cerr << "Init Destroy heuristic " << init_destory_name << " does not exists. " << endl;
+         exit(-1);
+     }
 
-             goal_table.resize(instance.map_size,-1);
+     for (auto& i:agents) {
+         goal_table[i.path_planner->goal_location] = i.id;
+     }
 
-             for (auto& i:agents) {
-                 goal_table[i.path_planner.goal_location] = i.id;
-             }
-
-         }
+ }
 
 bool InitLNS::run()
 {
@@ -190,7 +189,7 @@ bool InitLNS::runGCBS()
     search_engines.reserve(neighbor.agents.size());
     for (int i : neighbor.agents)
     {
-        search_engines.push_back(&agents[i].path_planner);
+        search_engines.push_back(agents[i].path_planner);
     }
 
     // build path tables
@@ -215,9 +214,6 @@ bool InitLNS::runGCBS()
     if (!iteration_stats.empty()) // replan
         T = min(T, replan_time_limit);
     gcbs.solve(T);
-    num_LL_generated += gcbs.num_LL_generated;
-    num_LL_expanded += gcbs.num_LL_expanded;
-    num_LL_reopened += gcbs.num_LL_reopened;
     if (gcbs.best_node->colliding_pairs < (int) neighbor.old_colliding_pairs.size()) // accept new paths
     {
         auto id = neighbor.agents.begin();
@@ -254,7 +250,7 @@ bool InitLNS::runPBS()
     initial_paths.reserve(neighbor.agents.size());
     for (int i : neighbor.agents)
     {
-        search_engines.push_back(&agents[i].path_planner);
+        search_engines.push_back(agents[i].path_planner);
         initial_paths.push_back(&agents[i].path);
     }
 
@@ -265,9 +261,6 @@ bool InitLNS::runPBS()
     if (!iteration_stats.empty()) // replan
         T = min(T, replan_time_limit);
     bool succ = pbs.solve(T, (int)neighbor.agents.size(), neighbor.old_colliding_pairs.size());
-    num_LL_generated += pbs.num_LL_generated;
-    num_LL_expanded += pbs.num_LL_expanded;
-    num_LL_reopened += pbs.num_LL_reopened;
     if (succ and pbs.best_node->getCollidingPairs() < (int) neighbor.old_colliding_pairs.size()) // accept new paths
     {
         auto id = neighbor.agents.begin();
@@ -318,14 +311,11 @@ bool InitLNS::runPP()
     while (p != shuffled_agents.end() && ((fsec)(Time::now() - time)).count() < T)
     {
         int id = *p;
-        agents[id].path = agents[id].path_planner.findPath(constraint_table);
-        num_LL_generated += agents[id].path_planner.num_generated;
-        num_LL_expanded += agents[id].path_planner.num_expanded;
-        num_LL_reopened += agents[id].path_planner.num_reopened;
-        assert(!agents[id].path.empty() && agents[id].path.back().location == agents[id].path_planner.goal_location);
-        if (agents[id].path_planner.num_collisions > 0)
+        agents[id].path = agents[id].path_planner->findPath(constraint_table);
+        assert(!agents[id].path.empty() && agents[id].path.back().location == agents[id].path_planner->goal_location);
+        if (agents[id].path_planner->num_collisions > 0)
             updateCollidingPairs(neighbor.colliding_pairs, agents[id].id, agents[id].path);
-        assert(agents[id].path_planner.num_collisions > 0 or
+        assert(agents[id].path_planner->num_collisions > 0 or
             !updateCollidingPairs(neighbor.colliding_pairs, agents[id].id, agents[id].path));
         neighbor.sum_of_costs += (int)agents[id].path.size() - 1;
         remaining_agents--;
@@ -334,7 +324,7 @@ bool InitLNS::runPP()
             runtime = ((fsec)(Time::now() - start_time)).count();
             cout << "After agent " << id << ": Remaining agents = " << remaining_agents <<
                  ", colliding pairs = " << neighbor.colliding_pairs.size() <<
-                 ", LL nodes = " << num_LL_generated <<
+                 ", LL nodes = " << agents[id].path_planner->getNumExpanded() <<
                  ", remaining time = " << time_limit - runtime << " seconds. " << endl;
         }
         if (neighbor.colliding_pairs.size() >= neighbor.old_colliding_pairs.size())
@@ -394,12 +384,9 @@ bool InitLNS::getInitialSolution()
     set<pair<int, int>> colliding_pairs;
     for (auto id : neighbor.agents)
     {
-        agents[id].path = agents[id].path_planner.findPath(constraint_table);
-        num_LL_generated += agents[id].path_planner.num_generated;
-        num_LL_expanded += agents[id].path_planner.num_expanded;
-        num_LL_reopened += agents[id].path_planner.num_reopened;
-        assert(!agents[id].path.empty() && agents[id].path.back().location == agents[id].path_planner.goal_location);
-        if (agents[id].path_planner.num_collisions > 0)
+        agents[id].path = agents[id].path_planner->findPath(constraint_table);
+        assert(!agents[id].path.empty() && agents[id].path.back().location == agents[id].path_planner->goal_location);
+        if (agents[id].path_planner->num_collisions > 0)
             updateCollidingPairs(colliding_pairs, agents[id].id, agents[id].path);
         sum_of_costs += (int)agents[id].path.size() - 1;
         remaining_agents--;
@@ -409,7 +396,7 @@ bool InitLNS::getInitialSolution()
         {
             cout << "After agent " << id << ": Remaining agents = " << remaining_agents <<
                  ", colliding pairs = " << colliding_pairs.size() <<
-                 ", LL nodes = " << num_LL_expanded <<
+                 ", LL nodes = " << agents[id].path_planner->getNumExpanded() <<
                  ", remaining time = " << time_limit - runtime << " seconds. " << endl;
         }
         if (runtime > time_limit)
@@ -490,31 +477,14 @@ bool InitLNS::updateCollidingPairs(set<pair<int, int>>& colliding_pairs, int age
 
 void InitLNS::chooseDestroyHeuristicbyALNS()
 {
-    double sum = 0;
-    for (const auto& h : destroy_weights)
-        sum += h;
-    if (screen >= 2)
-    {
-        cout << "destroy weights = ";
-        for (const auto& h : destroy_weights)
-            cout << h / sum << ",";
-    }
-    double r = (double) rand() / RAND_MAX;
-    double threshold = destroy_weights[0];
-    selected_neighbor = 0;
-    while (threshold < r * sum)
-    {
-        selected_neighbor++;
-        threshold += destroy_weights[selected_neighbor];
-    }
-    switch (selected_neighbor / num_neighbor_sizes)
+    rouletteWheel();
+    switch (selected_neighbor)
     {
         case 0 : init_destroy_strategy = TARGET_BASED; break;
         case 1 : init_destroy_strategy = COLLISION_BASED; break;
         case 2 : init_destroy_strategy = RANDOM_BASED; break;
         default : cerr << "ERROR" << endl; exit(-1);
     }
-    // neighbor_size = (int) pow(2, selected_neighbor % num_neighbor_sizes + 1);
 }
 
 bool InitLNS::generateNeighborByCollisionGraph()
@@ -631,8 +601,8 @@ bool InitLNS::generateNeighborByTarget()
     set<int> A_target;
 
 
-    for(int t = 0 ;t< path_table.table[agents[a].path_planner.start_location].size();t++){
-        for(auto id : path_table.table[agents[a].path_planner.start_location][t]){
+    for(int t = 0 ;t< path_table.table[agents[a].path_planner->start_location].size();t++){
+        for(auto id : path_table.table[agents[a].path_planner->start_location][t]){
             if (id!=a)
                 A_start.insert(make_pair(t,id));
         }
@@ -640,7 +610,7 @@ bool InitLNS::generateNeighborByTarget()
 
 
 
-    agents[a].path_planner.findMinimumSetofColldingTargets(goal_table,A_target);// generate non-wait path and collect A_target
+    agents[a].path_planner->findMinimumSetofColldingTargets(goal_table,A_target);// generate non-wait path and collect A_target
 
 
     if (screen >= 3){
@@ -816,11 +786,19 @@ void InitLNS::writeResultToFile(const string & file_name, int sum_of_distances, 
         addHeads << "runtime,num of collisions,solution cost,initial collisions,initial solution cost," <<
                  "sum of distances,iterations,group size," <<
                  "runtime of initial solution,area under curve," <<
-                 "LL expanded nodes," <<
+                 "LL expanded nodes,LL generated,LL reopened,LL runs," <<
                  "preprocessing runtime,solver name,instance name" << endl;
         addHeads.close();
     }
-    ofstream stats(file_name, std::ios::app);
+    uint64_t num_LL_expanded = 0, num_LL_generated = 0, num_LL_reopened = 0, num_LL_runs = 0;
+    for (auto & agent : agents)
+    {
+        agent.path_planner->reset();
+        num_LL_expanded += agent.path_planner->accumulated_num_expanded;
+        num_LL_generated += agent.path_planner->accumulated_num_generated;
+        num_LL_reopened += agent.path_planner->accumulated_num_reopened;
+        num_LL_runs += agent.path_planner->num_runs;
+    }
     double auc = 0;
     if (!iteration_stats.empty())
     {
@@ -835,12 +813,14 @@ void InitLNS::writeResultToFile(const string & file_name, int sum_of_distances, 
         }
         auc += prev->num_of_colliding_pairs * (time_limit - prev->runtime);
     }
+
+    ofstream stats(file_name, std::ios::app);
     stats << runtime << "," << iteration_stats.back().num_of_colliding_pairs << "," <<
           sum_of_costs << "," << iteration_stats.front().num_of_colliding_pairs << "," <<
           iteration_stats.front().sum_of_costs << "," << sum_of_distances << "," <<
           iteration_stats.size() << "," << average_group_size << "," <<
           iteration_stats.front().runtime << "," << auc << "," <<
-          num_LL_expanded << "," <<
+          num_LL_expanded << "," << num_LL_generated << "," << num_LL_reopened << "," << num_LL_runs << "," <<
           preprocessing_time << "," << getSolverName() << "," << instance.getInstanceName() << endl;
     stats.close();
 }
@@ -904,11 +884,7 @@ void InitLNS::printResult()
          << "initial colliding pairs = " << iteration_stats.front().num_of_colliding_pairs << ", "
          << "solution cost = " << sum_of_costs << ", "
          << "initial solution cost = " << iteration_stats.front().sum_of_costs << ", "
-         << "group size = " << average_group_size << ", "
-         << "failed iterations = " << num_of_failures << ", "
-         << "LL expanded nodes = " << num_LL_expanded << ", "
-         << "LL generated nodes = " << num_LL_generated << ", "
-         << "LL re-opened nodes = " << num_LL_reopened << endl;
+         << "failed iterations = " << num_of_failures << endl;
 }
 
 void InitLNS::clear()
