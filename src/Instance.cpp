@@ -83,10 +83,6 @@ void Instance::generateRandomAgents(int warehouse_width)
 			int start = linearizeCoordinate(x, y);
 			if (my_map[start] || starts[start])
 				continue;
-				
-			// update start
-			start_locations[k] = start;
-			starts[start] = true;
 
 			// find goal
             x = rand() % num_of_rows;
@@ -98,10 +94,16 @@ void Instance::generateRandomAgents(int warehouse_width)
                 y = rand() % num_of_cols;
                 goal = linearizeCoordinate(x, y);
             }
-			//int goal = randomWalk(start, RANDOM_WALK_STEPS);
-			//while (goals[goal])
-			//	goal = randomWalk(goal, 1);
+            if (!isConnected(start, goal))
+                continue;
 
+			/*int goal = randomWalk(start, RANDOM_WALK_STEPS);
+			while (goals[goal])
+				goal = randomWalk(goal, 1);*/
+
+            // update start
+            start_locations[k] = start;
+            starts[start] = true;
 			//update goal
 			goal_locations[k] = goal;
 			goals[goal] = true;

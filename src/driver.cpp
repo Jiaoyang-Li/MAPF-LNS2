@@ -28,13 +28,14 @@ int main(int argc, char** argv)
 		// solver
 		("solver", po::value<string>()->default_value("LNS"), "solver (LNS, A-BCBS, A-EECBS)")
 		("sipp", po::value<bool>()->default_value(true), "Use SIPP as the single-agent solver")
+		("seed", po::value<int>()->default_value(0), "Random seed")
 
         // params for LNS
         ("initLNS", po::value<bool>()->default_value(true),
              "use LNS to find initial solutions if the initial sovler fails")
-        ("neighborSize", po::value<int>()->default_value(5), "Size of the neighborhood")
-        ("maxIterations", po::value<int>()->default_value(1000000), "maximum number of iterations")
-        ("initAlgo", po::value<string>()->default_value("EECBS"),
+        ("neighborSize", po::value<int>()->default_value(8), "Size of the neighborhood")
+        ("maxIterations", po::value<int>()->default_value(0), "maximum number of iterations")
+        ("initAlgo", po::value<string>()->default_value("PP"),
                 "MAPF algorithm for finding the initial solution (EECBS, PP, PPS, CBS, PIBT, winPIBT)")
         ("replanAlgo", po::value<string>()->default_value("PP"),
                 "MAPF algorithm for replanning (EECBS, CBS, PP)")
@@ -69,7 +70,7 @@ int main(int argc, char** argv)
 		vm["agentNum"].as<int>());
     double time_limit = vm["cutoffTime"].as<double>();
     int screen = vm["screen"].as<int>();
-	srand(0);
+	srand(vm["seed"].as<int>());
 
 	if (vm["solver"].as<string>() == "LNS")
     {

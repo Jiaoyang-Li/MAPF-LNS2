@@ -1,10 +1,9 @@
-# MAPF-LNS
+# MAPF-LNS2
 
-Anytime Multi-Agent Path Finding via Large Neighborhood Search
+MAPF-LNS2: Fast Repairing for Multi-Agent Path Finding via Large Neighborhood Search
 
 
-MAPF-LNS is an effifent anytime algorithm for solving Multi-Agent Path Finding (MAPF). 
-More details can be found in our paper at AAMAS 2021 [1].
+MAPF-LNS2 is an efficient algorithm for solving Multi-Agent Path Finding (MAPF). 
 
 The code requires the external libraries 
 BOOST (https://www.boost.org/) and Eigen (https://eigen.tuxfamily.org/). 
@@ -15,11 +14,9 @@ cmake .
 make
 ```
 
-You also need to download the MAPF instances from the MAPF benchmark (https://movingai.com/benchmarks/mapf/index.html).
-
 Then, you are able to run the code:
 ```
-./lns -m random-32-32-20.map -a random-32-32-20-random-1.scen -o test.csv -k 50 -t 60
+./lns -m random-32-32-20.map -a random-32-32-20-random-1.scen -o test.csv -k 400 -t 300
 ```
 
 - m: the map file from the MAPF benchmark
@@ -33,20 +30,22 @@ You can find more details and explanations for all parameters with:
 ./lns --help
 ```
 
+We provide example instance files "random-32-32-20.map" and "random-32-32-20-random-1.scen" in the repo, 
+but more instances can be download from the MAPF benchmark (https://movingai.com/benchmarks/mapf/index.html).
+All the experiments in the paper used in instances from the benchmark except for Experiment 5, 
+for which the instances are in folder "instances".
+
+## Credits
 ## Credits
 
-The software was developed by Jiaoyang Li and Zhe Chen.
+The software was developed by Jiaoyang Li and Zhe Chen based on [MAPF-LNS](https://github.com/Jiaoyang-Li/MAPF-LNS).
 
 The rule-based MAPF solvers (i.e., PPS, PIBT, and winPIBT) inside the software were borrowed from 
 https://github.com/Kei18/pibt/tree/v1.3
 
-MAPF-LNS is released under USC – Research License. See license.txt for further details.
+MAPF-LNS2 is released under USC – Research License. See license.txt for further details.
  
 ## References
-[1] Jiaoyang Li, Zhe Chen, Daniel Harabor, Peter J. Stuckey, Sven Koenig.
-Anytime Multi-Agent Path Finding via Large Neighborhood Search: Extended Abstract.
-In Proceedings of the International Conference on Autonomous Agents and Multiagent Systems (AAMAS), (in print), 2021.
-
- 
-
- 
+[1] Jiaoyang Li, Zhe Chen, Daniel Harabor, Peter J. Stuckey and Sven Koenig.
+MAPF-LNS2: Fast Repairing for Multi-Agent Path Finding via Large Neighborhood Search
+In Proceedings of the AAAI Conference on Artificial Intelligence, (in print), 2022.

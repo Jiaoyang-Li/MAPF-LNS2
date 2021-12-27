@@ -1,4 +1,3 @@
-//#pragma warning(disable: 4996) //Jiaoyang: I added this line to disable error C4996 caused by CPLEX
 #include "CBSHeuristic.h"
 #include "CBS.h"
 #include <queue>
