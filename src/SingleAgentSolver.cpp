@@ -65,7 +65,6 @@ void SingleAgentSolver::findMinimumSetofColldingTargets(vector<int>& goal_table,
         int num_of_targets;
         Node* parent;
         bool expanded = false;
-        pairing_heap<Node*>::handle_type open_handle;
 
         Node() = default;
         Node(int location, int g_val, int h_val, int num_of_targets, Node* parent) :
@@ -88,10 +87,12 @@ void SingleAgentSolver::findMinimumSetofColldingTargets(vector<int>& goal_table,
                 return n1->num_of_targets >= n2->num_of_targets;
             }
         };  // used by OPEN (heap) to compare nodes (top of the heap has min f-val, and then highest g-val)
+
+        pairing_heap<Node*,boost::heap::compare<compare_node>>::handle_type open_handle;
     };
 
 
-    pairing_heap<Node*> open_list;
+    pairing_heap<Node*,boost::heap::compare<Node::compare_node>> open_list;
     vector<Node*> visited(goal_table.size(), nullptr);
     Path path;
 
