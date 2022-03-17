@@ -49,7 +49,9 @@ You can find more details and explanations for all parameters with:
 We provide example instance files "random-32-32-20.map" and "random-32-32-20-random-1.scen" in the repo, 
 More instances can be download from the MAPF benchmark (https://movingai.com/benchmarks/mapf/index.html).
 All the experiments in the paper used in instances from the benchmark except for Experiment 5, 
-for which the instances are in folder "instances".
+for which the instances are in folder "instances". 
+In particular, the format of the scen files is explained here: https://movingai.com/benchmarks/formats.html. 
+For a given number of agents k, the first k rows of the scen file are used to generate the k pairs of start and target locations.
 
 ## Credits
 
