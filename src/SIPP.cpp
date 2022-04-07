@@ -91,8 +91,8 @@ Path SIPP::findPath(const ConstraintTable& constraint_table)
                 if (next_timestep + my_heuristic[next_location] > constraint_table.length_max)
                     break;
                 auto next_collisions = curr->num_of_conflicts +
-                                    (int)curr->collision_v * max(next_timestep - curr->timestep - 1, 0) // wait time
-                                      + (int)next_v_collision + (int)next_e_collision;
+                                    // (int)curr->collision_v * max(next_timestep - curr->timestep - 1, 0) + // wait time
+                                      (int)next_v_collision + (int)next_e_collision;
                 auto next_h_val = max(my_heuristic[next_location], (next_collisions > 0?
                     holding_time : curr->getFVal()) - next_timestep); // path max
                 // generate (maybe temporary) node
@@ -113,7 +113,8 @@ Path SIPP::findPath(const ConstraintTable& constraint_table)
             auto next_timestep = get<0>(interval);
             auto next_h_val = max(my_heuristic[curr->location], (get<2>(interval) ? holding_time : curr->getFVal()) - next_timestep); // path max
             auto next_collisions = curr->num_of_conflicts +
-                    (int)curr->collision_v * max(next_timestep - curr->timestep - 1, 0) + (int)get<2>(interval);
+                    // (int)curr->collision_v * max(next_timestep - curr->timestep - 1, 0) +
+		    (int)get<2>(interval);
             auto next = new SIPPNode(curr->location, next_timestep, next_h_val, curr, next_timestep,
                                      get<1>(interval), get<1>(interval), get<2>(interval),
                                      next_collisions);
@@ -204,8 +205,8 @@ pair<Path, int> SIPP::findSuboptimalPath(const HLNode& node, const ConstraintTab
                 if (next_g_val + next_h_val > reservation_table.constraint_table.length_max)
                     continue;
                 int next_conflicts = curr->num_of_conflicts +
-                        (int)curr->collision_v * max(next_timestep - curr->timestep - 1, 0) +
-                        + (int)next_v_collision + (int)next_e_collision;
+                        //(int)curr->collision_v * max(next_timestep - curr->timestep - 1, 0) +
+                        (int)next_v_collision + (int)next_e_collision;
                 auto next = new SIPPNode(next_location, next_g_val, next_h_val, curr, next_timestep,
                         next_high_generation, next_high_expansion, next_v_collision, next_conflicts);
                 if (dominanceCheck(next))
@@ -223,8 +224,8 @@ pair<Path, int> SIPP::findSuboptimalPath(const HLNode& node, const ConstraintTab
 		    auto next_timestep = get<0>(interval);
             int next_h_val = max(my_heuristic[curr->location], curr->getFVal() - next_timestep);  // path max
             auto next_collisions = curr->num_of_conflicts +
-                                   (int)curr->collision_v * max(next_timestep - curr->timestep - 1, 0) // wait time
-                                   + (int)get<2>(interval);
+                                   //(int)curr->collision_v * max(next_timestep - curr->timestep - 1, 0) + // wait time
+                                   (int)get<2>(interval);
             auto next = new SIPPNode(curr->location, next_timestep, next_h_val, curr, next_timestep,
                                      get<1>(interval), get<1>(interval), get<2>(interval), next_collisions);
             if (curr->location == goal_location)
