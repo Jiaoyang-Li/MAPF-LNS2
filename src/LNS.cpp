@@ -205,7 +205,7 @@ bool LNS::getInitialSolution()
     if (init_algo_name == "EECBS")
         succ = runEECBS();
     else if (init_algo_name == "PP")
-        succ = runPP();
+        succ = runPP("SH");
     else if (init_algo_name == "PIBT")
         succ = runPIBT();
     else if (init_algo_name == "PPS")
@@ -350,18 +350,43 @@ bool LNS::runCBS()
     }
     return succ;
 }
-bool LNS::runPP()
+bool LNS::runPP(const string & ordering)
 {
-    auto shuffled_agents = neighbor.agents;
-    std::random_shuffle(shuffled_agents.begin(), shuffled_agents.end());
+    auto ordered_agents = neighbor.agents;
+    assert(ordering == "Random" or ordering == "SH" );
+    if (ordering == "Random") // sort agents randomly
+    {
+        std::random_shuffle(ordered_agents.begin(), ordered_agents.end());
+    }
+    else if (ordering == "SH") // prioritize agents with shorter shortest paths
+    {
+        std::sort(ordered_agents.begin(), ordered_agents.end(),
+                // Lambda expression begins
+                  [this](int a1, int a2) {
+                      return agents[a1].path_planner->getStartGoalDistance() <=
+                              agents[a2].path_planner->getStartGoalDistance();
+                  } // end of lambda expression
+                  );
+    }
+    else if (ordering == "LH") // prioritize agents with longer shortest paths
+    {
+        std::sort(ordered_agents.begin(), ordered_agents.end(),
+                // Lambda expression begins
+                  [this](int a1, int a2) {
+                      return agents[a1].path_planner->getStartGoalDistance() >=
+                             agents[a2].path_planner->getStartGoalDistance();
+                  } // end of lambda expression
+        );
+    }
+    // else, using the default order
     if (screen >= 2) {
-        for (auto id : shuffled_agents)
-            cout << id << "(" << agents[id].path_planner->my_heuristic[agents[id].path_planner->start_location] <<
+        for (auto id : ordered_agents)
+            cout << id << "(" << agents[id].path_planner->getStartGoalDistance() <<
                 "->" << agents[id].path.size() - 1 << "), ";
         cout << endl;
     }
-    int remaining_agents = (int)shuffled_agents.size();
-    auto p = shuffled_agents.begin();
+    int remaining_agents = (int)ordered_agents.size();
+    auto p = ordered_agents.begin();
     neighbor.sum_of_costs = 0;
     runtime = ((fsec)(Time::now() - start_time)).count();
     double T = time_limit - runtime; // time limit
@@ -369,7 +394,7 @@ bool LNS::runPP()
         T = min(T, replan_time_limit);
     auto time = Time::now();
     ConstraintTable constraint_table(instance.num_of_cols, instance.map_size, &path_table);
-    while (p != shuffled_agents.end() && ((fsec)(Time::now() - time)).count() < T)
+    while (p != ordered_agents.end() && ((fsec)(Time::now() - time)).count() < T)
     {
         int id = *p;
         if (screen >= 3)
@@ -391,9 +416,9 @@ bool LNS::runPP()
     }
     else // stick to old paths
     {
-        if (p != shuffled_agents.end())
+        if (p != ordered_agents.end())
             num_of_failures++;
-        auto p2 = shuffled_agents.begin();
+        auto p2 = ordered_agents.begin();
         while (p2 != p)
         {
             int a = *p2;
@@ -843,7 +868,7 @@ void LNS::writeResultToFile(const string & file_name) const
     {
         ofstream addHeads(name);
         addHeads << "runtime,solution cost,initial solution cost,lower bound,sum of distance," <<
-                 "iterations," <<
+                 "iterations,failed iterations," <<
                  "group size," <<
                  "runtime of initial solution,restart times,area under curve," <<
                  "LL expanded nodes,LL generated,LL reopened,LL runs," <<
@@ -876,7 +901,7 @@ void LNS::writeResultToFile(const string & file_name) const
     ofstream stats(name, std::ios::app);
     stats << runtime << "," << sum_of_costs << "," << initial_sum_of_costs << "," <<
           max(sum_of_distances, sum_of_costs_lowerbound) << "," << sum_of_distances << "," <<
-          iteration_stats.size() << "," << average_group_size << "," <<
+          iteration_stats.size() << "," << num_of_failures << "," << average_group_size << "," <<
           initial_solution_runtime << "," << restart_times << "," << auc << "," <<
           num_LL_expanded << "," << num_LL_generated << "," << num_LL_reopened << "," << num_LL_runs << "," <<
           preprocessing_time << "," << getSolverName() << "," << instance.getInstanceName() << endl;

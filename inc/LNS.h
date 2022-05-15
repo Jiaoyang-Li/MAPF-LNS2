@@ -61,7 +61,7 @@ private:
 
     bool runEECBS();
     bool runCBS();
-    bool runPP();
+    bool runPP(const string & ordering = "Random");
     bool runPIBT();
     bool runPPS();
     bool runWinPIBT();

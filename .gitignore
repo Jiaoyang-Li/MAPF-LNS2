@@ -4,3 +4,4 @@ bin
 cmake*
 exp*
 debug
+*.csv
