@@ -784,7 +784,7 @@ void InitLNS::writeResultToFile(const string & file_name, int sum_of_distances, 
     {
         ofstream addHeads(file_name);
         addHeads << "runtime,num of collisions,solution cost,initial collisions,initial solution cost," <<
-                 "sum of distances,iterations,group size," <<
+                 "sum of distances,iterations,failed iterations,group size," <<
                  "runtime of initial solution,area under curve," <<
                  "LL expanded nodes,LL generated,LL reopened,LL runs," <<
                  "preprocessing runtime,solver name,instance name" << endl;
@@ -818,7 +818,7 @@ void InitLNS::writeResultToFile(const string & file_name, int sum_of_distances, 
     stats << runtime << "," << iteration_stats.back().num_of_colliding_pairs << "," <<
           sum_of_costs << "," << iteration_stats.front().num_of_colliding_pairs << "," <<
           iteration_stats.front().sum_of_costs << "," << sum_of_distances << "," <<
-          iteration_stats.size() << "," << average_group_size << "," <<
+          iteration_stats.size() << "," << num_of_failures << "," << average_group_size << "," <<
           iteration_stats.front().runtime << "," << auc << "," <<
           num_LL_expanded << "," << num_LL_generated << "," << num_LL_reopened << "," << num_LL_runs << "," <<
           preprocessing_time << "," << getSolverName() << "," << instance.getInstanceName() << endl;

@@ -95,7 +95,11 @@ public:
 	{
 		return max(get_DH_heuristic(from, to), instance.getManhattanDistance(from, to));
 	}
-	int getStartGoalDistance() const { return my_heuristic[start_location]; }
+	int getStartGoalDistance() const
+    {
+        assert(0 <= start_location < (int)my_heuristic.size());
+        return my_heuristic[start_location];
+    }
 	const Instance& instance;
 
     //virtual Path findOptimalPath(const PathTable& path_table) = 0;

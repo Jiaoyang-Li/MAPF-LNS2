@@ -362,9 +362,11 @@ bool LNS::runPP(const string & ordering)
     {
         std::sort(ordered_agents.begin(), ordered_agents.end(),
                 // Lambda expression begins
-                  [this](int a1, int a2) {
-                      return agents[a1].path_planner->getStartGoalDistance() <=
+                  [this](int a1, int a2) -> bool {
+                      assert(0 <= a1 < (int)agents.size() and 0 <= a2 < (int)agents.size());
+                      return agents[a1].path_planner->getStartGoalDistance() <
                               agents[a2].path_planner->getStartGoalDistance();
+                      // TODO: If I used "<=" instead of "<", I got a mysterious bug in den312d-random-17.scen with 1000 agents
                   } // end of lambda expression
                   );
     }
@@ -373,7 +375,7 @@ bool LNS::runPP(const string & ordering)
         std::sort(ordered_agents.begin(), ordered_agents.end(),
                 // Lambda expression begins
                   [this](int a1, int a2) {
-                      return agents[a1].path_planner->getStartGoalDistance() >=
+                      return agents[a1].path_planner->getStartGoalDistance() >
                              agents[a2].path_planner->getStartGoalDistance();
                   } // end of lambda expression
         );
