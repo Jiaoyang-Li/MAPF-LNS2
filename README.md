@@ -8,6 +8,8 @@ MAPF-LNS2: Fast Repairing for Multi-Agent Path Finding via Large Neighborhood Se
 MAPF-LNS2 is an efficient algorithm for solving Multi-Agent Path Finding (MAPF). 
 More details can be found in our paper at AAAI 2022 [1].
 
+This software is an advanced version and a superset of MAPF-LNS (https://github.com/Jiaoyang-Li/MAPF-LNS); that is, it also contains Anytime Multi-Agent Path Finding via Large Neighborhood Search [2]. 
+
 The code requires the external libraries 
 BOOST (https://www.boost.org/) and Eigen (https://eigen.tuxfamily.org/). 
 An easy way to install the required libraries on Ubuntu:    
@@ -66,3 +68,7 @@ MAPF-LNS2 is released under USC – Research License. See license.txt for furthe
 [1] Jiaoyang Li, Zhe Chen, Daniel Harabor, Peter J. Stuckey and Sven Koenig.
 MAPF-LNS2: Fast Repairing for Multi-Agent Path Finding via Large Neighborhood Search
 In Proceedings of the AAAI Conference on Artificial Intelligence, (in print), 2022.
+
+[2] Jiaoyang Li, Zhe Chen, Daniel Harabor, Peter J. Stuckey, Sven Koenig. 
+Anytime Multi-Agent Path Finding via Large Neighborhood Search. 
+In Proceedings of the International Joint Conference on Artificial Intelligence (IJCAI), pages 4127-4135, 2021.
