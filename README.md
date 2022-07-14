@@ -10,9 +10,10 @@ More details can be found in our paper at AAAI 2022 [1].
 
 This software is an advanced version and a superset of MAPF-LNS (https://github.com/Jiaoyang-Li/MAPF-LNS); that is, it also contains Anytime Multi-Agent Path Finding via Large Neighborhood Search [2]. 
 
+## Usage
 The code requires the external libraries 
 BOOST (https://www.boost.org/) and Eigen (https://eigen.tuxfamily.org/). 
-An easy way to install the required libraries on Ubuntu:    
+Here is an easy way of installing the required libraries on Ubuntu:    
 ```shell script
 sudo apt update
 ```
@@ -27,7 +28,7 @@ sudo apt update
     
 After you installed both libraries and downloaded the source code, 
 go into the directory of the source code and compile it with CMake: 
-```
+```shell script
 cmake -DCMAKE_BUILD_TYPE=RELEASE .
 make
 ```
@@ -48,11 +49,11 @@ You can find more details and explanations for all parameters with:
 ./lns --help
 ```
 
-We provide example instance files "random-32-32-20.map" and "random-32-32-20-random-1.scen" in the repo, 
-More instances can be download from the MAPF benchmark (https://movingai.com/benchmarks/mapf/index.html).
+We provide example instance files "random-32-32-20.map" and "random-32-32-20-random-1.scen" in the repo. 
+More instances can be download from the [MAPF benchmark](https://movingai.com/benchmarks/mapf/index.html).
 All the experiments in the paper used in instances from the benchmark except for Experiment 5, 
 for which the instances are in folder "instances". 
-In particular, the format of the scen files is explained here: https://movingai.com/benchmarks/formats.html. 
+In particular, the format of the scen files is explained [here](https://movingai.com/benchmarks/formats.html). 
 For a given number of agents k, the first k rows of the scen file are used to generate the k pairs of start and target locations.
 
 ## Credits
