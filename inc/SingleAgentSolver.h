@@ -59,7 +59,7 @@ public:
 		location(location), g_val(g_val), h_val(h_val), parent(parent), timestep(timestep),
 		num_of_conflicts(num_of_conflicts) {}
 	LLNode(const LLNode& other) { copy(other); }
-    virtual ~LLNode()= default;
+    ~LLNode()= default;
 
 	void copy(const LLNode& other)
 	{
