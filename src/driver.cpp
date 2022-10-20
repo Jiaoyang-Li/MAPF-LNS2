@@ -21,6 +21,8 @@ int main(int argc, char** argv)
 		("agentNum,k", po::value<int>()->default_value(0), "number of agents")
         ("output,o", po::value<string>(), "output file name (no extension)")
 		("cutoffTime,t", po::value<double>()->default_value(7200), "cutoff time (seconds)")
+		("flexCutoffTime,f", po::value<double>()->default_value(0), "flex cutoff time mode (seconds)")
+
 		("screen,s", po::value<int>()->default_value(0),
 		        "screen option (0: none; 1: LNS results; 2:LNS detailed results; 3: MAPF detailed results)")
 		("stats", po::value<string>(), "output stats file")
@@ -87,11 +89,13 @@ int main(int argc, char** argv)
         bool succ = lns.run();
         if (succ)
             lns.validateSolution();
-        if (vm.count("output"))
+        if (vm.count("output")){
             lns.writeResultToFile(vm["output"].as<string>());
+            lns.writePathsToFile(vm["output"].as<string>() + "_path.txt");
+
+        }
         if (vm.count("stats"))
             lns.writeIterStatsToFile(vm["stats"].as<string>());
-        // lns.writePathsToFile("path.txt");
     }
     else if (vm["solver"].as<string>() == "A-BCBS") // anytime BCBS(w, 1)
     {
