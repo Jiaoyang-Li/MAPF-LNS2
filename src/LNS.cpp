@@ -100,6 +100,8 @@ bool LNS::run()
         return false; // terminate because no initial solution is found
     }
 
+    int last_solution_costs = initial_sum_of_costs;
+
     while (runtime < time_limit && iteration_stats.size() <= num_of_iterations)
     {
         runtime =((fsec)(Time::now() - start_time)).count();
@@ -175,6 +177,10 @@ bool LNS::run()
                  << "solution cost = " << sum_of_costs << ", "
                  << "remaining time = " << time_limit - runtime << endl;
         iteration_stats.emplace_back(neighbor.agents.size(), sum_of_costs, runtime, replan_algo_name);
+        if (runtime >= time_limit && sum_of_costs < last_solution_costs){
+            time_limit += flex_add_time;
+            last_solution_costs = sum_of_costs;
+        }
     }
 
 

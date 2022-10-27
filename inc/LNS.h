@@ -28,6 +28,9 @@ public:
     int sum_of_distances = -1;
     int restart_times = 0;
 
+    bool flex_cut = false;
+    double flex_add_time = 0;
+
     LNS(const Instance& instance, double time_limit,
         const string & init_algo_name, const string & replan_algo_name, const string & destory_name,
         int neighbor_size, int num_of_iterations, bool init_lns, const string & init_destory_name, bool use_sipp,

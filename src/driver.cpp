@@ -21,7 +21,7 @@ int main(int argc, char** argv)
 		("agentNum,k", po::value<int>()->default_value(0), "number of agents")
         ("output,o", po::value<string>(), "output file name (no extension)")
 		("cutoffTime,t", po::value<double>()->default_value(7200), "cutoff time (seconds)")
-		("flexCutoffTime,f", po::value<double>()->default_value(0), "flex cutoff time mode (seconds)")
+		("flexCut,f", po::value<bool>()->default_value(false), "flex cutoff time mode (seconds)")
 
 		("screen,s", po::value<int>()->default_value(0),
 		        "screen option (0: none; 1: LNS results; 2:LNS detailed results; 3: MAPF detailed results)")
@@ -86,6 +86,10 @@ int main(int argc, char** argv)
                 vm["initDestoryStrategy"].as<string>(),
                 vm["sipp"].as<bool>(),
                 screen, pipp_option);
+        if (vm["flexCut"].as<bool>() == true){
+            lns.flex_cut = true;
+            lns.flex_add_time = time_limit;
+        }
         bool succ = lns.run();
         if (succ)
             lns.validateSolution();
