@@ -98,7 +98,7 @@ int main(int argc, char** argv)
         if (succ)
             lns.validateSolution();
         if (vm.count("output")){
-            lns.writeResultToFile(vm["output"].as<string>()+".txt");
+            lns.writeResultToFile(vm["output"].as<string>());
             lns.writePathsToFile(vm["output"].as<string>() + ".path");
 
         }
