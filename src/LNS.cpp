@@ -100,7 +100,7 @@ bool LNS::run()
         return false; // terminate because no initial solution is found
     }
 
-    int last_solution_costs = initial_sum_of_costs;
+    int last_solution_costs = INT_MAX;
 
     while (runtime < time_limit && iteration_stats.size() <= num_of_iterations)
     {
