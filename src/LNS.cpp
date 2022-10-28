@@ -177,7 +177,7 @@ bool LNS::run()
                  << "solution cost = " << sum_of_costs << ", "
                  << "remaining time = " << time_limit - runtime << endl;
         iteration_stats.emplace_back(neighbor.agents.size(), sum_of_costs, runtime, replan_algo_name);
-        if (runtime >= time_limit && sum_of_costs < last_solution_costs){
+        if (flex_cut && runtime< flex_final_time && runtime >= time_limit && sum_of_costs < last_solution_costs){
             time_limit += flex_add_time;
             last_solution_costs = sum_of_costs;
         }

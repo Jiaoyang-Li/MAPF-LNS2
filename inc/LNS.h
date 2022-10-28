@@ -30,6 +30,7 @@ public:
 
     bool flex_cut = false;
     double flex_add_time = 0;
+    double flex_final_time = 0;
 
     LNS(const Instance& instance, double time_limit,
         const string & init_algo_name, const string & replan_algo_name, const string & destory_name,

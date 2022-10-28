@@ -22,6 +22,9 @@ int main(int argc, char** argv)
         ("output,o", po::value<string>(), "output file name (no extension)")
 		("cutoffTime,t", po::value<double>()->default_value(7200), "cutoff time (seconds)")
 		("flexCut,f", po::value<bool>()->default_value(false), "flex cutoff time mode (seconds)")
+		("flexCutAddTime,fa", po::value<double>()->default_value(60), "flex cutoff time mode (seconds)")
+
+		("flexCutFinal,ff", po::value<double>()->default_value(7200), "flex cutoff time mode (seconds)")
 
 		("screen,s", po::value<int>()->default_value(0),
 		        "screen option (0: none; 1: LNS results; 2:LNS detailed results; 3: MAPF detailed results)")
@@ -88,7 +91,8 @@ int main(int argc, char** argv)
                 screen, pipp_option);
         if (vm["flexCut"].as<bool>() == true){
             lns.flex_cut = true;
-            lns.flex_add_time = time_limit;
+            lns.flex_add_time = vm["flexCutAddTime"].as<double>();
+            lns.flex_final_time = vm["flexCutFinal"].as<double>();
         }
         bool succ = lns.run();
         if (succ)
