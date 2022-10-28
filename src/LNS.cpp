@@ -133,8 +133,13 @@ bool LNS::run()
                 cerr << "Wrong neighbor generation strategy" << endl;
                 exit(-1);
         }
-        if(!succ)
+        if(!succ){
+            if (flex_cut && runtime< flex_final_time && runtime >= time_limit && sum_of_costs < last_solution_costs){
+                time_limit += flex_add_time;
+                last_solution_costs = sum_of_costs;
+            }
             continue;
+        }
 
         // store the neighbor information
         neighbor.old_paths.resize(neighbor.agents.size());
