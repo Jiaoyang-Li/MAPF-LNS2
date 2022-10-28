@@ -35,14 +35,15 @@ make
 
 Then, you are able to run the code:
 ```
-./lns -m random-32-32-20.map -a random-32-32-20-random-1.scen -o test.csv -k 400 -t 300
+./lns -m random-32-32-20.map -a random-32-32-20-random-1.scen -o test -k 400 -t 300 --outputPaths=paths.txt 
 ```
 
 - m: the map file from the MAPF benchmark
 - a: the scenario file from the MAPF benchmark
-- o: the output file
+- o: the output file name (no need for file extension)
 - k: the number of agents
 - t: the runtime limit
+- outputPaths: the output file that contains the paths
 
 You can find more details and explanations for all parameters with:
 ```

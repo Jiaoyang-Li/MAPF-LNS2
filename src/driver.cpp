@@ -20,7 +20,8 @@ int main(int argc, char** argv)
 		("agents,a", po::value<string>()->required(), "input file for agents")
 		("agentNum,k", po::value<int>()->default_value(0), "number of agents")
         ("output,o", po::value<string>(), "output file name (no extension)")
-		("cutoffTime,t", po::value<double>()->default_value(7200), "cutoff time (seconds)")
+        ("outputPaths", po::value<string>(), "output file for paths")
+        ("cutoffTime,t", po::value<double>()->default_value(7200), "cutoff time (seconds)")
 		("screen,s", po::value<int>()->default_value(0),
 		        "screen option (0: none; 1: LNS results; 2:LNS detailed results; 3: MAPF detailed results)")
 		("stats", po::value<string>(), "output stats file")
@@ -86,7 +87,11 @@ int main(int argc, char** argv)
                 screen, pipp_option);
         bool succ = lns.run();
         if (succ)
+        {
             lns.validateSolution();
+            if (vm.count("outputPaths"))
+                lns.writePathsToFile(vm["outputPaths"].as<string>());
+        }
         if (vm.count("output"))
             lns.writeResultToFile(vm["output"].as<string>());
         if (vm.count("stats"))
