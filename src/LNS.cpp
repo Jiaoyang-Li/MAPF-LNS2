@@ -1,6 +1,7 @@
 #include "LNS.h"
 #include "ECBS.h"
 #include <queue>
+#include<boost/tokenizer.hpp>
 
 LNS::LNS(const Instance& instance, double time_limit, const string & init_algo_name, const string & replan_algo_name,
          const string & destory_name, int neighbor_size, int num_of_iterations, bool use_init_lns,
@@ -51,7 +52,11 @@ bool LNS::run()
 
     initial_solution_runtime = 0;
     start_time = Time::now();
-    bool succ = getInitialSolution();
+    bool succ;
+    if (has_initial_solution)
+        succ = fixInitialSolution();
+    else
+        succ = getInitialSolution();
     initial_solution_runtime = ((fsec)(Time::now() - start_time)).count();
     if (!succ && initial_solution_runtime < time_limit)
     {
@@ -193,6 +198,52 @@ bool LNS::run()
     return true;
 }
 
+bool LNS::fixInitialSolution()
+{
+    neighbor.agents.clear();
+    initial_sum_of_costs = 0;
+    list<int> complete_agents; // subsets of agents who have complete and collision-free paths
+    for (const auto& agent : agents)
+    {
+        if (agent.path.empty() or agent.path.back().location != agent.path_planner->goal_location)
+        {
+            neighbor.agents.emplace_back(agent.id);
+        }
+        else
+        {
+            bool has_collision = false;
+            for (auto other : complete_agents)
+            {
+                has_collision = instance.hasCollision(agent.path, agents[other].path);
+                if (has_collision)
+                {
+                    neighbor.agents.emplace_back(agent.id);
+                    break;
+                }
+            }
+            if (!has_collision)
+            {
+                path_table.insertPath(agent.id, agent.path);
+                initial_sum_of_costs += (int)agent.path.size() - 1;
+                complete_agents.emplace_back(agent.id);
+            }
+
+        }
+    }
+    neighbor.old_sum_of_costs = MAX_COST;
+    neighbor.sum_of_costs = 0;
+    auto succ = runPP();
+    if (succ)
+    {
+        initial_sum_of_costs += neighbor.sum_of_costs;
+        sum_of_costs = initial_sum_of_costs;
+        return true;
+    }
+    else
+    {
+        return false;
+    }
+}
 
 bool LNS::getInitialSolution()
 {
@@ -229,7 +280,6 @@ bool LNS::getInitialSolution()
     {
         return false;
     }
-
 }
 
 bool LNS::runEECBS()
@@ -881,6 +931,39 @@ void LNS::writeResultToFile(const string & file_name) const
           num_LL_expanded << "," << num_LL_generated << "," << num_LL_reopened << "," << num_LL_runs << "," <<
           preprocessing_time << "," << getSolverName() << "," << instance.getInstanceName() << endl;
     stats.close();
+}
+
+bool LNS::loadPaths(const string & file_name)
+{
+    using namespace std;
+
+    string line;
+    ifstream myfile (file_name.c_str());
+    if (!myfile.is_open())
+        return false;
+
+    while(getline(myfile, line))
+    {
+        boost::char_separator<char> sep(":()-> ,");
+        boost::tokenizer< boost::char_separator<char> > tok(line, sep);
+        auto beg = tok.begin();
+        beg++; // skip "Agent"
+        int agent_id = atoi((*beg).c_str());
+        assert(0 <= agent_id < agents.size());
+        beg++;
+        while (beg != tok.end())
+        {
+            int row = atoi((*beg).c_str());
+            beg++;
+            int col = atoi((*beg).c_str());
+            beg++;
+            agents[agent_id].path.emplace_back(instance.linearizeCoordinate(row, col));
+        }
+        assert(agents[agent_id].path.front().location == agents[agent_id].path_planner->start_location);
+    }
+    myfile.close();
+    has_initial_solution = true;
+    return true;
 }
 
 void LNS::writePathsToFile(const string & file_name) const

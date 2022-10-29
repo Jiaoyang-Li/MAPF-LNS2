@@ -20,6 +20,7 @@ int main(int argc, char** argv)
 		("agents,a", po::value<string>()->required(), "input file for agents")
 		("agentNum,k", po::value<int>()->default_value(0), "number of agents")
         ("output,o", po::value<string>(), "output file name (no extension)")
+        ("inputPaths", po::value<string>(), "input file for paths")
         ("outputPaths", po::value<string>(), "output file for paths")
         ("cutoffTime,t", po::value<double>()->default_value(7200), "cutoff time (seconds)")
 		("screen,s", po::value<int>()->default_value(0),
@@ -85,6 +86,11 @@ int main(int argc, char** argv)
                 vm["initDestoryStrategy"].as<string>(),
                 vm["sipp"].as<bool>(),
                 screen, pipp_option);
+        if (vm.count("inputPaths") and !lns.loadPaths(vm["inputPaths"].as<string>()))
+        {
+            cerr << "The input path file " << vm["inputPaths"].as<string>() << " does not exist";
+            exit(-1);
+        }
         bool succ = lns.run();
         if (succ)
         {

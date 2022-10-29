@@ -36,15 +36,18 @@ public:
     {
         delete init_lns;
     }
+    bool fixInitialSolution();
     bool getInitialSolution();
     bool run();
     void validateSolution() const;
+    bool loadPaths(const string & file_name);
     void writeIterStatsToFile(const string & file_name) const;
     void writeResultToFile(const string & file_name) const;
     void writePathsToFile(const string & file_name) const;
     string getSolverName() const override { return "LNS(" + init_algo_name + ";" + replan_algo_name + ")"; }
 private:
     InitLNS* init_lns = nullptr;
+    bool has_initial_solution = false;
     string init_algo_name;
     string replan_algo_name;
     bool use_init_lns; // use LNS to find initial solutions

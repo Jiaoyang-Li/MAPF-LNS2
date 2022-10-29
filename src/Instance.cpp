@@ -617,3 +617,31 @@ bool Instance::validateSolution(const vector<Path*>& paths, int sum_of_costs, in
     cout << "Done!" << endl;
     return true;
 }
+
+bool Instance::hasCollision(const Path& p1, const Path& p2) const
+{
+    int t = 1;
+    for (; t < (int) min(p1.size(), p2.size()); t++)
+    {
+        if (p1[t].location == p2[t].location) // vertex conflict
+        {
+            return true;
+        }
+        else if (p1[t].location == p2[t-1].location and p1[t-1].location == p2[t].location) // edge conflict
+        {
+            return true;
+        }
+    }
+    if (p1.size() == p2.size()) return false;
+
+    auto p = p1.size() > p2.size()? p1 : p2;
+    auto target = p1.size() < p2.size()? p1.back().location : p2.back().location;
+    for (; t < (int) p.size(); t++)
+    {
+        if (p[t].location == target)  // target conflict
+        {
+            return true;
+        }
+    }
+    return false;
+}
