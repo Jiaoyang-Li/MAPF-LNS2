@@ -203,11 +203,12 @@ bool LNS::fixInitialSolution()
     neighbor.agents.clear();
     initial_sum_of_costs = 0;
     list<int> complete_agents; // subsets of agents who have complete and collision-free paths
-    for (const auto& agent : agents)
+    for (auto& agent : agents)
     {
         if (agent.path.empty() or agent.path.back().location != agent.path_planner->goal_location)
         {
             neighbor.agents.emplace_back(agent.id);
+            agent.path.clear();
         }
         else
         {
@@ -953,9 +954,9 @@ bool LNS::loadPaths(const string & file_name)
         beg++;
         while (beg != tok.end())
         {
-            int row = atoi((*beg).c_str());
-            beg++;
             int col = atoi((*beg).c_str());
+            beg++;
+            int row = atoi((*beg).c_str());
             beg++;
             agents[agent_id].path.emplace_back(instance.linearizeCoordinate(row, col));
         }
@@ -977,8 +978,8 @@ void LNS::writePathsToFile(const string & file_name) const
     {
         output << "Agent " << agent.id << ":";
         for (const auto &state : agent.path)
-            output << "(" << instance.getRowCoordinate(state.location) << "," <<
-                            instance.getColCoordinate(state.location) << ")->";
+            output << "(" << instance.getColCoordinate(state.location) << "," <<
+                            instance.getRowCoordinate(state.location) << ")->";
         output << endl;
     }
     output.close();

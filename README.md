@@ -43,6 +43,7 @@ Then, you are able to run the code:
 - o: the output file name (no need for file extension)
 - k: the number of agents
 - t: the runtime limit
+- inputPaths: the input file that contains the paths
 - outputPaths: the output file that contains the paths
 
 You can find more details and explanations for all parameters with:
