@@ -27,6 +27,7 @@ public:
     int sum_of_costs_lowerbound = -1;
     int sum_of_distances = -1;
     int restart_times = 0;
+    int complete_paths = 0;
 
     LNS(const Instance& instance, double time_limit,
         const string & init_algo_name, const string & replan_algo_name, const string & destory_name,

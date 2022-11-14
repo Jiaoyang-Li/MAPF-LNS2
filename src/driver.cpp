@@ -88,7 +88,7 @@ int main(int argc, char** argv)
                 screen, pipp_option);
         if (vm.count("inputPaths") and !lns.loadPaths(vm["inputPaths"].as<string>()))
         {
-            cerr << "The input path file " << vm["inputPaths"].as<string>() << " does not exist";
+            cerr << "The input path file " << vm["inputPaths"].as<string>() << " does not exist" << endl;
             exit(-1);
         }
         bool succ = lns.run();

@@ -225,6 +225,7 @@ bool LNS::fixInitialSolution()
             if (!has_collision)
             {
                 path_table.insertPath(agent.id, agent.path);
+                complete_paths++;
                 initial_sum_of_costs += (int)agent.path.size() - 1;
                 complete_agents.emplace_back(agent.id);
             }
@@ -894,7 +895,7 @@ void LNS::writeResultToFile(const string & file_name) const
     {
         ofstream addHeads(name);
         addHeads << "runtime,solution cost,initial solution cost,lower bound,sum of distance," <<
-                 "iterations," <<
+                 "initial collision-free paths,iterations," <<
                  "group size," <<
                  "runtime of initial solution,restart times,area under curve," <<
                  "LL expanded nodes,LL generated,LL reopened,LL runs," <<
@@ -927,7 +928,7 @@ void LNS::writeResultToFile(const string & file_name) const
     ofstream stats(name, std::ios::app);
     stats << runtime << "," << sum_of_costs << "," << initial_sum_of_costs << "," <<
           max(sum_of_distances, sum_of_costs_lowerbound) << "," << sum_of_distances << "," <<
-          iteration_stats.size() << "," << average_group_size << "," <<
+          complete_paths << "," << iteration_stats.size() << "," << average_group_size << "," <<
           initial_solution_runtime << "," << restart_times << "," << auc << "," <<
           num_LL_expanded << "," << num_LL_generated << "," << num_LL_reopened << "," << num_LL_runs << "," <<
           preprocessing_time << "," << getSolverName() << "," << instance.getInstanceName() << endl;
