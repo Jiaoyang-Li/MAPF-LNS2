@@ -1,6 +1,7 @@
 #pragma once
 #include <tuple>
 #include <list>
+#include <utility>
 #include <vector>
 #include <set>
 #include <ctime>
@@ -63,10 +64,10 @@ struct IterationStats
     string algorithm;
     int sum_of_costs_lowerbound;
     int num_of_colliding_pairs;
-    IterationStats(int num_of_agents, int sum_of_costs, double runtime, const string& algorithm,
+    IterationStats(int num_of_agents, int sum_of_costs, double runtime, string algorithm,
                    int sum_of_costs_lowerbound = 0, int num_of_colliding_pairs = 0) :
             num_of_agents(num_of_agents), sum_of_costs(sum_of_costs), runtime(runtime),
-            sum_of_costs_lowerbound(sum_of_costs_lowerbound), algorithm(algorithm),
+            sum_of_costs_lowerbound(sum_of_costs_lowerbound), algorithm(std::move(algorithm)),
             num_of_colliding_pairs(num_of_colliding_pairs) {}
 };
 
@@ -76,6 +77,12 @@ struct PIBTPPS_option{
     int timestepLimit ;
 };
 
+template <typename Container> // we can make this generic for any container [1]
+struct container_hash {
+    std::size_t operator()(Container const& c) const {
+        return boost::hash_range(c.begin(), c.end());
+    }
+};
 
 // Only for three-tuples of std::hash-able types for simplicity.
 // You can of course template this struct to allow other hash functions

@@ -47,6 +47,8 @@ int main(int argc, char** argv)
              "window size for winPIBT")
         ("winPibtSoftmode", po::value<bool>()->default_value(true),
              "winPIBT soft mode")
+        ("truncatePaths", po::value<bool>()->default_value(true),
+             "Truncate initial paths to maximize agents at goals")
 
          // params for initLNS
          ("initDestoryStrategy", po::value<string>()->default_value("Adaptive"),
@@ -85,6 +87,7 @@ int main(int argc, char** argv)
                 vm["initLNS"].as<bool>(),
                 vm["initDestoryStrategy"].as<string>(),
                 vm["sipp"].as<bool>(),
+                vm["truncatePaths"].as<bool>(),
                 screen, pipp_option);
         if (vm.count("inputPaths") and !lns.loadPaths(vm["inputPaths"].as<string>()))
         {

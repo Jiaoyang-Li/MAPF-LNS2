@@ -28,11 +28,11 @@ public:
     int sum_of_distances = -1;
     int restart_times = 0;
     int complete_paths = 0;
-
+    int delete_timesteps = 0;
     LNS(const Instance& instance, double time_limit,
-        const string & init_algo_name, const string & replan_algo_name, const string & destory_name,
-        int neighbor_size, int num_of_iterations, bool init_lns, const string & init_destory_name, bool use_sipp,
-        int screen, PIBTPPS_option pipp_option);
+        string  init_algo_name, string  replan_algo_name, const string & destory_name,
+        int neighbor_size, int num_of_iterations, bool init_lns, string  init_destory_name, bool use_sipp,
+        bool truncate_initial_paths, int screen, PIBTPPS_option pipp_option);
     ~LNS()
     {
         delete init_lns;
@@ -52,6 +52,7 @@ private:
     string init_algo_name;
     string replan_algo_name;
     bool use_init_lns; // use LNS to find initial solutions
+    bool truncate_initial_paths;
     destroy_heuristic destroy_strategy = RANDOMWALK;
     int num_of_iterations;
     string init_destory_name;
@@ -83,4 +84,6 @@ private:
     int findRandomAgent() const;
     void randomWalk(int agent_id, int start_location, int start_timestep,
                     set<int>& neighbor, int neighbor_size, int upperbound);
+    void truncatePaths();
+    void deleteRepeatedStates();
 };

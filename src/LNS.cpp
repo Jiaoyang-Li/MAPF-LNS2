@@ -2,13 +2,17 @@
 #include "ECBS.h"
 #include <queue>
 #include<boost/tokenizer.hpp>
+#include <utility>
 
-LNS::LNS(const Instance& instance, double time_limit, const string & init_algo_name, const string & replan_algo_name,
+LNS::LNS(const Instance& instance, double time_limit, string init_algo_name, string replan_algo_name,
          const string & destory_name, int neighbor_size, int num_of_iterations, bool use_init_lns,
-         const string & init_destory_name, bool use_sipp, int screen, PIBTPPS_option pipp_option) :
+         string init_destory_name, bool use_sipp, bool truncate_initial_paths,
+         int screen, PIBTPPS_option pipp_option) :
          BasicLNS(instance, time_limit, neighbor_size, screen),
-         init_algo_name(init_algo_name),  replan_algo_name(replan_algo_name), num_of_iterations(num_of_iterations),
-         use_init_lns(use_init_lns),init_destory_name(init_destory_name),
+         init_algo_name(std::move(init_algo_name)),  replan_algo_name(std::move(replan_algo_name)),
+         num_of_iterations(num_of_iterations),
+         use_init_lns(use_init_lns), init_destory_name(std::move(init_destory_name)),
+         truncate_initial_paths(truncate_initial_paths),
          path_table(instance.map_size), pipp_option(pipp_option)
 {
     start_time = Time::now();
@@ -191,6 +195,7 @@ bool LNS::run()
 
     cout << getSolverName() << ": "
          << "runtime = " << runtime << ", "
+         << "deleted timesteps = " << delete_timesteps << ","
          << "iterations = " << iteration_stats.size() << ", "
          << "solution cost = " << sum_of_costs << ", "
          << "initial solution cost = " << initial_sum_of_costs << ", "
@@ -198,11 +203,119 @@ bool LNS::run()
     return true;
 }
 
+void LNS::truncatePaths() // truncate paths to maximize the number of agents at goal locations
+{
+    int best_t = 0;
+    int best_finished = 0;
+    int makespan = 0;
+    for (int t = 0;; t++)
+    {
+        int finished = 0;
+        bool all_finished = true;
+        for (const auto& agent : agents)
+        {
+            if (!agent.path.empty() and
+                agent.path[min(t, (int)agent.path.size() - 1)].location == agent.path_planner->goal_location)
+                finished++;
+            if ((int)agent.path.size() > t + 1) all_finished = false;
+        }
+        if (finished > best_finished)
+        {
+            best_t = t;
+            best_finished = finished;
+        }
+        if (all_finished)
+        {
+            makespan = t;
+            if (screen == 2)
+                cout << finished << " finished agents at the LAST timestep of " << t << endl;
+            break;
+        }
+    }
+    if (screen == 2)
+        cout << best_finished << " finished agents at the BEST timestep of " << best_t << endl;
+    if (best_t < makespan)
+    {
+        delete_timesteps += makespan - best_t;
+        for (auto& agent : agents)
+        {
+            if ((int)agent.path.size() > best_t + 1) agent.path.resize(best_t + 1);
+        }
+    }
+}
+void LNS::deleteRepeatedStates() // if there are two timesteps when locations of all agents are the same, delete the subpaths in between
+{
+    unordered_map<vector<int>, int, container_hash<vector<int>>> states;
+    for (int t = 0;; t++)
+    {
+        bool all_finished = true;
+        vector<int> state(agents.size(), -1);
+        for (const auto& agent : agents)
+        {
+            if (!agent.path.empty())
+                state[agent.id] =  agent.path[min(t, (int)agent.path.size() - 1)].location;
+            if ((int)agent.path.size() > t + 1) all_finished = false;
+        }
+        if (states.find(state) != states.end())
+        {
+            auto t1 = states[state];
+            if (screen > 1)
+                cout << "Delete paths between timesteps " << t1 << " and " << t << endl;
+            delete_timesteps += t - t1;
+            for (auto& agent : agents)
+            {
+                if ((int)agent.path.size() <= t1 + 1) continue;
+                else if (agent.path.size() <= t) agent.path.resize(t1 + 1);
+                else
+                {
+                    for (int t2 = 1; t2 < agent.path.size() - t; t2++)
+                        agent.path[t1+t2] = agent.path[t+t2];
+                    agent.path.resize(agent.path.size() - t + t1);
+                }
+                for (auto i = states.begin(), last = states.end(); i != last; )
+                {
+                    if (i->second > t1) i = states.erase(i);
+                    else ++i;
+                }
+            }
+            t = t1;
+        }
+        else
+            states[state] = t;
+        if (all_finished)
+        {
+            if (screen > 1)
+            {
+                cout << "Makespan is " << t << endl;
+                for (const auto& a1_ : agents)
+                {
+                    for (int t = 1; t < (int) a1_.path.size(); t++ )
+                    {
+                        if (!instance.validMove(a1_.path[t - 1].location, a1_.path[t].location))
+                        {
+                            cerr << "The path of agent " << a1_.id << " jump from "
+                                 << a1_.path[t - 1].location << " to " << a1_.path[t].location
+                                 << " between timesteps " << t - 1 << " and " << t << endl;
+                            exit(-1);
+                        }
+                    }
+                }
+            }
+            break;
+        }
+    }
+}
 bool LNS::fixInitialSolution()
 {
     neighbor.agents.clear();
     initial_sum_of_costs = 0;
     list<int> complete_agents; // subsets of agents who have complete and collision-free paths
+    if (truncate_initial_paths)
+    {
+        truncatePaths();
+        deleteRepeatedStates();
+    }
+    int makespan = 0;
     for (auto& agent : agents)
     {
         if (agent.path.empty() or agent.path.back().location != agent.path_planner->goal_location)
@@ -228,10 +341,13 @@ bool LNS::fixInitialSolution()
                 complete_paths++;
                 initial_sum_of_costs += (int)agent.path.size() - 1;
                 complete_agents.emplace_back(agent.id);
+                makespan = max(makespan, (int)agent.path.size() - 1);
             }
 
         }
     }
+    if (screen == 2)
+        cout << complete_agents.size() << " collision-free agents at timestep " << makespan << endl;
     neighbor.old_sum_of_costs = MAX_COST;
     neighbor.sum_of_costs = 0;
     auto succ = runPP();
@@ -895,7 +1011,7 @@ void LNS::writeResultToFile(const string & file_name) const
     {
         ofstream addHeads(name);
         addHeads << "runtime,solution cost,initial solution cost,lower bound,sum of distance," <<
-                 "initial collision-free paths,iterations," <<
+                 "initial collision-free paths,delete timesteps,iterations," <<
                  "group size," <<
                  "runtime of initial solution,restart times,area under curve," <<
                  "LL expanded nodes,LL generated,LL reopened,LL runs," <<
@@ -928,7 +1044,8 @@ void LNS::writeResultToFile(const string & file_name) const
     ofstream stats(name, std::ios::app);
     stats << runtime << "," << sum_of_costs << "," << initial_sum_of_costs << "," <<
           max(sum_of_distances, sum_of_costs_lowerbound) << "," << sum_of_distances << "," <<
-          complete_paths << "," << iteration_stats.size() << "," << average_group_size << "," <<
+          complete_paths << "," << delete_timesteps << "," <<
+          iteration_stats.size() << "," << average_group_size << "," <<
           initial_solution_runtime << "," << restart_times << "," << auc << "," <<
           num_LL_expanded << "," << num_LL_generated << "," << num_LL_reopened << "," << num_LL_runs << "," <<
           preprocessing_time << "," << getSolverName() << "," << instance.getInstanceName() << endl;
@@ -961,7 +1078,17 @@ bool LNS::loadPaths(const string & file_name)
             beg++;
             agents[agent_id].path.emplace_back(instance.linearizeCoordinate(row, col));
         }
-        assert(agents[agent_id].path.front().location == agents[agent_id].path_planner->start_location);
+        if (agents[agent_id].path.front().location != agents[agent_id].path_planner->start_location)
+        {
+            cerr << "Agent " << agent_id <<"'s path starts at " << agents[agent_id].path.front().location
+            << "=(" << instance.getColCoordinate(agents[agent_id].path.front().location)
+            << "," << instance.getRowCoordinate(agents[agent_id].path.front().location)
+            << "), which is different from its start location " << agents[agent_id].path_planner->start_location << endl
+            << "=(" << instance.getColCoordinate(agents[agent_id].path_planner->start_location)
+            << "," << instance.getRowCoordinate(agents[agent_id].path_planner->start_location)
+            << ")" << endl;
+            exit(-1);
+        }
     }
     myfile.close();
     has_initial_solution = true;
