@@ -1,6 +1,6 @@
 # MAPF-LNS2
 ![test_ubuntu](https://github.com/Jiaoyang-Li/MAPF-LNS/actions/workflows/test_ubuntu.yml/badge.svg)
-<!---![test_macos](https://github.com/Jiaoyang-Li/MAPF-LNS/actions/workflows/test_macos.yml/badge.svg)--->
+![test_macos](https://github.com/Jiaoyang-Li/MAPF-LNS/actions/workflows/test_macos.yml/badge.svg)
 
 MAPF-LNS2: Fast Repairing for Multi-Agent Path Finding via Large Neighborhood Search
 
